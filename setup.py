@@ -29,7 +29,7 @@ setup(
     description = ("Analysis of de novos in the DDD 4k trios."),
     license = "MIT",
     packages=["ddd_4k"],
-    install_requires=['pandas >= 1.8.1',
+    install_requires=['pandas >= 0.13.1',
                       'matplotlib >= 1.3.1',
                       'seaborn >= 0.6.0',
     ],
