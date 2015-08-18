@@ -22,11 +22,10 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import os
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as pyplot
 import seaborn
 import pandas
 
-from ddd_4k.load_de_novos import open_de_novos, open_known_genes
+from ddd_4k.load_files import open_de_novos, open_known_genes
 
 user_dir = os.path.expanduser("~")
 
@@ -66,12 +65,11 @@ def main():
     de_novos = open_de_novos(DENOVO_PATH)
     known = open_known_genes(KNOWN_GENES)
     de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
-
+    
     person_counts = get_count_by_person(de_novos)
-
-    # seaborn.factorplot(x="variable", y="value", hue="sex", col="known", data=person_counts, size=6, kind="bar")
-    seaborn.factorplot("variable", hue="sex", col="known", data=person_counts, size=6, kind="count")
-    pyplot.savefig("results/n_people_with_functional_mutations_by_sex_by_known_gene_status.pdf", format="pdf")
+    
+    fig = seaborn.factorplot("variable", hue="sex", col="known", data=person_counts, size=6, kind="count")
+    fig.savefig("results/n_people_with_functional_mutations_by_sex_by_known_gene_status.pdf", format="pdf")
 
 if __name__ == '__main__':
     main()
