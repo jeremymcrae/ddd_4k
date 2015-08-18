@@ -90,6 +90,10 @@ def open_phenotypes(pheno_path, alt_ids_path=None):
         alt_ids = alt_ids[~alt_ids["decipher_id"].str.contains(":")]
         alt_ids["decipher_id"] = alt_ids["decipher_id"].astype(int)
         
+        # remove the duplicate rows (due to having multiple sanger IDs),
+        # otherwise we get duplicate phenotype rows
+        alt_ids = alt_ids.drop_duplicates(["decipher_id", "person_stable_id"])
+        
         pheno = pheno.merge(alt_ids, how="left", left_on="patient_id", right_on="decipher_id")
     
     return pheno
