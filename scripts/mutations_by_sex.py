@@ -56,10 +56,10 @@ def get_count_by_person(de_novos):
     
     by_category = pandas.DataFrame({"person_stable_id": sample_ids, "sex": sex, "known": known, "functional": by_category["functional"].values, "loss-of-function": by_category["loss-of-function"].values})
     
-    by_category = pandas.melt(by_category, id_vars=["person_stable_id", "sex", "known"], value_vars=["functional", "loss-of-function"])
-    by_category = by_category[by_category["value"].notnull()]
+    counts = pandas.melt(by_category, id_vars=["person_stable_id", "sex", "known"], value_vars=["functional", "loss-of-function"])
+    counts = counts[counts["value"].notnull()]
     
-    return by_category
+    return counts
 
 def main():
     de_novos = open_de_novos(DENOVO_PATH)
