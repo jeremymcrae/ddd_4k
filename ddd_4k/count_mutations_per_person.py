@@ -19,32 +19,29 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-import matplotlib
-matplotlib.use('Agg')
-import seaborn
+import pandas
 
-from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
-from ddd_4k.count_hpo import count_hpo_terms
-from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS
-from ddd_4k.count_mutations_per_person import get_count_by_person
-
-# define the plot style
-seaborn.set_context("notebook", font_scale=2)
-seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
-
-de_novos = open_de_novos(DENOVO_PATH)
-known = open_known_genes(KNOWN_GENES)
-de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
-
-counts = get_count_by_person(de_novos)
-
-pheno = open_phenotypes(PHENOTYPES, SANGER_IDS)
-pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
-
-# figure out if each proband has a loss-of-function de novo in a known
-# developmental disorder gene
-
-# plot age by functional category by known gene status
-
-# count number of HPO terms per proband. Plot number of HPO terms by functional
-# category by known gene status
+def get_count_by_person(de_novos):
+    """ count the number of functional and loss-of-function de novos per person
+    
+    Args:
+        de_novos: DataFrame of de novo mutations
+    
+    Returns:
+        DataFrame of counts per person, split by consequence type and whether
+        the mutation is in a known developmental disorder gene.
+    """
+    
+    by_category = de_novos.pivot_table(values="chrom", rows=["person_stable_id", "sex", "known"], cols=["category"], aggfunc=len)
+    
+    index = [ x[0] for x in zip(by_category.index) ]
+    sample_ids = [ x[0] for x in index ]
+    sex = [ x[1] for x in index ]
+    known = [ x[2] for x in index ]
+    
+    by_category = pandas.DataFrame({"person_stable_id": sample_ids, "sex": sex, "known": known, "functional": by_category["functional"].values, "loss-of-function": by_category["loss-of-function"].values})
+    
+    counts = pandas.melt(by_category, id_vars=["person_stable_id", "sex", "known"], value_vars=["functional", "loss-of-function"])
+    counts = counts[counts["value"].notnull()]
+    
+    return counts
