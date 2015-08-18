@@ -38,7 +38,7 @@ de_novos = open_de_novos(DENOVO_PATH)
 known = open_known_genes(KNOWN_GENES)
 de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
 
-counts = get_count_by_person(de_novos)
+de_novo_counts = get_count_by_person(de_novos)
 
 pheno = open_phenotypes(PHENOTYPES, SANGER_IDS)
 pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
@@ -53,6 +53,20 @@ pheno = pheno[pheno["person_stable_id"].isin(probands)]
 # candidates, that is the set of probands where all the members of their trio
 # have exome sequence data available.
 
+func_unknown = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == False) & (de_novo_counts["variable"] == "functional")]
+func_known = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == True) & (de_novo_counts["variable"] == "functional")]
+lof_unknown = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == False) & (de_novo_counts["variable"] == "loss-of-function")]
+lof_known = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == True) & (de_novo_counts["variable"] == "loss-of-function")]
+
+func_unknown = pandas.DataFrame({"person_stable_id": func_unknown, "variable": "functional", "known": False})
+func_known = pandas.DataFrame({"person_stable_id": func_known, "variable": "functional", "known": True})
+lof_unknown = pandas.DataFrame({"person_stable_id": lof_unknown, "variable": "loss-of-function", "known": False})
+lof_known = pandas.DataFrame({"person_stable_id": lof_known, "variable": "loss-of-function", "known": True})
+
+counts = pandas.concat([func_unknown, func_known, lof_unknown, lof_known])
+
+counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
+
 # figure out if each proband has a loss-of-function de novo in a known
 # developmental disorder gene
 
@@ -60,3 +74,5 @@ pheno = pheno[pheno["person_stable_id"].isin(probands)]
 
 # count number of HPO terms per proband. Plot number of HPO terms by functional
 # category by known gene status
+fig = seaborn.factorplot(x="variable", y="child_hpo_n", col="known", data=counts, size=6, kind="bar")
+fig.savefig("results/hpo_terms_per_proband_by_functional_consequence.pdf", format="pdf")
