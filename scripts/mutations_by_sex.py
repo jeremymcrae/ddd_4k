@@ -26,7 +26,7 @@ import matplotlib.pyplot as pyplot
 import seaborn
 import pandas
 
-from ddd_4k.load_de_novos import open_de_novos
+from ddd_4k.load_de_novos import open_de_novos, open_known_genes
 
 user_dir = os.path.expanduser("~")
 
@@ -36,21 +36,6 @@ seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 DENOVO_PATH = "{}/apps/denovoFilter/de_novos.ddd_4k.ddd_only.txt".format(user_dir)
 KNOWN_GENES = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-04-13/DDG2P/ddg2p_freeze_Jul15_corrected2_with_gencode_v19_coordinates_fixed.txt"
-
-def open_known_genes(path):
-    """ open the dataset of known developmental disorder genes
-    
-    Args:
-        path: path to known developmental disorder genes data file.
-    
-    Returns:
-        DataFrame for the known genes.
-    """
-    
-    genes = pandas.read_table(path, sep="|", na_filter=False)
-    genes = genes[genes["ddg2p_status"] != "Possible DD Gene"]
-    
-    return genes
 
 def get_count_by_person(de_novos):
     """ count the number of functional and loss-of-function de novos per person
