@@ -26,15 +26,11 @@ import seaborn
 import pandas
 
 from ddd_4k.load_files import open_de_novos, open_known_genes
-
-user_dir = os.path.expanduser("~")
+from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES
 
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
-
-DENOVO_PATH = "{}/apps/denovoFilter/de_novos.ddd_4k.ddd_only.txt".format(user_dir)
-KNOWN_GENES = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-04-13/DDG2P/ddg2p_freeze_Jul15_corrected2_with_gencode_v19_coordinates_fixed.txt"
 
 def get_count_by_person(de_novos):
     """ count the number of functional and loss-of-function de novos per person

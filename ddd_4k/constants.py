@@ -19,31 +19,11 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as pyplot
-import seaborn
-import pandas
+import os
 
-from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
-from ddd_4k.count_hpo import count_hpo_terms
-from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS
+user_dir = os.path.expanduser("~")
 
-# define the plot style
-seaborn.set_context("notebook", font_scale=2)
-seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
-
-de_novos = open_de_novos(DENOVO_PATH)
-known = open_known_genes(KNOWN_GENES)
-de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
-
-pheno = open_phenotypes(PHENOTYPES, SANGER_IDS)
-pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
-
-# figure out if each proband has a loss-of-function de novo in a known
-# developmental disorder gene
-
-# plot age by functional category by known gene status
-
-# count number of HPO terms per proband. Plot number of HPO terms by functional
-# category by known gene status
+DENOVO_PATH = "{}/apps/denovoFilter/de_novos.ddd_4k.ddd_only.txt".format(user_dir)
+KNOWN_GENES = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-04-13/DDG2P/ddg2p_freeze_Jul15_corrected2_with_gencode_v19_coordinates_fixed.txt"
+PHENOTYPES = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/phenotypes_and_patient_info.txt"
+SANGER_IDS = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/person_sanger_decipher.txt"
