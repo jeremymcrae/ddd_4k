@@ -97,3 +97,23 @@ def open_phenotypes(pheno_path, alt_ids_path=None):
         pheno = pheno.merge(alt_ids, how="left", left_on="patient_id", right_on="decipher_id")
     
     return pheno
+
+def open_families(families_path, datatypes_path):
+    """ load the families dataset, so we know the relationships between people
+    
+    Args:
+        families_path: path to family relationships data file.
+        datatypes_path: path to person datatypes data file.
+    
+    Returns:
+        DataFrame for the families.
+    """
+    
+    datatypes = pandas.read_table(datatypes_path, na_filter=None)
+    families = pandas.read_table(families_path, na_filter=None)
+    
+    families = families.merge(datatypes, "left", left_on="individual_id", right_on="person_stable_id")
+    
+    return families
+    
+    

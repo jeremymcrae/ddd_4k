@@ -23,9 +23,11 @@ import matplotlib
 matplotlib.use('Agg')
 import seaborn
 
-from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
+from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes, \
+    open_families
 from ddd_4k.count_hpo import count_hpo_terms
-from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS
+from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS, \
+    FAMILIES, DATATYPES
 from ddd_4k.count_mutations_per_person import get_count_by_person
 
 # define the plot style
@@ -40,6 +42,16 @@ counts = get_count_by_person(de_novos)
 
 pheno = open_phenotypes(PHENOTYPES, SANGER_IDS)
 pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
+
+# find the probands who could have de novo candidates
+families = open_families(FAMILIES, DATATYPES)
+probands = families["individual_id"][(families["dng"] == 1)]
+
+pheno = pheno[pheno["person_stable_id"].isin(probands)]
+
+# restrict the phenotype dataset to the probands for whom we could have de novo
+# candidates, that is the set of probands where all the members of their trio
+# have exome sequence data available.
 
 # figure out if each proband has a loss-of-function de novo in a known
 # developmental disorder gene

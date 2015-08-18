@@ -22,8 +22,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import os
 
 user_dir = os.path.expanduser("~")
+datafreeze = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/"
 
 DENOVO_PATH = "{}/apps/denovoFilter/de_novos.ddd_4k.ddd_only.txt".format(user_dir)
 KNOWN_GENES = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-04-13/DDG2P/ddg2p_freeze_Jul15_corrected2_with_gencode_v19_coordinates_fixed.txt"
-PHENOTYPES = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/phenotypes_and_patient_info.txt"
-SANGER_IDS = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/person_sanger_decipher.txt"
+PHENOTYPES = "{}/phenotypes_and_patient_info.txt".format(datafreeze)
+SANGER_IDS = "{}/person_sanger_decipher.txt".format(datafreeze)
+FAMILIES = "{}/family_relationships.txt".format(datafreeze)
+DATATYPES = "{}/person_datatypes.txt".format(datafreeze)
