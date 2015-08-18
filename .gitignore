@@ -1,5 +1,7 @@
 __pycache__/
 build/
+*.egg-info/
+dist/
 results/
 *.pdf
 *.pyc
