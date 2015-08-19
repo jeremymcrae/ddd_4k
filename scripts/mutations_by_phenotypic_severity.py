@@ -22,7 +22,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import matplotlib
 matplotlib.use('Agg')
 import seaborn
-import pandas
 
 from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes, \
     open_families
