@@ -19,6 +19,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+import numpy
+
 import matplotlib
 matplotlib.use('Agg')
 import seaborn
@@ -29,6 +31,7 @@ from ddd_4k.count_hpo import count_hpo_terms
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS, \
     FAMILIES, DATATYPES
 from ddd_4k.count_mutations_per_person import get_count_by_person
+from ddd_4k.convert_durations import get_duration
 
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
@@ -38,7 +41,7 @@ def plot_sex_by_consequence(counts):
     """ plot probands per sex by consequence by known gene status
     """
     
-    fig = seaborn.factorplot(x="variable", hue="sex", col="known", data=counts, size=6, kind="count")
+    fig = seaborn.factorplot(x="consequence", hue="sex", col="known", data=counts, size=6, kind="count")
     fig.savefig("results/sex_by_consequence.pdf", format="pdf")
 
 def plot_age_by_consequence(counts, pheno):
@@ -47,7 +50,7 @@ def plot_age_by_consequence(counts, pheno):
     
     age_counts = counts.merge(pheno[["person_stable_id", "decimal_age_at_assessment"]], on="person_stable_id")
     
-    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="variable", size=6, data=age_counts, kind="violin")
+    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="consequence", size=6, data=age_counts, kind="violin")
     fig.savefig("results/age_by_consequence.pdf", format="pdf")
 
 def plot_hpo_by_consequence(counts, pheno):
@@ -57,8 +60,21 @@ def plot_hpo_by_consequence(counts, pheno):
     pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
     hpo_counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
     
-    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="variable", size=6, data=hpo_counts, kind="violin")
+    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="consequence", size=6, data=hpo_counts, kind="violin")
     fig.savefig("results/hpo_by_consequence.pdf", format="pdf")
+
+def plot_achievement_age_by_consequence(counts, pheno, achievement):
+    """ plot developmental milestone achievement ages by consequence by known gene status
+    
+    Args:
+        counts:
+    """
+    
+    pheno[achievement] = numpy.log10(pheno[achievement].apply(get_duration))
+    counts = counts.merge(pheno[["person_stable_id", achievement]], on="person_stable_id")
+    
+    fig = seaborn.factorplot(x="known", y=achievement, hue="consequence", size=6, data=counts, kind="violin")
+    fig.savefig("results/{}_by_consequence.pdf".format(achievement), format="pdf")
 
 def main():
     de_novos = open_de_novos(DENOVO_PATH)
@@ -82,6 +98,19 @@ def main():
     plot_sex_by_consequence(counts)
     plot_age_by_consequence(counts, pheno)
     plot_hpo_by_consequence(counts, pheno)
+    
+    # birthweight (or birthweight corrected for duration of gestation, or birthweight_percentile (if that corrects for duration of gestation))
+    
+    # gestation
+    
+    # height_percentile
+    # weight_percentile
+    # ofc_percentile
+    plot_achievement_age_by_consequence(counts, pheno, "social_smile")
+    plot_achievement_age_by_consequence(counts, pheno, "sat_independently")
+    plot_achievement_age_by_consequence(counts, pheno, "walked_independently")
+    plot_achievement_age_by_consequence(counts, pheno, "first_words")
+    
 
 if __name__ == '__main__':
     main()
