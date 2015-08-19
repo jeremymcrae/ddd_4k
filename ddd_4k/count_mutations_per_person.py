@@ -43,5 +43,6 @@ def get_count_by_person(de_novos):
     
     counts = pandas.melt(by_category, id_vars=["person_stable_id", "sex", "known"], value_vars=["functional", "loss-of-function"])
     counts = counts[counts["value"].notnull()]
+    counts = counts.rename(columns={"variable": "consequence"})
     
     return counts
