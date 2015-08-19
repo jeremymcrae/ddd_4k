@@ -34,6 +34,32 @@ from ddd_4k.count_mutations_per_person import get_count_by_person
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
+def plot_sex_by_consequence(counts):
+    """ plot probands per sex by consequence by known gene status
+    """
+    
+    fig = seaborn.factorplot(x="variable", hue="sex", col="known", data=person_counts, size=6, kind="count")
+    fig.savefig("results/sex_by_consequence.pdf", format="pdf")
+
+def plot_age_by_consequence(counts, pheno):
+    """ plot age by functional category by known gene status
+    """
+    
+    age_counts = counts.merge(pheno[["person_stable_id", "decimal_age_at_assessment"]], on="person_stable_id")
+    
+    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="variable", size=6, data=age_counts, kind="box")
+    fig.savefig("results/age_by_consequence.pdf", format="pdf")
+
+def plot_hpo_by_consequence(counts, pheno):
+    """ Plot number of HPO terms by functional category by known gene status
+    """
+    
+    pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
+    hpo_counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
+    
+    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="variable", size=6, data=hpo_counts, kind="box")
+    fig.savefig("results/hpo_by_consequence.pdf", format="pdf")
+
 def main():
     de_novos = open_de_novos(DENOVO_PATH)
     known = open_known_genes(KNOWN_GENES)
@@ -53,16 +79,9 @@ def main():
     probands = families["individual_id"][(families["dng"] == 1)]
     pheno = pheno[pheno["person_stable_id"].isin(probands)]
     
-    # plot age by functional category by known gene status
-    age_counts = counts.merge(pheno[["person_stable_id", "decimal_age_at_assessment"]], on="person_stable_id")
-    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="variable", size=6, data=age_counts, kind="box")
-    fig.savefig("results/age_by_consequence.pdf", format="pdf")
-    
-    # Plot number of HPO terms by functional category by known gene status
-    pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
-    hpo_counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
-    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="variable", size=6, data=hpo_counts, kind="box")
-    fig.savefig("results/hpo_by_consequence.pdf", format="pdf")
+    plot_sex_by_consequence(counts)
+    plot_age_by_consequence(counts, pheno)
+    plot_hpo_by_consequence(counts, pheno)
 
 if __name__ == '__main__':
     main()
