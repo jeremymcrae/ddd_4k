@@ -19,6 +19,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+import pandas
+
 def count_hpo_terms(pheno, person):
     """ count the number of HPO terms per person
     
@@ -31,7 +33,7 @@ def count_hpo_terms(pheno, person):
     """
     
     def f(x):
-        if x == "NA":
+        if pandas.isnull(x):
             return 0
         else:
             return len(x.split("|"))
