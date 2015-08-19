@@ -31,7 +31,7 @@ def open_de_novos(path):
         DataFrame for the de novo candidates.
     """
     
-    de_novos = pandas.read_table(path, na_filter=False)
+    de_novos = pandas.read_table(path)
     
     # define the loss-of-function and "missense" consequences
     lof_cq = ["transcript_ablation", "splice_donor_variant",
@@ -63,7 +63,7 @@ def open_known_genes(path):
         DataFrame for the known genes.
     """
     
-    genes = pandas.read_table(path, sep="|", na_filter=False)
+    genes = pandas.read_table(path, sep="|")
     genes = genes[genes["ddg2p_status"] != "Possible DD Gene"]
     
     return genes
@@ -79,14 +79,14 @@ def open_phenotypes(pheno_path, alt_ids_path=None):
         DataFrame for the phenotypes.
     """
     
-    pheno = pandas.read_table(pheno_path, na_filter=False)
+    pheno = pandas.read_table(pheno_path, na_values="NA")
     
     if alt_ids_path is not None:
         # load the alternate IDs for the individuals. Remove the parental IDs, so we
         # can convert the decipher ID to an integer, so we can merge the dataframe
         # with the phenotypes dataframe, which stores the decipher ID column as an
         # integer
-        alt_ids = pandas.read_table(alt_ids_path, na_filter=False)
+        alt_ids = pandas.read_table(alt_ids_path)
         alt_ids = alt_ids[~alt_ids["decipher_id"].str.contains(":")]
         alt_ids["decipher_id"] = alt_ids["decipher_id"].astype(int)
         
@@ -109,8 +109,8 @@ def open_families(families_path, datatypes_path):
         DataFrame for the families.
     """
     
-    datatypes = pandas.read_table(datatypes_path, na_filter=None)
-    families = pandas.read_table(families_path, na_filter=None)
+    datatypes = pandas.read_table(datatypes_path)
+    families = pandas.read_table(families_path)
     
     families = families.merge(datatypes, "left", left_on="individual_id", right_on="person_stable_id")
     
