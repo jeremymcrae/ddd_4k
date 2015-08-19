@@ -22,6 +22,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import matplotlib
 matplotlib.use('Agg')
 import seaborn
+import pandas
 
 from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes, \
     open_families
@@ -34,45 +35,35 @@ from ddd_4k.count_mutations_per_person import get_count_by_person
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-de_novos = open_de_novos(DENOVO_PATH)
-known = open_known_genes(KNOWN_GENES)
-de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
+def main():
+    de_novos = open_de_novos(DENOVO_PATH)
+    known = open_known_genes(KNOWN_GENES)
+    de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
+    
+    # For each proband, count the number of functional de novos (split by lof
+    # and missense), in known developmental disorder genes (and other genes).
+    counts = get_count_by_person(de_novos)
+    
+    # load the phenotype data
+    pheno = open_phenotypes(PHENOTYPES, SANGER_IDS)
+    
+    # restrict the phenotype dataset to the probands for whom we could have de novo
+    # candidates, that is the set of probands where all the members of their trio
+    # have exome sequence data available.
+    families = open_families(FAMILIES, DATATYPES)
+    probands = families["individual_id"][(families["dng"] == 1)]
+    pheno = pheno[pheno["person_stable_id"].isin(probands)]
+    
+    # plot age by functional category by known gene status
+    age_counts = counts.merge(pheno[["person_stable_id", "decimal_age_at_assessment"]], on="person_stable_id")
+    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="variable", size=6, data=age_counts, kind="box")
+    fig.savefig("results/age_by_consequence.pdf", format="pdf")
+    
+    # Plot number of HPO terms by functional category by known gene status
+    pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
+    hpo_counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
+    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="variable", size=6, data=hpo_counts, kind="box")
+    fig.savefig("results/hpo_by_consequence.pdf", format="pdf")
 
-de_novo_counts = get_count_by_person(de_novos)
-
-pheno = open_phenotypes(PHENOTYPES, SANGER_IDS)
-pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
-
-# find the probands who could have de novo candidates
-families = open_families(FAMILIES, DATATYPES)
-probands = families["individual_id"][(families["dng"] == 1)]
-
-pheno = pheno[pheno["person_stable_id"].isin(probands)]
-
-# restrict the phenotype dataset to the probands for whom we could have de novo
-# candidates, that is the set of probands where all the members of their trio
-# have exome sequence data available.
-
-func_unknown = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == False) & (de_novo_counts["variable"] == "functional")]
-func_known = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == True) & (de_novo_counts["variable"] == "functional")]
-lof_unknown = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == False) & (de_novo_counts["variable"] == "loss-of-function")]
-lof_known = de_novo_counts["person_stable_id"][(de_novo_counts["known"] == True) & (de_novo_counts["variable"] == "loss-of-function")]
-
-func_unknown = pandas.DataFrame({"person_stable_id": func_unknown, "variable": "functional", "known": False})
-func_known = pandas.DataFrame({"person_stable_id": func_known, "variable": "functional", "known": True})
-lof_unknown = pandas.DataFrame({"person_stable_id": lof_unknown, "variable": "loss-of-function", "known": False})
-lof_known = pandas.DataFrame({"person_stable_id": lof_known, "variable": "loss-of-function", "known": True})
-
-counts = pandas.concat([func_unknown, func_known, lof_unknown, lof_known])
-
-counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
-
-# figure out if each proband has a loss-of-function de novo in a known
-# developmental disorder gene
-
-# plot age by functional category by known gene status
-
-# count number of HPO terms per proband. Plot number of HPO terms by functional
-# category by known gene status
-fig = seaborn.factorplot(x="variable", y="child_hpo_n", col="known", data=counts, size=6, kind="bar")
-fig.savefig("results/hpo_terms_per_proband_by_functional_consequence.pdf", format="pdf")
+if __name__ == '__main__':
+    main()
