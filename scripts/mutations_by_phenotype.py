@@ -38,7 +38,7 @@ def plot_sex_by_consequence(counts):
     """ plot probands per sex by consequence by known gene status
     """
     
-    fig = seaborn.factorplot(x="variable", hue="sex", col="known", data=person_counts, size=6, kind="count")
+    fig = seaborn.factorplot(x="variable", hue="sex", col="known", data=counts, size=6, kind="count")
     fig.savefig("results/sex_by_consequence.pdf", format="pdf")
 
 def plot_age_by_consequence(counts, pheno):
