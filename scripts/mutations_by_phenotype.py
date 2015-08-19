@@ -42,6 +42,7 @@ def plot_sex_by_consequence(counts):
     """
     
     fig = seaborn.factorplot(x="consequence", hue="sex", col="known", data=counts, size=6, kind="count")
+    fig.set_ylabels("Frequency")
     fig.savefig("results/sex_by_consequence.pdf", format="pdf")
 
 def plot_age_by_consequence(counts, pheno):
@@ -51,6 +52,7 @@ def plot_age_by_consequence(counts, pheno):
     age_counts = counts.merge(pheno[["person_stable_id", "decimal_age_at_assessment"]], on="person_stable_id")
     
     fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="consequence", size=6, data=age_counts, kind="violin")
+    fig.set_ylabels("Age at assessment (years)")
     fig.savefig("results/age_by_consequence.pdf", format="pdf")
 
 def plot_hpo_by_consequence(counts, pheno):
@@ -61,19 +63,28 @@ def plot_hpo_by_consequence(counts, pheno):
     hpo_counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
     
     fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="consequence", size=6, data=hpo_counts, kind="violin")
+    fig.set_ylabels("HPO terms per proband (n)")
     fig.savefig("results/hpo_by_consequence.pdf", format="pdf")
 
 def plot_achievement_age_by_consequence(counts, pheno, achievement):
     """ plot developmental milestone achievement ages by consequence by known gene status
     
     Args:
-        counts:
+        counts: dataframe of number of de novos per proband per consequence type
+            (loss-of-function/functional) by known developmental gene status.
+        pheno: dataframe of phenotypic values for probands
+        achievement: column name for the developmental milestone e.g.
+            "social_smile", "first_words".
     """
     
+    # Convert the achievement age to number of seconds since birth (rather than
+    # having values like 5 weeks, 6 months etc), then log10 transform the
+    # duration, so that the values are more normally distributed.
     pheno[achievement] = numpy.log10(pheno[achievement].apply(get_duration))
     counts = counts.merge(pheno[["person_stable_id", achievement]], on="person_stable_id")
     
     fig = seaborn.factorplot(x="known", y=achievement, hue="consequence", size=6, data=counts, kind="violin")
+    fig.set_ylabels("{} log10(s)".format(achievement))
     fig.savefig("results/{}_by_consequence.pdf".format(achievement), format="pdf")
 
 def main():
