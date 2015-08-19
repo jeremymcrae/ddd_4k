@@ -38,8 +38,8 @@ def main():
     
     person_counts = get_count_by_person(de_novos)
     
-    fig = seaborn.factorplot("variable", hue="sex", col="known", data=person_counts, size=6, kind="count")
-    fig.savefig("results/n_people_with_functional_mutations_by_sex_by_known_gene_status.pdf", format="pdf")
+    fig = seaborn.factorplot(x="variable", hue="sex", col="known", data=person_counts, size=6, kind="count")
+    fig.savefig("results/sex_by_consequence.pdf", format="pdf")
 
 if __name__ == '__main__':
     main()
