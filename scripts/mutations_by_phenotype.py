@@ -47,7 +47,7 @@ def plot_age_by_consequence(counts, pheno):
     
     age_counts = counts.merge(pheno[["person_stable_id", "decimal_age_at_assessment"]], on="person_stable_id")
     
-    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="variable", size=6, data=age_counts, kind="box")
+    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="variable", size=6, data=age_counts, kind="violin")
     fig.savefig("results/age_by_consequence.pdf", format="pdf")
 
 def plot_hpo_by_consequence(counts, pheno):
@@ -57,7 +57,7 @@ def plot_hpo_by_consequence(counts, pheno):
     pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
     hpo_counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
     
-    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="variable", size=6, data=hpo_counts, kind="box")
+    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="variable", size=6, data=hpo_counts, kind="violin")
     fig.savefig("results/hpo_by_consequence.pdf", format="pdf")
 
 def main():

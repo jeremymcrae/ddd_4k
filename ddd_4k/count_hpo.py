@@ -34,8 +34,8 @@ def count_hpo_terms(pheno, person):
     
     def f(x):
         if pandas.isnull(x):
-            return 0
+            return 0.0
         else:
-            return len(x.split("|"))
+            return float(len(x.split("|")))
     
     return pheno["{}_hpo".format(person)].apply(f)
