@@ -32,6 +32,7 @@ from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS, \
     FAMILIES, DATATYPES
 from ddd_4k.count_mutations_per_person import get_count_by_person
 from ddd_4k.convert_durations import get_duration
+from ddd_4k.scale_durations import autoscale_durations
 
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
@@ -54,6 +55,26 @@ def plot_age_by_consequence(counts, pheno):
     fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="consequence", size=6, data=age_counts, kind="violin")
     fig.set_ylabels("Age at assessment (years)")
     fig.savefig("results/age_by_consequence.pdf", format="pdf")
+
+def plot_gestation_by_consequence(counts, pheno):
+    """ plot gestation by functional category by known gene status
+    """
+    
+    age_counts = counts.merge(pheno[["person_stable_id", "gestation"]], on="person_stable_id")
+    
+    fig = seaborn.factorplot(x="known", y="gestation", hue="consequence", size=6, data=age_counts, kind="violin")
+    fig.set_ylabels("Gestation duration (weeks)")
+    fig.savefig("results/gestation_by_consequence.pdf", format="pdf")
+
+def plot_birthweight_by_consequence(counts, pheno):
+    """ plot gestation by functional category by known gene status
+    """
+    
+    age_counts = counts.merge(pheno[["person_stable_id", "birthweight"]], on="person_stable_id")
+    
+    fig = seaborn.factorplot(x="known", y="birthweight", hue="consequence", size=6, data=age_counts, kind="violin")
+    fig.set_ylabels("Birthweight (grams)")
+    fig.savefig("results/birthweight_by_consequence.pdf", format="pdf")
 
 def plot_hpo_by_consequence(counts, pheno):
     """ Plot number of HPO terms by functional category by known gene status
@@ -80,11 +101,12 @@ def plot_achievement_age_by_consequence(counts, pheno, achievement):
     # Convert the achievement age to number of seconds since birth (rather than
     # having values like 5 weeks, 6 months etc), then log10 transform the
     # duration, so that the values are more normally distributed.
-    pheno[achievement] = numpy.log10(pheno[achievement].apply(get_duration))
+    durations, unit = autoscale_durations(pheno[achievement].apply(get_duration))
+    pheno[achievement] = numpy.log10(durations)
     counts = counts.merge(pheno[["person_stable_id", achievement]], on="person_stable_id")
     
     fig = seaborn.factorplot(x="known", y=achievement, hue="consequence", size=6, data=counts, kind="violin")
-    fig.set_ylabels("{} log10(s)".format(achievement))
+    fig.set_ylabels("{} log10({}s)".format(achievement, unit))
     fig.savefig("results/{}_by_consequence.pdf".format(achievement), format="pdf")
 
 def main():
@@ -110,9 +132,12 @@ def main():
     plot_age_by_consequence(counts, pheno)
     plot_hpo_by_consequence(counts, pheno)
     
-    # birthweight (or birthweight corrected for duration of gestation, or birthweight_percentile (if that corrects for duration of gestation))
+    # birthweight (or birthweight corrected for duration of gestation, or
+    # birthweight_percentile (if that corrects for duration of gestation))
+    plot_birthweight_by_consequence(counts, pheno)
     
     # gestation
+    plot_gestation_by_consequence(counts, pheno)
     
     # height_percentile
     # weight_percentile
