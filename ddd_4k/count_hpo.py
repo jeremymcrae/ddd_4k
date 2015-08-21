@@ -20,6 +20,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import pandas
+import numpy
 
 def count_hpo_terms(pheno, person):
     """ count the number of HPO terms per person
@@ -34,7 +35,7 @@ def count_hpo_terms(pheno, person):
     
     def f(x):
         if pandas.isnull(x):
-            return 0.0
+            return numpy.nan
         else:
             return float(len(x.split("|")))
     
