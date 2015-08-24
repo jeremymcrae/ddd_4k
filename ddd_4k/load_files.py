@@ -41,15 +41,15 @@ def open_de_novos(path):
         "missense_variant", "transcript_amplification", "protein_altering_variant"]
     
     # figure out whether the sites have loss-of-function consequences
-    de_novos["category"] = None
-    de_novos["category"][de_novos["consequence"].isin(lof_cq)] = "loss-of-function"
-    de_novos["category"][de_novos["consequence"].isin(missense_cq)] = "functional"
+    recode = dict(zip(lof_cq + missense_cq, \
+        ["loss-of-function"] * len(lof_cq) + ["functional"] * len(missense_cq)))
+    de_novos["category"] = de_novos["consequence"].map(recode)
     
     de_novos = de_novos[de_novos["consequence"].isin(lof_cq + missense_cq)]
     
     # recode the sex codes to full names
-    de_novos.sex[de_novos.sex == "M"] = "male"
-    de_novos.sex[de_novos.sex == "F"] = "female"
+    recode = {"M": "male", "F": "female"}
+    de_novos["sex"] = de_novos["sex"].map(recode)
     
     return de_novos
 
