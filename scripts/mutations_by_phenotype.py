@@ -38,43 +38,27 @@ from ddd_4k.scale_durations import autoscale_durations
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def plot_sex_by_consequence(counts):
-    """ plot probands per sex by consequence by known gene status
+def plot_categorical(counts, pheno, value):
+    """ plot probands per category by consequence by known gene status
     """
     
-    fig = seaborn.factorplot(x="consequence", hue="sex", col="known", data=counts, size=6, kind="count")
+    merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
+    
+    fig = seaborn.factorplot(x="consequence", hue=value, col="known", data=merged, size=6, kind="count")
     fig.set_ylabels("Frequency")
-    fig.savefig("results/sex_by_consequence.pdf", format="pdf")
+    fig.savefig("results/{}_by_consequence.pdf".format(value), format="pdf")
+    matplotlib.pyplot.close()
 
-def plot_age_by_consequence(counts, pheno):
-    """ plot age by functional category by known gene status
+def plot_quantitative(counts, pheno, value, y_label):
+    """ plot quantitative metric by functional category by known gene status
     """
     
-    age_counts = counts.merge(pheno[["person_stable_id", "decimal_age_at_assessment"]], on="person_stable_id")
+    merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
     
-    fig = seaborn.factorplot(x="known", y="decimal_age_at_assessment", hue="consequence", size=6, data=age_counts, kind="violin")
-    fig.set_ylabels("Age at assessment (years)")
-    fig.savefig("results/age_by_consequence.pdf", format="pdf")
-
-def plot_gestation_by_consequence(counts, pheno):
-    """ plot gestation by functional category by known gene status
-    """
-    
-    age_counts = counts.merge(pheno[["person_stable_id", "gestation"]], on="person_stable_id")
-    
-    fig = seaborn.factorplot(x="known", y="gestation", hue="consequence", size=6, data=age_counts, kind="violin")
-    fig.set_ylabels("Gestation duration (weeks)")
-    fig.savefig("results/gestation_by_consequence.pdf", format="pdf")
-
-def plot_birthweight_by_consequence(counts, pheno):
-    """ plot gestation by functional category by known gene status
-    """
-    
-    age_counts = counts.merge(pheno[["person_stable_id", "birthweight"]], on="person_stable_id")
-    
-    fig = seaborn.factorplot(x="known", y="birthweight", hue="consequence", size=6, data=age_counts, kind="violin")
-    fig.set_ylabels("Birthweight (grams)")
-    fig.savefig("results/birthweight_by_consequence.pdf", format="pdf")
+    fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
+    fig.set_ylabels(y_label)
+    fig.savefig("results/{}_by_consequence.pdf".format(value), format="pdf")
+    matplotlib.pyplot.close()
 
 def plot_hpo_by_consequence(counts, pheno):
     """ Plot number of HPO terms by functional category by known gene status
@@ -86,8 +70,9 @@ def plot_hpo_by_consequence(counts, pheno):
     fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="consequence", size=6, data=hpo_counts, kind="violin")
     fig.set_ylabels("HPO terms per proband (n)")
     fig.savefig("results/hpo_by_consequence.pdf", format="pdf")
+    matplotlib.pyplot.close()
 
-def plot_achievement_age_by_consequence(counts, pheno, achievement):
+def plot_achievement(counts, pheno, achievement):
     """ plot developmental milestone achievement ages by consequence by known gene status
     
     Args:
@@ -103,11 +88,7 @@ def plot_achievement_age_by_consequence(counts, pheno, achievement):
     # duration, so that the values are more normally distributed.
     durations, unit = autoscale_durations(pheno[achievement].apply(get_duration))
     pheno[achievement] = numpy.log10(durations)
-    counts = counts.merge(pheno[["person_stable_id", achievement]], on="person_stable_id")
-    
-    fig = seaborn.factorplot(x="known", y=achievement, hue="consequence", size=6, data=counts, kind="violin")
-    fig.set_ylabels("{} log10({}s)".format(achievement, unit))
-    fig.savefig("results/{}_by_consequence.pdf".format(achievement), format="pdf")
+    plot_quantitative(counts, pheno, achievement, "{} log10({}s)".format(achievement, unit))
 
 def main():
     de_novos = open_de_novos(DENOVO_PATH)
@@ -128,24 +109,27 @@ def main():
     probands = families["individual_id"][(families["dng"] == 1)]
     pheno = pheno[pheno["person_stable_id"].isin(probands)]
     
-    plot_sex_by_consequence(counts)
-    plot_age_by_consequence(counts, pheno)
     plot_hpo_by_consequence(counts, pheno)
+    plot_categorical(counts, pheno, "gender")
+    plot_categorical(counts, pheno, "scbu_nicu")
+    plot_categorical(counts, pheno, "feeding_problems")
+    plot_categorical(counts, pheno, "maternal_illness")
     
     # birthweight (or birthweight corrected for duration of gestation, or
     # birthweight_percentile (if that corrects for duration of gestation))
-    plot_birthweight_by_consequence(counts, pheno)
+    plot_quantitative(counts, pheno, "decimal_age_at_assessment", "Age at assessment (years)")
+    plot_quantitative(counts, pheno, "birthweight", "Birthweight (grams)")
+    plot_quantitative(counts, pheno, "gestation", "Gestation duration (weeks)")
+    plot_quantitative(counts, pheno, "height_percentile", "Height (percentile)")
+    plot_quantitative(counts, pheno, "weight_percentile", "weight (percentile)")
+    plot_quantitative(counts, pheno, "ofc_percentile", "OFC (percentile)")
     
-    # gestation
-    plot_gestation_by_consequence(counts, pheno)
-    
-    # height_percentile
-    # weight_percentile
-    # ofc_percentile
-    plot_achievement_age_by_consequence(counts, pheno, "social_smile")
-    plot_achievement_age_by_consequence(counts, pheno, "sat_independently")
-    plot_achievement_age_by_consequence(counts, pheno, "walked_independently")
-    plot_achievement_age_by_consequence(counts, pheno, "first_words")
+    # plot distributions of time to achieve developmental milestones by
+    # the functional categories
+    plot_achievement(counts, pheno, "social_smile")
+    plot_achievement(counts, pheno, "sat_independently")
+    plot_achievement(counts, pheno, "walked_independently")
+    plot_achievement(counts, pheno, "first_words")
     
 
 if __name__ == '__main__':
