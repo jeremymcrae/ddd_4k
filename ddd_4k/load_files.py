@@ -79,7 +79,7 @@ def open_phenotypes(pheno_path, alt_ids_path=None):
         DataFrame for the phenotypes.
     """
     
-    pheno = pandas.read_table(pheno_path, na_values="NA")
+    pheno = pandas.read_table(pheno_path, na_values=["NA", "Unknown"])
     
     if alt_ids_path is not None:
         # load the alternate IDs for the individuals. Remove the parental IDs, so we
