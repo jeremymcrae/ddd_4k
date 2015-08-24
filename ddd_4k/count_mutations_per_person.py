@@ -34,21 +34,20 @@ def get_count_by_person(de_novos):
     
     try:
         by_category = de_novos.pivot_table(values="chrom",
-            rows=["person_stable_id", "sex", "known"],
+            rows=["person_stable_id", "known"],
             cols=["category"], aggfunc=len)
     except TypeError:
         by_category = de_novos.pivot_table(values="chrom",
-            index=["person_stable_id", "sex", "known"],
+            index=["person_stable_id", "known"],
             columns=["category"], aggfunc=len)
     
     index = [ x[0] for x in zip(by_category.index) ]
     sample_ids = [ x[0] for x in index ]
-    sex = [ x[1] for x in index ]
     known = [ x[2] for x in index ]
     
-    by_category = pandas.DataFrame({"person_stable_id": sample_ids, "sex": sex, "known": known, "functional": by_category["functional"].values, "loss-of-function": by_category["loss-of-function"].values})
+    by_category = pandas.DataFrame({"person_stable_id": sample_ids, "known": known, "functional": by_category["functional"].values, "loss-of-function": by_category["loss-of-function"].values})
     
-    counts = pandas.melt(by_category, id_vars=["person_stable_id", "sex", "known"], value_vars=["functional", "loss-of-function"])
+    counts = pandas.melt(by_category, id_vars=["person_stable_id", "known"], value_vars=["functional", "loss-of-function"])
     counts = counts[counts["value"].notnull()]
     counts = counts.rename(columns={"variable": "consequence"})
     

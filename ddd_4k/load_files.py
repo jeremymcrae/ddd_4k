@@ -47,10 +47,6 @@ def open_de_novos(path):
     
     de_novos = de_novos[de_novos["consequence"].isin(lof_cq + missense_cq)]
     
-    # recode the sex codes to full names
-    recode = {"M": "male", "F": "female"}
-    de_novos["sex"] = de_novos["sex"].map(recode)
-    
     return de_novos
 
 def open_known_genes(path):
