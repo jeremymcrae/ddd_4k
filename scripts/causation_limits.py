@@ -36,8 +36,17 @@ from ddd_4k.count_mutations_per_person import get_count_by_person
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def open_constraints():
+CONSTRAINTS_PATH = "data/cleaned_exac_with_pLI_march16.txt"
+HAPLOINSUFFICIENCY_URL = "http://files.figshare.com/410746/Dataset_S1.txt"
+
+def open_constraints(path):
     """ open the constraints dataset
+    
+    Args:
+        path: path to constraints dataset.
+    
+    Returns:
+        pandas DataFrame of constraint scores by gene symbol.
     """
     
     # We have received a constraints dataset from Kaitlin Samocha and Mark Daly.
@@ -46,22 +55,25 @@ def open_constraints():
     # but with one additional column, pLI, which is their metric to predict
     # loss-of-function intolerance.
     
-    constraints_path = "data/cleaned_exac_with_pLI_march16.txt"
-    constraints = pandas.read_table(constraints_path)
+    constraints = pandas.read_table(path)
     
     return constraints
 
-def open_haploinsufficiency():
+def open_haploinsufficiency(url):
     """ load the haploinsufficiency dataset
+    
+    Args:
+        url: URL for haploinsufficiency dataset.
+    
+    Returns:
+        pandas DataFrame of haploinsufficiency scores by gene symbol.
     """
     
-    # check haploinsufficiency enrichment by constraint, to determine constraint
-    # priors
-    # get haploinsufficiency predictions genomewide
+    # get haploinsufficiency predictions genomewide. The data is from a report
+    # in PLOS Genetics, formatted as a bed file:
     # PLOS Genet 6:e1001154 - doi:10.1371/journal.pgen.1001154
     # TODO: look for updated list of haploinsufficiency, with newer gene symbols
     # and get better threshold to classify haploinsufficiency.
-    url = "http://files.figshare.com/410746/Dataset_S1.txt"
     hi = pandas.read_table(url, skiprows=1, header=None)
     hi.columns = ["chrom", "start", "end", "name", "score", "strand",
         "thick_start", "thick_end", "color"]
@@ -73,7 +85,14 @@ def open_haploinsufficiency():
     return hi
 
 def get_enrichment_ratios(constraints, haploinsufficiency):
-    """ figure out the fraction of genes which are haploinsufficient, relative to the lowest bin.
+    """ figure out the haploinsufficiency enrichment by constraint bin
+    
+    Args:
+        constraints: pandas DataFrame of constraint scores by gene
+        haploinsufficiency: pandas DataFrame of haploinsufficiency scores by gene
+    
+    Returns:
+        pandas DataFrame of enrichment ratios for each pLI bin.
     """
     
     # classify each gene as belonging to one of 20 evenly spaced bins
@@ -99,8 +118,8 @@ def main():
     # and missense), in known developmental disorder genes (and other genes).
     counts = get_count_by_person(de_novos)
     
-    constraints = open_constraints()
-    haploinsufficiency = open_haploinsufficiency()
+    constraints = open_constraints(CONSTRAINTS_PATH)
+    haploinsufficiency = open_haploinsufficiency(HAPLOINSUFFICIENCY_URL)
     enrichment = get_enrichment_ratios(constraints, haploinsufficiency)
     
     # plot the enrichment ratio for each bin
