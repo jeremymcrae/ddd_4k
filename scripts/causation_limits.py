@@ -36,20 +36,24 @@ from ddd_4k.count_mutations_per_person import get_count_by_person
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def main():
-    de_novos = open_de_novos(DENOVO_PATH)
-    known = open_known_genes(KNOWN_GENES)
-    de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
+def open_constraints():
+    """ open the constraints dataset
+    """
     
-    # For each proband, count the number of functional de novos (split by lof
-    # and missense), in known developmental disorder genes (and other genes).
-    counts = get_count_by_person(de_novos)
+    # We have received a constraints dataset from Kaitlin Samocha and Mark Daly.
+    # This data is largely identical to a file available from ExAC
+    # ftp://ftp.broadinstitute.org/pub/ExAC_release/release0.3/functional_gene_constraint/forweb_cleaned_exac_r03_2015_03_16_z_data.txt
+    # but with one additional column, pLI, which is their metric to predict
+    # loss-of-function intolerance.
     
     constraints_path = "data/cleaned_exac_with_pLI_march16.txt"
     constraints = pandas.read_table(constraints_path)
     
-    # classify each gene as belonging to one of 20 evenly spaced bins
-    constraints["bin"], bins = pandas.cut(constraints["pLI"], bins=20, retbins=True)
+    return constraints
+
+def open_haploinsufficiency():
+    """ load the haploinsufficiency dataset
+    """
     
     # check haploinsufficiency enrichment by constraint, to determine constraint
     # priors
@@ -66,22 +70,42 @@ def main():
     hi["gene"] = [ x.split("|")[0] for x in hi["name"] ]
     hi["chrom"] = [ x.strip("chr") for x in hi["chrom"] ]
     
-    merged = constraints.merge(hi, on="gene")
+    return hi
+
+def get_enrichment_ratios(constraints, haploinsufficiency):
+    """ figure out the fraction of genes which are haploinsufficient, relative to the lowest bin.
+    """
+    
+    # classify each gene as belonging to one of 20 evenly spaced bins
+    constraints["bin"], bins = pandas.cut(constraints["pLI"], bins=20, retbins=True)
+    
+    merged = constraints.merge(haploinsufficiency, on="gene")
     groups = merged.groupby("bin")
     
-    # figure out the fraction of each bin which exceed the threshold, and then
-    # get the enrichment of each bin relative to the lowest bin.
+    # determine the enrichment ratio in each pLI bin
     threshold = 0.9
     values = [ sum(x["score"] > threshold)/len(x.index) for i, x in groups ]
     enrichment = [ x/values[0] for x in values ]
+    enrichment = pandas.DataFrame({"pLI": bins[:-1], "enrichment": enrichment})
+    
+    return enrichment
+
+def main():
+    de_novos = open_de_novos(DENOVO_PATH)
+    known = open_known_genes(KNOWN_GENES)
+    de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
+    
+    # For each proband, count the number of functional de novos (split by lof
+    # and missense), in known developmental disorder genes (and other genes).
+    counts = get_count_by_person(de_novos)
+    
+    constraints = open_constraints()
+    haploinsufficiency = open_haploinsufficiency()
+    enrichment = get_enrichment_ratios(constraints, haploinsufficiency)
     
     # plot the enrichment ratio for each bin
-    enrichment = pandas.DataFrame({"pLI": bins[:-1], "enrichment": enrichment})
-    # fig = seaborn.factorplot(x="pLI", y="enrichment", data=enrichment, size=6, kind="point")
     fig = seaborn.lmplot(x="pLI", y="enrichment", data=enrichment, size=6, lowess=True)
     fig.savefig("results/enrichment_ratio.pdf", type="pdf")
-    
-    
 
 if __name__ == '__main__':
     main()
