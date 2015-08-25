@@ -114,6 +114,8 @@ def main():
     plot_categorical(counts, pheno, "scbu_nicu")
     plot_categorical(counts, pheno, "feeding_problems")
     plot_categorical(counts, pheno, "maternal_illness")
+    plot_categorical(counts, pheno, "bleeding")
+    plot_categorical(counts, pheno, "abnormal_scan")
     
     # birthweight (or birthweight corrected for duration of gestation, or
     # birthweight_percentile (if that corrects for duration of gestation))
