@@ -104,8 +104,8 @@ def get_enrichment_ratios(constraints, haploinsufficiency):
     # determine the enrichment ratio in each pLI bin
     threshold = 0.9
     values = [ sum(x["score"] > threshold)/len(x.index) for i, x in groups ]
-    enrichment = [ x/values[0] for x in values ]
-    enrichment = pandas.DataFrame({"pLI": bins[:-1], "enrichment": enrichment})
+    ratios = [ x/values[0] for x in values ]
+    enrichment = pandas.DataFrame({"pLI": bins[:-1], "enrichment": ratios})
     
     return enrichment
 
