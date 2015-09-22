@@ -32,7 +32,7 @@ from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes, 
     open_families
 from ddd_4k.count_hpo import count_hpo_terms
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS, \
-    FAMILIES, DATATYPES
+    FAMILIES, DATATYPES, VALIDATIONS
 from ddd_4k.count_mutations_per_person import get_count_by_person
 from ddd_4k.convert_durations import get_duration
 from ddd_4k.scale_durations import autoscale_durations
@@ -146,7 +146,7 @@ def plot_achievement(counts, pheno, achievement):
     plot_quantitative(counts, pheno, achievement, "{} log10({}s)".format(achievement, unit))
 
 def main():
-    de_novos = open_de_novos(DENOVO_PATH)
+    de_novos = open_de_novos(DENOVO_PATH, VALIDATIONS)
     known = open_known_genes(KNOWN_GENES)
     monoallelic = known[known["mode"].isin(["Monoallelic", "X-linked dominant"])]
     de_novos["known"] = de_novos["symbol"].isin(monoallelic["gencode_gene_name"])

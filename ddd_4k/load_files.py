@@ -21,11 +21,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import pandas
 
-def open_de_novos(path):
+def open_de_novos(path, validations):
     """ load the de novo dataset
     
     Args:
         path: path to known developmental disorder genes data file.
+        validations: path to de novo validation results data file.
     
     Returns:
         DataFrame for the de novo candidates.
@@ -46,6 +47,13 @@ def open_de_novos(path):
     de_novos["category"] = de_novos["consequence"].map(recode)
     
     de_novos = de_novos[de_novos["consequence"].isin(lof_cq + missense_cq)]
+    
+    # remove candidates which have been excluded by validation tests
+    validations = pandas.read_table(validations)
+    de_novos = de_novos.merge(validations, how="left",
+        left_on=["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", "consequence"],
+        right_on=["person_id", "chrom", "start_pos", "ref_allele", "alt_allele", "hgnc", "consequence"])
+    de_novos = de_novos[~de_novos["status"].isin(["false_positive", "inherited"])]
     
     return de_novos
 
