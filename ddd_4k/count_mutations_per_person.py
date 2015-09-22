@@ -43,7 +43,7 @@ def get_count_by_person(de_novos):
     
     index = [ x[0] for x in zip(by_category.index) ]
     sample_ids = [ x[0] for x in index ]
-    known = [ x[2] for x in index ]
+    known = [ x[1] for x in index ]
     
     by_category = pandas.DataFrame({"person_stable_id": sample_ids, "known": known, "functional": by_category["functional"].values, "loss-of-function": by_category["loss-of-function"].values})
     
