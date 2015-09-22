@@ -29,7 +29,7 @@ matplotlib.use('Agg')
 import seaborn
 
 from ddd_4k.load_files import open_de_novos, open_known_genes
-from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES
+from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS
 from ddd_4k.count_mutations_per_person import get_count_by_person
 
 # define the plot style
@@ -110,7 +110,7 @@ def get_enrichment_ratios(constraints, haploinsufficiency):
     return enrichment
 
 def main():
-    de_novos = open_de_novos(DENOVO_PATH)
+    de_novos = open_de_novos(DENOVO_PATH, VALIDATIONS)
     known = open_known_genes(KNOWN_GENES)
     de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
     
