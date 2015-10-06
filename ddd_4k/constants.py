@@ -30,4 +30,5 @@ KNOWN_GENES = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-
 PHENOTYPES = "{}/phenotypes_and_patient_info.txt".format(datafreeze)
 SANGER_IDS = "{}/person_sanger_decipher.txt".format(datafreeze)
 FAMILIES = "{}/family_relationships.txt".format(datafreeze)
+TRIOS = "{}/trios.txt".format(datafreeze)
 DATATYPES = "{}/person_datatypes.txt".format(datafreeze)
