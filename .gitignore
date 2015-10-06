@@ -6,3 +6,4 @@ dist/
 results/
 *.pdf
 *.pyc
+*.log
