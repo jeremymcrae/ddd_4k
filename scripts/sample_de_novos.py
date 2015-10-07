@@ -24,8 +24,9 @@ from __future__ import print_function, division
 import pandas
 
 from denovonear.ensembl_requester import EnsemblRequest
-from denovonear.load_mutation_rates import load_trincleotide_mutation_rates
-from denovonear.load_gene import get_transcript_lengths, construct_gene_object
+from denovonear.load_mutation_rates import load_mutation_rates
+from denovonear.load_gene import get_transcript_lengths, construct_gene_object, \
+    get_transcript_ids_sorted_by_length
 from denovonear.site_specific_rates import SiteRates
 from denovonear.weighted_choice import WeightedChoice
 
@@ -38,38 +39,29 @@ def get_transcript_for_gene(symbol, cache_dir="cache", genome_build="grch37"):
     
     Args:
         symbol: HGNC symbol for a gene
-        cache_dir:
-        genome_build:
+        cache_dir: path to folder for caching ensembl request information
+        genome_build: genome build to request information for (eg "grch37")
     
     Returns:
-        denovonear Interval object for transcript, which contains coordinates,
+        denovonear Transcript object for transcript, which contains coordinates,
         sequence, and methods to transform around the transcript.
     """
     
     ensembl = EnsemblRequest(cache_dir, genome_build)
-    ensembl_genes = ensembl.get_genes_for_hgnc_id(symbol)
-    transcript_ids = ensembl.get_transcript_ids_for_ensembl_gene_ids(ensembl_genes, [symbol])
     
-    # sometimes we get HGNC symbols that do not match the ensembl rest version
-    # that we are currentl using. We can look for earlier HGNC symbols for
-    # the gene using the service at rest.genenames.org
-    alt_symbols = []
-    if len(transcript_ids) == 0:
-        alts = ensembl.get_previous_symbol(symbol)
-        genes = [ ensembl.get_genes_for_hgnc_id(x) for x in alts ]
-        genes = [ item for sublist in genes for item in sublist ]
-        ensembl_genes += genes
-        symbols = [symbol] + alt_symbols
-        
-        transcript_ids = ensembl.get_transcript_ids_for_ensembl_gene_ids(ensembl_genes, symbols)
+    transcript_ids = get_transcript_ids_sorted_by_length(ensembl, symbol)
     
-    transcript_lengths = get_transcript_lengths(ensembl, transcript_ids)
-        
-    # sort by transcript length
-    transcripts = sorted(transcript_lengths.items(), key=lambda x: x[1])
-    transcript_id = list(reversed(transcripts))[0][0]
+    # work through the transcript IDs in descending lengths
+    transcript = None
+    for (transcript_id, length) in transcript_ids:
+        try:
+            transcript = construct_gene_object(ensembl, transcript_id)
+            break
+        except ValueError:
+            continue
     
-    transcript = construct_gene_object(ensembl, transcript_id)
+    if transcript is None:
+        raise IndexError("no suitable transcript for {}".format(symbol))
     
     return transcript
 
@@ -184,12 +176,13 @@ def sample_de_novos(gene_sampler, all_genes):
     return de_novos
 
 def main():
-    mut_dict = load_trincleotide_mutation_rates(mut_path)
+    mut_dict = load_mutation_rates(mut_path)
     
-    print("extracting HGNC symbols from VCFs")
-    symbols = get_all_hgnc_symbols()
-    symbols = exclude_readthrough_genes(symbols)
+    # print("extracting HGNC symbols from VCFs")
+    # symbols = get_all_hgnc_symbols()
+    # symbols = exclude_readthrough_genes(symbols)
     
+    symbols = ["AES"]
     print("getting transcript information for genes")
     all_genes = {}
     for gene_id in symbols:
