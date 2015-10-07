@@ -36,20 +36,17 @@ from ddd_4k.get_hgnc_symbols import get_all_hgnc_symbols
 
 mut_path = "/nfs/users/nfs_j/jm33/apps/denovonear/data/forSanger_1KG_mutation_rate_table.txt"
 
-def get_transcript_for_gene(symbol, cache_dir="cache", genome_build="grch37"):
+def get_transcript_for_gene(symbol, ensembl):
     """ identify and create a transcript object for a gene symbol
     
     Args:
         symbol: HGNC symbol for a gene
-        cache_dir: path to folder for caching ensembl request information
-        genome_build: genome build to request information for (eg "grch37")
+        ensembl: EnsemblRequest object, to retrieve info from ensembl REST API
     
     Returns:
         denovonear Transcript object for transcript, which contains coordinates,
         sequence, and methods to transform around the transcript.
     """
-    
-    ensembl = EnsemblRequest(cache_dir, genome_build)
     
     transcript_ids = get_transcript_ids_sorted_by_length(ensembl, symbol)
     
@@ -67,7 +64,7 @@ def get_transcript_for_gene(symbol, cache_dir="cache", genome_build="grch37"):
     
     return transcript
 
-def get_rates_for_gene(gene_id, all_genes, mut_dict):
+def get_rates_for_gene(gene_id, all_genes, mut_dict, ensembl):
     """ find the missense and lof mutation rates for a gene
     
     For a given HGNC symbol, we want to find the longest complete protein coding
@@ -82,6 +79,7 @@ def get_rates_for_gene(gene_id, all_genes, mut_dict):
             indexed by HGNC symbols.
         mut_dict: dictionary of tri-nucleotide mutation rates for the null
             mutation model.
+        ensembl: EnsemblRequest object, to retrieve info from ensembl REST API
     
     Returns:
          the all_genes dictionary, likely with an extra entry for the current
@@ -96,7 +94,7 @@ def get_rates_for_gene(gene_id, all_genes, mut_dict):
         # a longer chance to come back
         sleep_time *= 2
         try:
-            transcript = get_transcript_for_gene(gene_id)
+            transcript = get_transcript_for_gene(gene_id, ensembl)
             break
         except AttributeError:
             # if we get an attribute error, most likely it is from an ensembl server
@@ -196,10 +194,11 @@ def main():
     symbols = get_all_hgnc_symbols()
     symbols = exclude_readthrough_genes(symbols)
     
+    ensembl = EnsemblRequest(cache_dir="cache", genome_build="grch37")
     print("getting transcript information for genes")
     all_genes = {}
     for gene_id in symbols:
-        all_genes = get_rates_for_gene(gene_id, all_genes, mut_dict)
+        all_genes = get_rates_for_gene(gene_id, all_genes, mut_dict, ensembl)
     
     print("{} genes with acceptable transcripts".format(len(all_genes)))
     rates = [ all_genes[x]["rate"] for x in all_genes ]
