@@ -21,6 +21,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import print_function, division
 
+import time
+
 import pandas
 
 from denovonear.ensembl_requester import EnsemblRequest
@@ -86,10 +88,22 @@ def get_rates_for_gene(gene_id, all_genes, mut_dict):
          gene, if the gene has a complete protein coding transcript.
     """
     
-    try:
-        transcript = get_transcript_for_gene(gene_id)
-    except IndexError:
-        return all_genes
+    tries = 0
+    sleep_time = 15
+    while tries < 5:
+        tries += 1
+        # increase the amount we sleep for each time, in order to give the server
+        # a longer chance to come back
+        sleep_time *= 2
+        try:
+            transcript = get_transcript_for_gene(gene_id)
+            break
+        except AttributeError:
+            # if we get an attribute error, most likely it is from an ensembl server
+            # issue. Just try this again after a short wait.
+            time.sleep(sleep_time)
+        except IndexError:
+            return all_genes
     
     # get the site specific mutation rates for missense and lof possibilities in
     # the gene
@@ -185,9 +199,9 @@ def main():
     print("getting transcript information for genes")
     all_genes = {}
     for gene_id in symbols:
-        print(gene_id)
         all_genes = get_rates_for_gene(gene_id, all_genes, mut_dict)
     
+    print("{} genes with acceptable transcripts".format(len(all_genes)))
     rates = [ all_genes[x]["rate"] for x in all_genes ]
     gene_sampler = WeightedChoice(zip(all_genes.keys(), rates))
     
