@@ -178,11 +178,10 @@ def sample_de_novos(gene_sampler, all_genes):
 def main():
     mut_dict = load_mutation_rates(mut_path)
     
-    # print("extracting HGNC symbols from VCFs")
-    # symbols = get_all_hgnc_symbols()
-    # symbols = exclude_readthrough_genes(symbols)
+    print("extracting HGNC symbols from VCFs")
+    symbols = get_all_hgnc_symbols()
+    symbols = exclude_readthrough_genes(symbols)
     
-    symbols = ["AES"]
     print("getting transcript information for genes")
     all_genes = {}
     for gene_id in symbols:
