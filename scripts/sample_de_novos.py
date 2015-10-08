@@ -27,7 +27,7 @@ import pandas
 
 from denovonear.ensembl_requester import EnsemblRequest
 from denovonear.load_mutation_rates import load_mutation_rates
-from denovonear.load_gene import get_transcript_lengths, construct_gene_object, \
+from denovonear.load_gene import construct_gene_object, \
     get_transcript_ids_sorted_by_length
 from denovonear.site_specific_rates import SiteRates
 from denovonear.weighted_choice import WeightedChoice
@@ -194,7 +194,7 @@ def main():
     symbols = get_all_hgnc_symbols()
     symbols = exclude_readthrough_genes(symbols)
     
-    ensembl = EnsemblRequest(cache_dir="cache", genome_build="grch37")
+    ensembl = EnsemblRequest(cache_folder="cache", genome_build="grch37")
     print("getting transcript information for genes")
     all_genes = {}
     for gene_id in symbols:
