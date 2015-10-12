@@ -144,11 +144,22 @@ def exclude_readthrough_genes(symbols):
     
     return modified
 
-def sample_de_novos(gene_sampler, all_genes):
-    """
+def sample_de_novos(all_genes):
+    """ randomly sample de novos in CDS according to the null mutation model
+    
+    Args:
+        all_genes: dictionary of mutation rates per protein coding transcript
+    
+    Returns:
+        dataframe of sampled de novos, including columns for chrom, position,
+        ref, alt and consequence.
     """
     
-    proportion_covered = 0.9
+    print("{} genes with acceptable transcripts".format(len(all_genes)))
+    rates = [ all_genes[x]["rate"] for x in all_genes ]
+    gene_sampler = WeightedChoice(zip(all_genes.keys(), rates))
+    
+    proportion_covered = 0.98
     
     columns = ["person_id", "chrom", "pos", "ref", "alt", "hgnc", "consequence", "type"]
     de_novos = pandas.DataFrame(columns=columns)
@@ -182,7 +193,7 @@ def sample_de_novos(gene_sampler, all_genes):
         iteration += 1
         if iteration % 1000 == 0:
             print("{} de novos samples".format(iteration))
-            if len(de_novos["hgnc"].unique())/len(all_genes) > proportion_covered:
+            if len(de_novos["hgnc"].unique())/len(all_genes) >= proportion_covered:
                 break
     
     return de_novos
@@ -200,13 +211,9 @@ def main():
     for gene_id in symbols:
         all_genes = get_rates_for_gene(gene_id, all_genes, mut_dict, ensembl)
     
-    print("{} genes with acceptable transcripts".format(len(all_genes)))
-    rates = [ all_genes[x]["rate"] for x in all_genes ]
-    gene_sampler = WeightedChoice(zip(all_genes.keys(), rates))
-    
     print("randomly sampling de novos within genes")
-    de_novos = sample_de_novos(gene_sampler, all_genes)
-    de_novos.to_csv("sampled_de_novos.txt", sep="\t", index=False)
+    de_novos = sample_de_novos(all_genes)
+    de_novos.to_csv("sampled_de_novos.98_covered.txt", sep="\t", index=False)
 
 if __name__ == '__main__':
     main()
