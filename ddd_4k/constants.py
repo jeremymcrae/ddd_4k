@@ -24,8 +24,9 @@ import os
 user_dir = "/lustre/scratch113/projects/ddd/users/jm33/"
 datafreeze = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/"
 
-DENOVO_PATH = "{}/de_novos.ddd_4k.ddd_only.2015-09-02.txt".format(user_dir)
-VALIDATIONS = "{}/de_novos.validation_results.2015-09-22.txt".format(user_dir)
+DENOVO_PATH = "{}/de_novos.ddd_4k.ddd_only.2015-10-12.txt".format(user_dir)
+VALIDATIONS = "{}/de_novos.validation_results.2015-10-12.txt".format(user_dir)
+DIAGNOSED = "{}/ddd_4k.diagnosed.2015-10-12.txt".format(user_dir)
 KNOWN_GENES = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-04-13/DDG2P/ddg2p_freeze_Jul15_corrected2_with_gencode_v19_coordinates_fixed.txt"
 PHENOTYPES = "{}/phenotypes_and_patient_info.txt".format(datafreeze)
 SANGER_IDS = "{}/person_sanger_decipher.txt".format(datafreeze)
