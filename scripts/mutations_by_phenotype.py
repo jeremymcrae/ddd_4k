@@ -172,6 +172,7 @@ def main():
     plot_categorical(counts, pheno, "maternal_illness")
     plot_categorical(counts, pheno, "bleeding")
     plot_categorical(counts, pheno, "abnormal_scan")
+    plot_categorical(counts, pheno, "assisted_reproduction")
     
     # birthweight (or birthweight corrected for duration of gestation, or
     # birthweight_percentile (if that corrects for duration of gestation))
