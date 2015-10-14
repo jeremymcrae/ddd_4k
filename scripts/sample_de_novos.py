@@ -106,10 +106,10 @@ def get_rates_for_gene(gene_id, all_genes, mut_dict, ensembl):
     # get the site specific mutation rates for missense and lof possibilities in
     # the gene
     site_weights = SiteRates(transcript, mut_dict)
-    missense = site_weights.get_missense_rates_for_gene()
-    lof = site_weights.get_lof_rates_for_gene()
+    missense = site_weights.get_cds_rates("missense")
+    lof = site_weights.get_cds_rates("lof")
     
-    choices = [("missense", missense.cum_probs[-1]), ("lof", lof.cum_probs[-1])]
+    choices = [("missense", missense.get_summed_rate()), ("lof", lof.get_summed_rate())]
     gene_choices = WeightedChoice(choices)
     
     # add an entry to the all genes dictionary for the current gene
@@ -117,7 +117,7 @@ def get_rates_for_gene(gene_id, all_genes, mut_dict, ensembl):
     all_genes[gene_id]["transcript"] = transcript
     all_genes[gene_id]["missense"] = missense
     all_genes[gene_id]["lof"] = lof
-    all_genes[gene_id]["rate"] = missense.cum_probs[-1] + lof.cum_probs[-1]
+    all_genes[gene_id]["rate"] = missense.get_summed_rate() + lof.get_summed_rate()
     all_genes[gene_id]["choices"] = gene_choices
     
     return all_genes
