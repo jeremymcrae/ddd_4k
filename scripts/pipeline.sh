@@ -61,6 +61,14 @@ META_WITH_CLUSTER_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta-an
 DDD_WITH_HPOSIMILARITY_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.ddd_only.phenotype_similarity_results.txt"
 DDD_WITHOUT_HPOSIMILARITY_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.ddd_only.phenotype_similarity_results.txt"
 
+# define paths to combined result files
+WITH_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.all.${DATE}.txt"
+WITHOUT_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.all.${DATE}.txt"
+
+# define the paths to candidate CNVs
+CANDIDATE_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.txt"
+OVERLAPPING_CNVS=${RESULTS_DIR}/"ddd_4k.candidate_cnvs_overlapping_novel_genes.txt"
+
 # install necessary python and R packages (ones that are not listed as
 # dependencies of the python and R packages on github).
 pip install pyfaidx --user
@@ -123,7 +131,7 @@ TEMP_GENES="tmp_transcripts.txt"
 awk '{ print $7 "\t" $3 "\t" $4 "\t" $9 "\t" $8}' ${FILTERED_DE_NOVOS_PATH} > ${TEMP_VARS}
 
 # identify the transcripts for the genes containing the DDD de novos
-# runtime: < 5 hours
+# runtime: < 10 hours
 python denovonear/scripts/identify_transcripts.py \
     --de-novos ${TEMP_VARS} \
     --minimise-transcripts \
@@ -131,7 +139,7 @@ python denovonear/scripts/identify_transcripts.py \
 
 # determine the consequence-specific mutation rates for the genes containing de
 # novos
-# runtime: < 20 hours
+# runtime: < 20 hours, ~ 200 Mb
 python denovonear/scripts/construct_mutation_rates.py \
     --genes ${TEMP_GENES} \
     --rates "denovonear/data/forSanger_1KG_mutation_rate_table.txt" \
@@ -188,6 +196,7 @@ Rscript mupit/scripts/ddd_analysis.R \
     --out-enrichment ${META_WITH_ENRICH} \
     --out-clustering ${META_WITH_CLUSTER}
 
+# runtime: < 5 minutes
 Rscript mupit/scripts/ddd_analysis.R \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
@@ -257,3 +266,29 @@ python hpo_similarity/scripts/run_batch.py \
     --phenotypes ${PHENOTYPES_JSON} \
     --genes ${DDD_WITH_JSON} \
     --out ${DDD_WITH_HPOSIMILARITY_RESULTS}
+
+# merge result files
+Rscript mupit/scripts/combine_all_tests.R \
+    --ddg2p ${DDG2P_PATH} \
+    --ddd-enrichment ${DDD_WITH_ENRICH} \
+    --meta-enrichment ${META_WITH_ENRICH} \
+    --ddd-clustering ${DDD_WITH_CLUSTER_RESULTS} \
+    --meta-clustering ${META_WITH_CLUSTER_RESULTS} \
+    --ddd-phenotype ${DDD_WITH_HPOSIMILARITY_RESULTS} \
+    --output ${WITH_DIAGNOSED_RESULTS}
+
+Rscript mupit/scripts/combine_all_tests.R \
+    --ddg2p ${DDG2P_PATH} \
+    --ddd-enrichment ${DDD_WITHOUT_ENRICH} \
+    --meta-enrichment ${META_WITHOUT_ENRICH} \
+    --ddd-clustering ${DDD_WITHOUT_CLUSTER_RESULTS} \
+    --meta-clustering ${META_WITHOUT_CLUSTER_RESULTS} \
+    --ddd-phenotype ${DDD_WITHOUT_HPOSIMILARITY_RESULTS} \
+    --output ${WITHOUT_DIAGNOSED_RESULTS}
+
+# run de novo vs phenotype
+
+# identify candidate de novo CNVs in proband VCFs and identify candidate CNVs
+# overlapping candidate novel genes
+python ddd_4k/get_de_novo_cnvs.py --families ${FAMILIES} --trios ${TRIOS} --output ${CANDIDATE_CNVS}
+python ddd_4k/get_overlapping_cnvs.py --cnvs ${CANDIDATE_CNVS} --associations ${WITHOUT_DIAGNOSED_RESULTS} --output ${OVERLAPPING_CNVS}
