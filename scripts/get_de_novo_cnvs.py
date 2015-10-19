@@ -21,6 +21,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import print_function, division
 
+import argparse
 import sys
 import gzip
 
@@ -38,10 +39,32 @@ required = ["person_id", "chrom", "pos", "ref", "alt", "ACGH_RC_FREQ50",
     "CQ", "HGNC", "INTERNALFREQ", "MADL2R", "MEANLR2",
     "NUMBERPROBESCNSOLIDATE", "NUMBERPROBESCONVEX", "RAREBACKWARDS",
     "RAREFORWARDS", "RC50INTERNALFREQ", "SVLEN", "vicar", "WSCORE"]
-OUTPATH = "/nfs/users/nfs_j/jm33/de_novos_cnvs.txt"
+
+def get_options():
+    """ parse the command line arguments
+    """
+    
+    parser = argparse.ArgumentParser(description="script to find candidate"
+        "de novo CNVs in proband VCFs")
+    parser.add_argument("--families", default=FAMILIES, \
+        help="Path to table of candidate CNVs.")
+    parser.add_argument("--trios", default=TRIOS, \
+        help="Path to table of association results.")
+    parser.add_argument("--output", default="de_novos_cnvs.txt", \
+        help="Path to send output to.")
+    
+    args = parser.parse_args()
+    
+    return args
 
 def parse_line(line):
-    """
+    """ parse a VCF line and return variant details if is a CNV, or None
+    
+    Args:
+        line: line of VCF for a single variant.
+    
+    Returns:
+        CNV details as dictionary, or None if VCF line isn't for a CNV.
     """
     
     # exclude variants that are not CNVs
@@ -109,8 +132,10 @@ def get_de_novo_cnvs(path, person_id):
     return cnvs
 
 def main():
-    trios = pandas.read_table(TRIOS)
-    families = pandas.read_table(FAMILIES)
+    args = get_options()
+    
+    trios = pandas.read_table(args.trios)
+    families = pandas.read_table(args.families)
     
     probands = families[families["individual_id"].isin(trios["proband_stable_id"])]
     
@@ -126,7 +151,7 @@ def main():
         person_cnvs = get_de_novo_cnvs(vcf_path, person_id)
         cnvs = cnvs.append(person_cnvs, ignore_index=True)
     
-    cnvs.to_csv(OUTPATH, sep="\t", index=False)
+    cnvs.to_csv(args.output, sep="\t", index=False)
 
 if __name__ == '__main__':
     main()
