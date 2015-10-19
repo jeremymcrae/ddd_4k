@@ -46,7 +46,9 @@ def get_options():
     """ parse the command line arguments
     """
     
-    parser = argparse.ArgumentParser(description=".")
+    parser = argparse.ArgumentParser(description="script to check whether"
+        "probands with longer autozygous regions are less likely to have"
+        "diagnoses".)
     parser.add_argument("--autozygosity-dir", default=AUTOZYGOSITY_DIR, \
         help="Path to folder with autozygosity predictions for all probands.")
     parser.add_argument("--trios", default=TRIOS, \
