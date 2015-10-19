@@ -3,32 +3,38 @@
 # DATE=`date +%Y-%m-%d`
 DATE="2015-10-12"
 DATAFREEZE="/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13"
+DDD1K_DATAFREEZE="/nfs/ddd0/Data/datafreeze/1133trios_20131218/"
 USER_DIR="/lustre/scratch113/projects/ddd/users/jm33"
+DATA_DIR=${USER_DIR}/"de_novo_data"
 FASTA_PATH="/software/ddd/resources/v1.2/hs37d5.fasta"
-GENCODE_PATH="/nfs/users/nfs_j/jm33/reference_data/gencode.v19.annotation.gtf.gz"
+GENCODE_PATH="/software/ddd/resources/v1.2/gencode.v17.chr_patch_hapl_scaff.annotation.gtf"
+DDG2P_PATH="/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-04-13/DDG2P/dd_genes_for_clinical_filter"
 DE_NOVOS_CALLS_PATH=${DATAFREEZE}/"denovo_gear_trios_extracted_passed_variants_11.05.15.tsv"
-MISSED_INDELS_PATH="/nfs/users/nfs_j/jm33/apps/denovoFilter/data/missed_denovo_indels_datafreeze_2015-04-13.txt"
 FAMILIES_PATH=${DATAFREEZE}/"family_relationships.txt"
 TRIOS_PATH=${DATAFREEZE}/"trios.txt"
 PHENOTYPES_PATH=${DATAFREEZE}/"phenotypes_and_patient_info.txt"
 SAMPLE_IDS_PATH=${DATAFREEZE}/"person_sanger_decipher.txt"
-SAMPLE_FAIL_PATH="/nfs/users/nfs_j/jm33/apps/denovoFilter/data/sample_fails.txt"
-INDEL_FAILS_PATH="/nfs/users/nfs_j/jm33/apps/denovoFilter/data/sample_fails_missed_indels.txt"
+SAMPLE_FAIL_PATH=${DATA_DIR}/"de_novo_sample_fails.txt"
+MISSED_INDELS_PATH=${DATA_DIR}/"missed_denovo_indels_datafreeze_2015-04-13.txt"
+INDEL_FAILS_PATH=${DATA_DIR}/"de_novo_sample_fails_missed_indels.txt"
+DDD_1K_DIAGNOSES=${DDD1K_DATAFREEZE}/"Diagnosis_Summary_1133_20140328.xlsx"
+DDD_1K_VALIDATIONS=${DDD1K_DATAFREEZE}/"DNG_Validation_1133trios_20140130.tsv"
+DDD_4K_VALIDATIONS=${DATA_DIR}/"de_novos.ddd_4k.validation_results.2015-09-02.xlsx"
+LOW_PP_DNM_VALIDATIONS=${DATA_DIR}/"de_novos.ddd_4k.validation_results.low_pp_dnm.2015-10-02.xlsx"
+
+# define paths to put some processed files
 LAST_BASE_PATH=${USER_DIR}/"last_base_sites_G.json"
 FILTERED_DE_NOVOS_PATH=${USER_DIR}/"de_novos.ddd_4k.ddd_only.${DATE}.txt"
-DDD_1K_DIAGNOSES="/nfs/ddd0/Data/datafreeze/1133trios_20131218/Diagnosis_Summary_1133_20140328.xlsx"
-DDD_1K_VALIDATIONS="/nfs/ddd0/Data/datafreeze/1133trios_20131218/DNG_Validation_1133trios_20140130.tsv"
-DDD_4K_VALIDATIONS="/nfs/users/nfs_j/jm33/de_novos.ddd_4k.validation_results.2015-09-02.xlsx"
-LOW_PP_DNM_VALIDATIONS="/nfs/users/nfs_j/jm33/de_novos.ddd_4k.validation_results.low_pp_dnm.2015-10-02.xlsx"
-DDG2P_PATH="/lustre/scratch113/projects/ddd/resources/ddd_data_releases/2015-04-13/DDG2P/dd_genes_for_clinical_filter"
 VALIDATIONS_PATH=${USER_DIR}/"de_novos.validation_results.${DATE}.txt"
 RATES_PATH=${USER_DIR}/"de_novos.ddd_4k.mutation_rates.${DATE}.txt"
 DIAGNOSED_PATH=${USER_DIR}/"ddd_4k.diagnosed.${DATE}.txt"
-PHENOTYPES_JSON=${USER_DIR}"de_novos.ddd_4k.phenotypes_by_proband.json"
+PHENOTYPES_JSON=${USER_DIR}/"de_novos.ddd_4k.phenotypes_by_proband.json"
+
+# define directories for temporary and intermediate files
 TEMP_DIR=${USER_DIR}/"temp"
 RESULTS_DIR=${USER_DIR}/"results"
 
-# define the paths to the results from the enrrichment testing. Some of these
+# define the paths to the results from the enrichment testing. Some of these
 # are input files for later steps
 META_WITHOUT_MANHATTAN=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.meta-analysis.manhattan.${DATE}.pdf"
 META_WITHOUT_ENRICH=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.meta-analysis.enrichment_results.${DATE}.txt"
