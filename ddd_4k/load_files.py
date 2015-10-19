@@ -102,7 +102,7 @@ def open_phenotypes(pheno_path, alt_ids_path=None):
     
     return pheno
 
-def open_families(families_path, datatypes_path):
+def open_families(families_path, trios_path):
     """ load the families dataset, so we know the relationships between people
     
     Args:
@@ -113,10 +113,10 @@ def open_families(families_path, datatypes_path):
         DataFrame for the families.
     """
     
-    datatypes = pandas.read_table(datatypes_path)
+    trios = pandas.read_table(trios_path)
     families = pandas.read_table(families_path)
     
-    families = families.merge(datatypes, "left", left_on="individual_id", right_on="person_stable_id")
+    families = families.merge(trios, "left", left_on="individual_id", right_on="proband_stable_id")
     
     return families
     
