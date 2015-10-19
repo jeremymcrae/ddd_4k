@@ -36,9 +36,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import division, print_function
 
+import os
 import urllib
 import math
 import tempfile
+import argparse
 
 import pandas
 from scipy.stats import poisson
@@ -55,6 +57,20 @@ seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 
 RATES_URL = "http://www.nature.com/ng/journal/v46/n9/extref/ng.3050-S2.xls"
+
+def get_options():
+    """
+    """
+    
+    parser = argparse.ArgumentParser(description=".")
+    parser.add_argument("--rates", default=RATES_URL, \
+        help="URL for mutation rates throughout genome.")
+    parser.add_argument("--output-folder", default="results", \
+        help="Path to plot graph to.")
+    
+    args = parser.parse_args()
+    
+    return args
 
 def get_mutation_rates(url):
     """ obtain the table of mutation rates from the Samocha et al paper
@@ -142,11 +158,20 @@ def check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq
         combined = combined.append(temp, ignore_index=True)
     
     combined["probability"] = combined["probability"].astype(float)
-    fig = seaborn.factorplot(x="cohort_n", y="probability", data=combined, kind="box", size=6, aspect=1.8, fliersize=0, color="gray")
+    fig = seaborn.factorplot(x="cohort_n", y="probability", data=combined, \
+        kind="box", size=6, aspect=1.8, fliersize=0, color="gray")
     fig.savefig(plot_path, format="pdf")
 
 def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
-    """
+    """ compare power of exome and genome sequencing
+    
+    Args:
+        rates: dataframe of null mutation rates per gene, for different
+            functional types.
+        threshold: a significance threshold, genomewide corrected.
+        population_n: size of the population of the UK and Ireland.
+        disorder_freq: expected frequency of developmental disorders
+        plot_path: path to send ouput plot to
     """
     
     # estimate the number of mutations expected per gene in the UK + Ireland
@@ -154,7 +179,7 @@ def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
     expected = [ x * population_n for x in rates["lof"] ]
     
     # define a range of amounts of money for sequencing
-    budgets = [1e6, 2e6, 5e6, 1e7, 2e7, 5e7]
+    budgets = [1e6, 2e6, 5e6, 1e7]
     genome_cost = 1000
     exome_relative_cost = [ x/5 for x in range(1, 6) ]
     genome_sensitivity = [1.0, 1.05, 1.1, 1.15, 1.2]
@@ -184,10 +209,14 @@ def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
                     "exome_cost": relative_cost, "sensitivity": sensitivity,
                     "sequence": "exome", "power": exome_median}, ignore_index=True)
     
-    fig = seaborn.factorplot(x="exome_cost", y="power", hue="sequence", col="budget", row="sensitivity", data=power)
+    fig = seaborn.factorplot(x="exome_cost", y="power", hue="sequence", \
+        col="budget", row="sensitivity", data=power)
     fig.savefig(plot_path, format="pdf")
 
 def main():
+    
+    args = get_options()
+    
     # the DDD is sampling from the population of the UK and Ireland, which is about
     # 50 million people
     population_n = 50e6
@@ -195,13 +224,15 @@ def main():
     # the prevalence of developmental disorders is 0.5% of the general population
     disorder_freq = 0.005
     
-    rates = get_mutation_rates(RATES_URL)
+    rates = get_mutation_rates(args.rates)
     
     # estimate a genome-wide significance threshold
     threshold = 0.05/18500
     
-    check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq, "test.pdf")
-    exome_vs_genome(rates, threshold, population_n, disorder_freq, "test_exome_vs_genome.pdf")
+    check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq, \
+        os.path.join(args.output_folder, "results/haploinsufficiency_power.pdf"))
+    exome_vs_genome(rates, threshold, population_n, disorder_freq, \
+        os.path.join(args.output_folder, "results/exome_vs_genome.pdf"))
 
 if __name__ == '__main__':
     main()
