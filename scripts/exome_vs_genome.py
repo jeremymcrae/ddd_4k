@@ -230,9 +230,9 @@ def main():
     threshold = 0.05/18500
     
     check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq, \
-        os.path.join(args.output_folder, "results/haploinsufficiency_power.pdf"))
+        os.path.join(args.output_folder, "haploinsufficiency_power.pdf"))
     exome_vs_genome(rates, threshold, population_n, disorder_freq, \
-        os.path.join(args.output_folder, "results/exome_vs_genome.pdf"))
+        os.path.join(args.output_folder, "exome_vs_genome.pdf"))
 
 if __name__ == '__main__':
     main()
