@@ -226,8 +226,7 @@ def plot_regression(lengths, diagnosed_ids, plot_path):
     # get the linear regression parameters
     groups = new_lengths.groupby("median_length")
     data = [ (key, sum(x["diagnosed"])/len(x)) for (key, x) in groups ]
-    median_lengths, proportions = zip(*data)
-    model = linregress(median_lengths, proportions)
+    model = linregress(zip(*data))
     
     slope = model[0]
     r_squared = model[2]**2
