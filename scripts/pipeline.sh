@@ -14,6 +14,7 @@ FAMILIES_PATH=${DATAFREEZE}/"family_relationships.txt"
 TRIOS_PATH=${DATAFREEZE}/"trios.txt"
 PHENOTYPES_PATH=${DATAFREEZE}/"phenotypes_and_patient_info.txt"
 SAMPLE_IDS_PATH=${DATAFREEZE}/"person_sanger_decipher.txt"
+KINSHIP_PATH=${DATAFREEZE}/"kinship_and_pca_trios.txt"
 SAMPLE_FAIL_PATH=${DATA_DIR}/"de_novo_sample_fails.txt"
 MISSED_INDELS_PATH=${DATA_DIR}/"missed_denovo_indels_datafreeze_2015-04-13.txt"
 INDEL_FAILS_PATH=${DATA_DIR}/"de_novo_sample_fails_missed_indels.txt"
@@ -29,10 +30,12 @@ VALIDATIONS_PATH=${USER_DIR}/"de_novos.validation_results.${DATE}.txt"
 RATES_PATH=${USER_DIR}/"de_novos.ddd_4k.mutation_rates.${DATE}.txt"
 DIAGNOSED_PATH=${USER_DIR}/"ddd_4k.diagnosed.${DATE}.txt"
 PHENOTYPES_JSON=${USER_DIR}/"de_novos.ddd_4k.phenotypes_by_proband.json"
+MULTISAMPLE_BCF=${USER_DIR}/"ddd_4k.bcftools.bcf"
 
 # define directories for temporary and intermediate files
 TEMP_DIR=${USER_DIR}/"temp"
 RESULTS_DIR=${USER_DIR}/"results"
+AUTOZYGOSITY_DIR=${USER_DIR}/"autozygosity"
 
 # define the paths to the results from the enrichment testing. Some of these
 # are input files for later steps
@@ -66,8 +69,8 @@ WITH_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.all.${DATE
 WITHOUT_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.all.${DATE}.txt"
 
 # define the paths to candidate CNVs
-CANDIDATE_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.txt"
-OVERLAPPING_CNVS=${RESULTS_DIR}/"ddd_4k.candidate_cnvs_overlapping_novel_genes.txt"
+CANDIDATE_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.${DATE}.txt"
+OVERLAPPING_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.overlapping_novel_genes.${DATE}.txt"
 
 # install necessary python and R packages (ones that are not listed as
 # dependencies of the python and R packages on github).
@@ -81,6 +84,7 @@ git clone https://github.com/jeremymcrae/publishedDeNovos.git
 git clone https://github.com/jeremymcrae/mupit.git
 git clone https://github.com/jeremymcrae/denovonear.git
 git clone https://github.com/jeremymcrae/hpo_similarity.git
+git clone https://github.com/jeremymcrae/recessiveStats.git
 
 # install the python packages, a package for filtering de novo calls, a package
 # for analysing proximity clustering of de novo mutations, and a package for
@@ -94,6 +98,7 @@ pip install git+git://github.com/jeremymcrae/hpo_similarity.git
 # developmental disorders, and a package to test enrichment of de novo mutations
 R -e 'library(devtools);devtools::install_github(jeremymcrae/publishedDeNovos.git)'
 R -e 'library(devtools);devtools::install_github(jeremymcrae/mupit.git)'
+R -e 'library(devtools);devtools::install_github(jeremymcrae/recessiveStats.git)'
 
 # identify all of the sites where it is possible to have a conserved last base
 # of an exon
@@ -268,6 +273,7 @@ python hpo_similarity/scripts/run_batch.py \
     --out ${DDD_WITH_HPOSIMILARITY_RESULTS}
 
 # merge result files
+# runtime: < 5 minutes
 Rscript mupit/scripts/combine_all_tests.R \
     --ddg2p ${DDG2P_PATH} \
     --ddd-enrichment ${DDD_WITH_ENRICH} \
@@ -277,6 +283,7 @@ Rscript mupit/scripts/combine_all_tests.R \
     --ddd-phenotype ${DDD_WITH_HPOSIMILARITY_RESULTS} \
     --output ${WITH_DIAGNOSED_RESULTS}
 
+# runtime: < 5 minutes
 Rscript mupit/scripts/combine_all_tests.R \
     --ddg2p ${DDG2P_PATH} \
     --ddd-enrichment ${DDD_WITHOUT_ENRICH} \
@@ -286,9 +293,49 @@ Rscript mupit/scripts/combine_all_tests.R \
     --ddd-phenotype ${DDD_WITHOUT_HPOSIMILARITY_RESULTS} \
     --output ${WITHOUT_DIAGNOSED_RESULTS}
 
-# run de novo vs phenotype
+# generate a multi-sample BCF that contains all of the genotype information for
+# all of the probands in the DDD
+# runtime: < 10 hours (due to being split into multiple jobs)
+python recessiveStats/scripts/autozygosity/merge_vcfs.py \
+    --vcf-annotate "/software/hgi/pkglocal/vcftools-0.1.11/bin/vcf-annotate" \
+    --bcftools "/software/hgi/pkglocal/bcftools-1.2/bin/bcftools" \
+    --families ${FAMILIES_PATH} \
+    --temp ${TEMP_DIR} \
+    --output ${MULTISAMPLE_BCF}
+
+# identify the autozygous regions in all probands
+# runtime: < 10 hours (due to being split into multiple jobs)
+Rscript mupit/scripts/autozygosity/check_probands_autozygosity.R \
+    --script "mupit/scripts/autozygosity/proband_autozygosity.R" \
+    --rbinary "/software/R-3.2.2/bin/Rscript" \
+    --bcf ${MULTISAMPLE_BCF} \
+    --output-folder ${AUTOZYGOSITY_DIR}
+
+# check the likelihood of being diagnostic vs length of autozygous regions
+python ddd_4k/scripts/autozygosity_vs_diagnostic.py \
+    --autozygosity-dir ${AUTOZYGOSITY_DIR} \
+    --consanguinous ${KINSHIP_PATH} \
+    --trios ${TRIOS_PATH} \
+    --diagnosed ${DIAGNOSED_PATH} \
+    --output "ddd_4k/results/autozygosity_vs_diagnosed.pdf"
+
+# run de novo vs phenotypic severity checks
+# runtime: < 5 minutes
+python ddd_4k/scripts/mutations_by_phenotype.py \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --ddg2p ${DDG2P_PATH} \
+    --phenotypes ${PHENOTYPES_PATH} \
+    --sanger-ids ${SANGER_IDS} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --output-folder "ddd_4k/results"
 
 # identify candidate de novo CNVs in proband VCFs and identify candidate CNVs
 # overlapping candidate novel genes
-python ddd_4k/get_de_novo_cnvs.py --families ${FAMILIES} --trios ${TRIOS} --output ${CANDIDATE_CNVS}
+python ddd_4k/get_de_novo_cnvs.py --families ${FAMILIES_PATH} --trios ${TRIOS_PATH} --output ${CANDIDATE_CNVS}
 python ddd_4k/get_overlapping_cnvs.py --cnvs ${CANDIDATE_CNVS} --associations ${WITHOUT_DIAGNOSED_RESULTS} --output ${OVERLAPPING_CNVS}
+
+# look into the power of exome sequencing vs genome sequencing
+python ddd_4k/scripts/exome_vs_genome.py \
+    --output-folder "ddd_4k/results"
