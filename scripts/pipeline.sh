@@ -317,7 +317,8 @@ python ddd_4k/scripts/autozygosity_vs_diagnostic.py \
     --consanguinous ${KINSHIP_PATH} \
     --trios ${TRIOS_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
-    --output "ddd_4k/results/autozygosity_vs_diagnosed.pdf"
+    --output-groups "ddd_4k/results/autozygosity_vs_diagnosed.groups.pdf"
+    --output-regression "ddd_4k/results/autozygosity_vs_diagnosed.regression.pdf"
 
 # run de novo vs phenotypic severity checks
 # runtime: < 5 minutes

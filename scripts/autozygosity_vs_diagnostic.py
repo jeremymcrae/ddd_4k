@@ -56,8 +56,10 @@ def get_options():
         help="Path to file of probands with diagnoses or likely diagnoses.")
     parser.add_argument("--consanguinous", default=CONSANG_PATH, \
         help="Path to all probands table that includes kinship statistics.")
-    parser.add_argument("--output", default="results/autozygosity_by_diagnosed.pdf", \
-        help="Path to plot graph to.")
+    parser.add_argument("--output-groups", default="results/autozygosity_by_diagnosed.groups.pdf", \
+        help="Path to plot regression graph to.")
+    parser.add_argument("--output-regression", default="results/autozygosity_by_diagnosed.regression.pdf", \
+        help="Path to plot regression graph to.")
     
     args = parser.parse_args()
     
@@ -254,8 +256,8 @@ def main():
     # for all probands
     lengths = classify_by_quintile(lengths, breakpoints)
     
-    autozygosity_vs_diagnosed(lengths, diagnosed, args.output)
-    plot_regression(lengths, diagnosed, args.output)
+    autozygosity_vs_diagnosed(lengths, diagnosed, args.output_groups)
+    plot_regression(lengths, diagnosed, args.output_regression)
 
 
 if __name__ == '__main__':
