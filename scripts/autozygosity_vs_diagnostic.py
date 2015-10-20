@@ -19,19 +19,18 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-from __future__ import division
+from __future__ import division, print_function
 
 import os
 import argparse
-
-import numpy
 
 import matplotlib
 matplotlib.use('Agg')
 import seaborn
 import pandas
-from scipy.stats import fisher_exact
+from scipy.stats import fisher_exact, linregress
 from matplotlib import pyplot
+from numpy import median, log10, mean
 
 from ddd_4k.constants import TRIOS, DIAGNOSED
 
@@ -165,7 +164,7 @@ def classify_by_quintile(lengths, quintiles):
     for pos, low in enumerate(quintiles[:-1]):
         high = quintiles[pos + 1]
         
-        label = "{0:.2f}-{1:.2f}Mb".format(low/1e6, high/1e6)
+        label = "{0:.1f}-{1:.1f}Mb".format(low/1e6, high/1e6)
         value[(has_region["length"] >= low) & (has_region["length"] <= high)] = label
     
     has_region["quintile"] = value
@@ -178,9 +177,7 @@ def autozygosity_vs_diagnosed(lengths, diagnosed_ids, plot_path):
     """ plot rates of autozygosity versus the likelihood of having a diagnosis
     
     Args:
-        lengths: DataFrame of autozygosity lengths, person IDs, quintile, and
-            whether the row is for the nonconsanguinous subset, or the full
-            subset.
+        lengths: DataFrame of autozygosity lengths, person IDs, quintile
         diagnosed_ids: pandas Series of person IDs for the probands who have
             diagnoses.
         plot_path: path to plot graph to as pdf.
@@ -192,15 +189,54 @@ def autozygosity_vs_diagnosed(lengths, diagnosed_ids, plot_path):
     positions = [ values.index(x) for x in sorted(values) ]
     labels = [ labels[x] for x in positions ]
     
-    # asses whether each proband has a diagnosis
-    lengths["proportion diagnosed"] = lengths["person_id"].isin(diagnosed_ids)
-    lengths["proportion diagnosed"] = lengths["proportion diagnosed"].map({True: 1, False: 0})
+    # assess whether each proband has a diagnosis
+    lengths["diagnosed"] = lengths["person_id"].isin(diagnosed_ids)
+    lengths["diagnosed"] = lengths["diagnosed"].map({True: 1, False: 0})
     
-    fig = seaborn.factorplot(x="quintile", y="proportion diagnosed", hue="group", \
+    fig = seaborn.factorplot(x="quintile", y="diagnosed", \
         data=lengths, order=labels, join=False, ci=95, kind="point", size=6, \
-        aspect=1.2, dodge=True, legend_out=False)
+        aspect=1.2, legend_out=False)
     fig.set_xticklabels(rotation=90, fontsize="x-large")
-    pyplot.legend(loc="lower left", fontsize="x-large")
+    fig.savefig(plot_path, format="pdf")
+
+def plot_regression(lengths, diagnosed_ids, plot_path):
+    """ plot regression of autozygosity length by diagnostic likelihood
+    
+    Args:
+        lengths: DataFrame of autozygosity lengths, person IDs, quintile
+        diagnosed_ids: pandas Series of person IDs for the probands who have
+            diagnoses.
+        plot_path: path to plot graph to as pdf.
+    """
+    
+    # assess whether each proband has a diagnosis
+    lengths["diagnosed"] = lengths["person_id"].isin(diagnosed_ids)
+    lengths["diagnosed"] = lengths["diagnosed"].map({True: 1, False: 0})
+    
+    lengths = lengths[lengths["length"] > 0]
+    new_lengths = pandas.DataFrame(columns=lengths.columns + ["median_length"])
+    for (key, x) in lengths.groupby("quintile"):
+        if key != "no region":
+            median_length = log10(median(x["length"]))
+            x["median_length"] = median_length
+            new_lengths = new_lengths.append(x, ignore_index=True)
+    
+    # get the linear regression parameters
+    groups = new_lengths.groupby("median_length")
+    data = [ (key, sum(x["diagnosed"])/len(x)) for (key, x) in groups ]
+    median_lengths, proportions = zip(*data)
+    model = linregress(median_lengths, proportions)
+    
+    slope = model[0]
+    r_squared = model[2]**2
+    
+    fig = seaborn.lmplot(x="median_length", y="diagnosed", \
+        data=new_lengths, x_estimator=mean, size=6, aspect=1.2)
+        
+    text = "For every log10-unit increase in autozygous\nlength, the " \
+        "diagnostic probability drops by {:.1f}%".format(abs(slope)*100)
+    fig.fig.text(0.4, 0.9, text, fontsize="large")
+    fig.fig.text(0.8, 0.85, "r^2={0:.3f}".format(r_squared), fontsize="large")
     fig.savefig(plot_path, format="pdf")
 
 def main():
@@ -208,26 +244,18 @@ def main():
     lengths = get_autozygous_lengths(args.trios, args.autozygosity_dir)
     
     diagnosed = pandas.read_table(args.diagnosed, sep="\t")
+    diagnosed = diagnosed[diagnosed["inheritance"] == "de_novo"]
     diagnosed = diagnosed["person_id"].unique()
     
-    # find which probands are from consanguinous parents, and get a set of
-    # lengths where the consangunous probands have been excluded
-    consanguinous = get_consanguinous(args.consanguinous)
-    without_consang = lengths[~lengths["person_id"].isin(consanguinous)]
-    
-    quintiles = define_quintiles(lengths, 5)
+    # breakpoints = define_quintiles(lengths, 5)
+    breakpoints = [0, 1e7, 1e8, 1e9]
     
     # classify each proband's autozygosity length into the various quintiles,
-    # for all probands, and a subset without the consanguinous probands
-    lengths = classify_by_quintile(lengths, quintiles)
-    without_consang = classify_by_quintile(without_consang, quintiles)
-    
-    # get a single
-    lengths["group"] = "all"
-    without_consang["group"] = "without consanguinous"
-    lengths = lengths.append(without_consang)
+    # for all probands
+    lengths = classify_by_quintile(lengths, breakpoints)
     
     autozygosity_vs_diagnosed(lengths, diagnosed, args.output)
+    plot_regression(lengths, diagnosed, args.output)
 
 
 if __name__ == '__main__':
