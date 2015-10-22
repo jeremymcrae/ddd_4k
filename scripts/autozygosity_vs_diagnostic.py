@@ -215,6 +215,7 @@ def plot_regression(lengths, diagnosed_ids, plot_path):
     lengths["diagnosed"] = lengths["person_id"].isin(diagnosed_ids)
     lengths["diagnosed"] = lengths["diagnosed"].map({True: 1, False: 0})
     
+    no_region = lengths[lengths["length"] == 0]
     lengths = lengths[lengths["length"] > 0]
     new_lengths = pandas.DataFrame(columns=lengths.columns + ["median_length"])
     for (key, x) in lengths.groupby("quintile"):
@@ -232,12 +233,26 @@ def plot_regression(lengths, diagnosed_ids, plot_path):
     r_squared = model[2]**2
     
     fig = seaborn.lmplot(x="median_length", y="diagnosed", \
-        data=new_lengths, x_estimator=mean, size=6, aspect=1.2)
+        data=new_lengths, x_estimator=mean, size=6)
         
     text = "For every log10-unit increase in autozygous\nlength, the " \
         "diagnostic probability drops by {:.1f}%".format(abs(slope)*100)
     fig.fig.text(0.4, 0.9, text, fontsize="large")
     fig.fig.text(0.8, 0.85, "r^2={0:.3f}".format(r_squared), fontsize="large")
+    
+    # define expected rate of autozygosity for different degrees of consanguinity,
+    # then calculate length of genome expected autozygous for those scenarios
+    consang = {"1st cousin": 0.0625, "2nd cousin": 0.015625, "3rd cousin": 0.00390625}
+    consang = dict(zip(consang.keys(), [ x * 3e9 for x in consang.values() ]))
+    
+    for key in consang:
+        print(key, consang[key])
+        expected = log10(consang[key])
+        fig.ax.axvline(x=expected, linestyle="--", color='gray')
+        ymin, ymax = pyplot.ylim()
+        fig.ax.text(expected, ymax, key, fontsize="medium", color="gray", \
+            rotation="vertical", rotation_mode="anchor", horizontalalignment="right")
+    
     fig.savefig(plot_path, format="pdf")
 
 def main():
