@@ -56,9 +56,11 @@ def get_options():
         help="Path to file of probands with diagnoses or likely diagnoses.")
     parser.add_argument("--consanguinous", default=CONSANG_PATH, \
         help="Path to all probands table that includes kinship statistics.")
-    parser.add_argument("--output-groups", default="results/autozygosity_by_diagnosed.groups.pdf", \
+    parser.add_argument("--output-groups",
+        default="results/autozygosity_by_diagnosed.groups.pdf", \
         help="Path to plot regression graph to.")
-    parser.add_argument("--output-regression", default="results/autozygosity_by_diagnosed.regression.pdf", \
+    parser.add_argument("--output-regression",
+        default="results/autozygosity_by_diagnosed.regression.pdf", \
         help="Path to plot regression graph to.")
     
     args = parser.parse_args()
