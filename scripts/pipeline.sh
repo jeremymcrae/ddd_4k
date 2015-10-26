@@ -228,7 +228,6 @@ Rscript mupit/scripts/ddd_analysis.R \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
     --ddg2p ${DDG2P_PATH} \
-    --diagnosed ${DIAGNOSED_PATH} \
     --out-manhattan ${DDD_WITH_MANHATTAN} \
     --out-enrichment ${DDD_WITH_ENRICH} \
     --out-clustering ${DDD_WITH_CLUSTER} \
