@@ -255,6 +255,23 @@ Rscript mupit/scripts/ddd_analysis.R \
     --meta-subset "intellectual_disability,autism" \
     --out-enrichment ${ENRICH_WITH_ID_AND_AUTISM}
 
+python ddd_4k/scripts/check_subset_differences.py \
+    --baseline ${DDD_WITH_ENRICH} \
+    --modified ${ENRICH_WITH_ID}
+
+python ddd_4k/scripts/check_subset_differences.py \
+    --baseline ${DDD_WITH_ENRICH} \
+    --modified ${ENRICH_WITH_ID_AND_AUTISM}
+
+python ddd_4k/scripts/check_subset_differences.py \
+    --baseline ${DDD_WITH_ENRICH} \
+    --modified ${META_WITH_ENRICH}
+
+python ddd_4k/scripts/check_subset_differences.py \
+    --baseline ${DDD_WITHOUT_ENRICH} \
+    --modified ${DDD_WITH_ENRICH}
+
+
 ################################################################################
 # analyse proximity clustering of de novo mutations
 ################################################################################
