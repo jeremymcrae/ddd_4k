@@ -53,6 +53,8 @@ DDD_WITH_MANHATTAN=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta-analysis.
 DDD_WITH_ENRICH=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.ddd_only.enrichment_results.${DATE}.txt"
 DDD_WITH_CLUSTER=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.ddd_only.txt"
 DDD_WITH_JSON=${RESULTS_DIR}/"probands_by_gene.with_diagnosed.json"
+ENRICH_WITH_ID=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_ID.enrichment_results.${DATE}.txt"
+ENRICH_WITH_ID_AND_AUTISM=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_ID_and_autism.enrichment_results.${DATE}.txt"
 
 # define the paths to the results from the de novo clustering
 DDD_WITHOUT_CLUSTER_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.ddd_only.clustering_results.txt"
@@ -71,6 +73,10 @@ WITHOUT_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.all.
 # define the paths to candidate CNVs
 CANDIDATE_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.${DATE}.txt"
 OVERLAPPING_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.overlapping_novel_genes.${DATE}.txt"
+
+################################################################################
+# obtain and install required code dependencies
+################################################################################
 
 # install necessary python and R packages (ones that are not listed as
 # dependencies of the python and R packages on github).
@@ -109,7 +115,10 @@ python count_singletons/get_last_base_sites.py \
     --base G \
     --out ${LAST_BASE_PATH}
 
-# run the de novo filtering
+################################################################################
+# filter de novo mutation calls, and prepare validation data
+################################################################################
+
 # runtime: < 30 minutes
 python denovoFilter/scripts/filter_de_novos.py \
     --de-novos ${DE_NOVOS_CALLS_PATH} \
@@ -129,7 +138,10 @@ python denovoFilter/scripts/get_validations.py \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --output ${VALIDATIONS_PATH}
 
+################################################################################
 # obtain mutation rates for all the genes containing de novo mutations
+################################################################################
+
 # prepare a file to create mutation rates from
 TEMP_VARS="tmp_variants.txt"
 TEMP_GENES="tmp_transcripts.txt"
@@ -150,7 +162,10 @@ python denovonear/scripts/construct_mutation_rates.py \
     --rates "denovonear/data/forSanger_1KG_mutation_rate_table.txt" \
     --out ${RATES_PATH}
 
+################################################################################
 # identify the probands either with diagnoses, or with likely diagnoses
+################################################################################
+
 # runtime: < 5 minutes
 Rscript mupit/scripts/get_diagnostic_probands.R \
     --ddd-1k-diagnoses ${DDD_1K_DIAGNOSES} \
@@ -159,6 +174,10 @@ Rscript mupit/scripts/get_diagnostic_probands.R \
     --families ${FAMILIES_PATH} \
     --ddg2p ${DDG2P_PATH} \
     --out ${DIAGNOSED_PATH}
+
+################################################################################
+# test for enrichment of de novo mutations within genes
+################################################################################``
 
 # runtime: < 5 minutes
 Rscript mupit/scripts/ddd_analysis.R \
@@ -215,7 +234,32 @@ Rscript mupit/scripts/ddd_analysis.R \
     --out-clustering ${DDD_WITH_CLUSTER} \
     --out-probands-by-gene ${DDD_WITH_JSON}
 
+# runtime: < 5 minutes
+Rscript mupit/scripts/ddd_analysis.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --meta-analysis \
+    --meta-subset "intellectual_disability" \
+    --out-enrichment ${ENRICH_WITH_ID}
+
+# runtime: < 5 minutes
+Rscript mupit/scripts/ddd_analysis.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --meta-analysis \
+    --meta-subset "intellectual_disability,autism" \
+    --out-enrichment ${ENRICH_WITH_ID_AND_AUTISM}
+
+################################################################################
 # analyse proximity clustering of de novo mutations
+################################################################################
+
 # runtime: < 1 hour (due to being split into job array)
 python denovonear/scripts/run_batch.py \
     --script "denovonear/scripts/clustering.py" \
@@ -248,8 +292,10 @@ python denovonear/scripts/run_batch.py \
     --rates "denovonear/data/forSanger_1KG_mutation_rate_table.txt" \
     --out ${META_WITH_CLUSTER_RESULTS}
 
-
+################################################################################
 # analyse phenotypic similarity of probands who share de novos in genes
+################################################################################
+
 # runtime: < 5 minutes
 python hpo_similarity/scripts/prepare_ddd_files.py \
     --phenotypes ${PHENOTYPES_PATH} \
@@ -272,7 +318,10 @@ python hpo_similarity/scripts/run_batch.py \
     --genes ${DDD_WITH_JSON} \
     --out ${DDD_WITH_HPOSIMILARITY_RESULTS}
 
+################################################################################
 # merge result files
+################################################################################
+
 # runtime: < 5 minutes
 Rscript mupit/scripts/combine_all_tests.R \
     --ddg2p ${DDG2P_PATH} \
@@ -292,6 +341,10 @@ Rscript mupit/scripts/combine_all_tests.R \
     --meta-clustering ${META_WITHOUT_CLUSTER_RESULTS} \
     --ddd-phenotype ${DDD_WITHOUT_HPOSIMILARITY_RESULTS} \
     --output ${WITHOUT_DIAGNOSED_RESULTS}
+
+################################################################################
+# analyse autozygosity against probability of having a diagnosis
+################################################################################
 
 # generate a multi-sample BCF that contains all of the genotype information for
 # all of the probands in the DDD
