@@ -233,6 +233,10 @@ Rscript mupit/scripts/ddd_analysis.R \
     --out-clustering ${DDD_WITH_CLUSTER} \
     --out-probands-by-gene ${DDD_WITH_JSON}
 
+################################################################################
+# test for enrichment within subsets of the external studies
+################################################################################``
+
 # runtime: < 5 minutes
 Rscript mupit/scripts/ddd_analysis.R \
     --rates ${RATES_PATH} \
@@ -270,7 +274,6 @@ python ddd_4k/scripts/check_subset_differences.py \
 python ddd_4k/scripts/check_subset_differences.py \
     --baseline ${DDD_WITHOUT_ENRICH} \
     --modified ${DDD_WITH_ENRICH}
-
 
 ################################################################################
 # analyse proximity clustering of de novo mutations
