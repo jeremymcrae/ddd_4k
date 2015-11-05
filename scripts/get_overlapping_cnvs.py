@@ -29,9 +29,11 @@ from denovonear.load_gene import get_transcript_ids_sorted_by_length, \
 import pandas
 from statsmodels.stats.multitest import fdrcorrection
 
-CNV_PATH = "/nfs/users/nfs_j/jm33/apps/ddd_4k/data/de_novos_cnvs.txt"
-ASSOCIATIONS_PATH = "/nfs/users/nfs_j/jm33/apps/mupit/results/" \
-    "de_novos.ddd_4k.without_diagnosed.all.2015-10-03.txt"
+
+CNV_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/" \
+    "ddd_4k.de_novo_cnvs.2015-10-12.txt"
+ASSOCIATIONS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/" \
+    "de_novos.ddd_4k.without_diagnosed.all.2015-10-12.txt"
 DDG2P_PATH = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/" \
     "2015-04-13/DDG2P/dd_genes_for_clinical_filter"
 
@@ -198,14 +200,13 @@ def main():
     args = get_options()
     
     ensembl = EnsemblRequest(cache_folder="cache", genome_build="grch37")
-    cnvs = open_cnvs(args.cns)
+    cnvs = open_cnvs(args.cnvs)
     results = open_associations(args.associations)
     ddg2p = open_ddg2p(args.ddg2p)
     
     results = results[results["fdr"] < 0.05]
     
-    overlaps = pandas.DataFrame(columns=list(cnvs.columns) + \
-        ["associated_hgnc", "p_value", "fdr_value", "genomewide"])
+    overlaps = pandas.DataFrame(columns=list(cnvs.columns))
     
     for (pos, row) in results.iterrows():
         transcript = get_transcript_for_gene(row["hgnc"], ensembl)
@@ -214,10 +215,10 @@ def main():
             continue
         
         de_novos = get_overlapping(cnvs, transcript)
-        de_novos["associated_hgnc"] = row["hgnc"]
-        de_novos["p_value"] = row["p_min"]
-        de_novos["fdr_value"] = row["fdr"]
-        de_novos["genomewide"] = row["genomewide"]
+        de_novos.loc[:, "associated_hgnc"] = row["hgnc"]
+        de_novos.loc[:, "p_value"] = row["p_min"]
+        de_novos.loc[:, "fdr_value"] = row["fdr"]
+        de_novos.loc[:, "genomewide"] = row["genomewide"]
         
         overlaps = overlaps.append(de_novos, ignore_index=True)
     
