@@ -47,9 +47,9 @@ def get_options():
     parser = argparse.ArgumentParser(description="script to find candidate"
         "de novo CNVs in proband VCFs")
     parser.add_argument("--families", default=FAMILIES, \
-        help="Path to table of candidate CNVs.")
+        help="Path to family relationships, including sample VCF paths.")
     parser.add_argument("--trios", default=TRIOS, \
-        help="Path to table of association results.")
+        help="Path to table listing all trios.")
     parser.add_argument("--output", default="de_novos_cnvs.txt", \
         help="Path to send output to.")
     
