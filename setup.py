@@ -35,6 +35,7 @@ setup(
                       'markdown >= 2.6.3',
                       'weasyprint >= 0.24',
                       'tabulate >= 0.7.5',
+                      'psycopg2 >= 2.6.0',
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
