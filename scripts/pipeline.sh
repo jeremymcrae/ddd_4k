@@ -55,6 +55,7 @@ DDD_WITH_CLUSTER=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.ddd_only.txt"
 DDD_WITH_JSON=${RESULTS_DIR}/"probands_by_gene.with_diagnosed.json"
 ENRICH_WITH_ID=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_ID.enrichment_results.${DATE}.txt"
 ENRICH_WITH_ID_AND_AUTISM=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_ID_and_autism.enrichment_results.${DATE}.txt"
+ENRICH_WITH_ALL=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_all.enrichment_results.${DATE}.txt"
 
 # define the paths to the results from the de novo clustering
 DDD_WITHOUT_CLUSTER_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.ddd_only.clustering_results.txt"
@@ -189,6 +190,7 @@ Rscript mupit/scripts/ddd_analysis.R \
     --ddg2p ${DDG2P_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
     --meta-analysis \
+    --meta-subset "intellectual_disability,epilepsy" \
     --out-manhattan ${META_WITHOUT_MANHATTAN} \
     --out-enrichment ${META_WITHOUT_ENRICH} \
     --out-clustering ${META_WITHOUT_CLUSTER}
@@ -216,6 +218,7 @@ Rscript mupit/scripts/ddd_analysis.R \
     --trios ${TRIOS_PATH} \
     --ddg2p ${DDG2P_PATH} \
     --meta-analysis \
+    --meta-subset "intellectual_disability,epilepsy" \
     --out-manhattan ${META_WITH_MANHATTAN} \
     --out-enrichment ${META_WITH_ENRICH} \
     --out-clustering ${META_WITH_CLUSTER}
@@ -259,6 +262,16 @@ Rscript mupit/scripts/ddd_analysis.R \
     --meta-subset "intellectual_disability,autism" \
     --out-enrichment ${ENRICH_WITH_ID_AND_AUTISM}
 
+# runtime: < 5 minutes
+Rscript mupit/scripts/ddd_analysis.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --meta-analysis \
+    --out-enrichment ${ENRICH_WITH_ALL}
+
 python ddd_4k/scripts/check_subset_differences.py \
     --baseline ${DDD_WITH_ENRICH} \
     --modified ${ENRICH_WITH_ID}
@@ -269,11 +282,11 @@ python ddd_4k/scripts/check_subset_differences.py \
 
 python ddd_4k/scripts/check_subset_differences.py \
     --baseline ${DDD_WITH_ENRICH} \
-    --modified ${META_WITH_ENRICH}
+    --modified ${META_WITH_ALL}
 
 python ddd_4k/scripts/check_subset_differences.py \
-    --baseline ${DDD_WITHOUT_ENRICH} \
-    --modified ${DDD_WITH_ENRICH}
+    --baseline ${DDD_WITH_ENRICH} \
+    --modified ${DDD_WITHOUT_ENRICH}
 
 ################################################################################
 # analyse proximity clustering of de novo mutations
