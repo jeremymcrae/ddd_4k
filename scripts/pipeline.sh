@@ -178,7 +178,7 @@ Rscript mupit/scripts/get_diagnostic_probands.R \
 
 ################################################################################
 # test for enrichment of de novo mutations within genes
-################################################################################``
+################################################################################
 
 # runtime: < 5 minutes
 Rscript mupit/scripts/ddd_analysis.R \
@@ -238,7 +238,7 @@ Rscript mupit/scripts/ddd_analysis.R \
 
 ################################################################################
 # test for enrichment within subsets of the external studies
-################################################################################``
+################################################################################
 
 # runtime: < 5 minutes
 Rscript mupit/scripts/ddd_analysis.R \
