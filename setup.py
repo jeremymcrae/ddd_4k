@@ -32,6 +32,9 @@ setup(
     install_requires=['pandas >= 0.13.1',
                       'matplotlib >= 1.3.1',
                       'seaborn >= 0.6.0',
+                      'markdown >= 2.6.3',
+                      'weasyprint >= 0.24',
+                      'tabulate >= 0.7.5',
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
