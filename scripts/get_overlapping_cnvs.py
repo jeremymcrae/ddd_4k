@@ -29,6 +29,7 @@ from denovonear.load_gene import get_transcript_ids_sorted_by_length, \
 import pandas
 from statsmodels.stats.multitest import fdrcorrection
 
+from ddd_4k.constants import THRESHOLD
 
 CNV_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/" \
     "ddd_4k.de_novo_cnvs.2015-10-12.txt"
@@ -72,7 +73,7 @@ def open_associations(path):
     results = results[~results["p_min"].isnull()]
     
     results["fdr"] = fdrcorrection(list(results["p_min"]))[1]
-    results["genomewide"] = results["p_min"] < 0.05/18500
+    results["genomewide"] = results["p_min"] < THRESHOLD
     
     return results
 

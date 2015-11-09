@@ -33,3 +33,9 @@ SANGER_IDS = "{}/person_sanger_decipher.txt".format(datafreeze)
 FAMILIES = "{}/family_relationships.txt".format(datafreeze)
 TRIOS = "{}/trios.txt".format(datafreeze)
 DATATYPES = "{}/person_datatypes.txt".format(datafreeze)
+
+# define parameters for the multiple-testing corrected p-value threshold.
+ALPHA = 0.01
+NUM_GENES = 18500
+NUM_TESTS = NUM_GENES * 2 + 6000 * 2
+THRESHOLD = ALPHA/NUM_TESTS

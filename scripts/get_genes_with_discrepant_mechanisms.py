@@ -23,7 +23,7 @@ import argparse
 
 import pandas
 
-from ddd_4k.constants import KNOWN_GENES
+from ddd_4k.constants import KNOWN_GENES, THRESHOLD
 from ddd_4k.load_files import open_known_genes
 
 RESULTS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.with_diagnosed.all.2015-10-12.txt"
@@ -66,8 +66,7 @@ def get_lof_genes(results, known):
     non_lof = [ x for x in non_lof if "Loss of function" not in list(known["mech"][known["gencode_gene_name"] == x]) ]
     
     # find the genes which have a significant loss-of-function enrichment
-    threshold = 0.05/(18500 * 2 + 6000 * 2)
-    lof_significant = results[(results["meta.p_lof"] < threshold) | (results["ddd.p_lof"] < threshold)]
+    lof_significant = results[(results["meta.p_lof"] < THRESHOLD) | (results["ddd.p_lof"] < THRESHOLD)]
     
     # find the DDG2P genes with a significant loss-of-function enrichment, but
     # without a known loss-of-function mechanism

@@ -24,7 +24,7 @@ import argparse
 import pandas
 from statsmodels.stats.multitest import fdrcorrection
 
-from ddd_4k.constants import DENOVO_PATH, VALIDATIONS, SANGER_IDS
+from ddd_4k.constants import DENOVO_PATH, VALIDATIONS, SANGER_IDS, THRESHOLD
 
 RESULTS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.without_diagnosed.all.2015-10-12.txt"
 
@@ -99,15 +99,16 @@ def main():
     results = pandas.read_table(results_path, sep="\t")
     
     # find the genes that exceed a multiple testing corrected genonmewide threshold
-    num_tests = 18500 * 2 + 6000 * 2
-    threshold = 0.05/num_tests
-    new_genes = results["hgnc"][results["p_min"] < threshold]
+    new_genes = results["hgnc"][results["p_min"] < THRESHOLD]
     new_genes = new_genes[~new_genes.isnull()]
     
     get_sites_for_validation(de_novos, new_genes, validations)
     
     sites = de_novos[de_novos["symbol"].isin(new_genes) & ~de_novos["status"].isin(["inherited", "false_positive"]) ]
     sites = sites.sort(["symbol", "pos"])
+    
+    sites[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", \
+        "consequence"]].to_csv(args.output, sep="\t", index=False)
 
 if __name__ == '__main__':
     main()

@@ -28,7 +28,7 @@ import matplotlib
 matplotlib.use("Agg")
 import seaborn
 
-from ddd_4k.constants import KNOWN_GENES
+from ddd_4k.constants import KNOWN_GENES, THRESHOLD
 from ddd_4k.load_files import open_known_genes
 
 # define the plot style
@@ -85,7 +85,7 @@ def main():
     merged = baseline[["hgnc", "dominant", "baseline"]].merge(modified[["hgnc", "dominant", "modified"]], how="outer", \
         on=["hgnc", "dominant"])
     
-    merged = merged[merged["baseline"] > -log10(0.05/18500)]
+    merged = merged[merged["baseline"] > -log10(THRESHOLD)]
     merged = merged.dropna()
     
     merged["delta"] = merged["modified"] - merged["baseline"]

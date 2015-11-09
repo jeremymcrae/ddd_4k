@@ -51,6 +51,8 @@ matplotlib.use("Agg")
 
 import seaborn
 
+from ddd_4k.constants import ALPHA, NUM_GENES
+
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
@@ -227,7 +229,7 @@ def main():
     rates = get_mutation_rates(args.rates)
     
     # estimate a genome-wide significance threshold
-    threshold = 0.05/18500
+    threshold = ALPHA/NUM_GENES
     
     check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq, \
         os.path.join(args.output_folder, "haploinsufficiency_power.pdf"))
