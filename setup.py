@@ -36,6 +36,7 @@ setup(
                       'weasyprint >= 0.24',
                       'tabulate >= 0.7.5',
                       'psycopg2 >= 2.6.0',
+                      'denovonear >= 0.1.1',
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
