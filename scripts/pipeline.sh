@@ -191,7 +191,7 @@ Rscript mupit/scripts/ddd_analysis.R \
     --ddg2p ${DDG2P_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
     --meta-analysis \
-    --meta-subset "intellectual_disability,epilepsy" \
+    --meta-subset "intellectual_disability,epilepsy,autism" \
     --out-manhattan ${META_WITHOUT_MANHATTAN} \
     --out-enrichment ${META_WITHOUT_ENRICH} \
     --out-clustering ${META_WITHOUT_CLUSTER}
@@ -219,7 +219,7 @@ Rscript mupit/scripts/ddd_analysis.R \
     --trios ${TRIOS_PATH} \
     --ddg2p ${DDG2P_PATH} \
     --meta-analysis \
-    --meta-subset "intellectual_disability,epilepsy" \
+    --meta-subset "intellectual_disability,epilepsy,autism" \
     --out-manhattan ${META_WITH_MANHATTAN} \
     --out-enrichment ${META_WITH_ENRICH} \
     --out-clustering ${META_WITH_CLUSTER}
