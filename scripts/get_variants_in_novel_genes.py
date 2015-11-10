@@ -68,7 +68,7 @@ def open_de_novos(de_novos_path, validations_path, sanger_ids_path):
     
     return de_novos
 
-def get_sites_for_validation(de_novos, new_genes, validations):
+def get_sites_for_validation(de_novos, new_genes):
     """ find which sites still require validation
     """
     
@@ -87,7 +87,7 @@ def get_sites_for_validation(de_novos, new_genes, validations):
     invalid = de_novos[de_novos["symbol"].isin(new_genes) & de_novos["status"].isin(["inherited", "false_positive"]) ]
     
     untested[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", \
-        "consequence"]].to_csv("ddd_4k_validations.additional_genes.2015-10-12.txt", sep="\t", index=False))
+        "consequence"]].to_csv("ddd_4k_validations.additional_genes.2015-10-12.txt", sep="\t", index=False)
     invalid[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol",  \
         "consequence"]].to_csv("ddd_4k_validations.repeat_validations.2015-10-12.txt", sep="\t", index=False)
 
@@ -95,14 +95,15 @@ def main():
     args = get_options()
     
     de_novos = open_de_novos(args.de_novos, args.validations, args.sanger_ids)
+    de_novos = de_novos[~de_novos["consequence"].isin(["synonymous_variant"]) ]
     
-    results = pandas.read_table(results_path, sep="\t")
+    results = pandas.read_table(args.results, sep="\t")
     
     # find the genes that exceed a multiple testing corrected genonmewide threshold
     new_genes = results["hgnc"][results["p_min"] < THRESHOLD]
     new_genes = new_genes[~new_genes.isnull()]
     
-    get_sites_for_validation(de_novos, new_genes, validations)
+    get_sites_for_validation(de_novos, new_genes)
     
     sites = de_novos[de_novos["symbol"].isin(new_genes) & ~de_novos["status"].isin(["inherited", "false_positive"]) ]
     sites = sites.sort(["symbol", "pos"])
