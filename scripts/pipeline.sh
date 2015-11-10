@@ -390,8 +390,7 @@ python ddd_4k/scripts/prepare_gene_reports.py \
     --variants ${NOVEL_GENE_VARIANTS} \
     --phenotypes ${PHENOTYPES_PATH} \
     --sanger-ids ${SAMPLE_IDS_PATH} \
-    --output "TEMP.txt"
-    
+    --output "gene_reports"
 
 ################################################################################
 # analyse autozygosity against probability of having a diagnosis
