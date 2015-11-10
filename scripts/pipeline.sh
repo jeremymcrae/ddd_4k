@@ -384,7 +384,7 @@ python ddd_4k/scripts/get_variants_in_novel_genes.py \
     --validations ${VALIDATIONS_PATH} \
     --sanger-ids ${SAMPLE_IDS_PATH} \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
-    --output ${NOVEL_GENE_VARIANTS} \
+    --output ${NOVEL_GENE_VARIANTS}
 
 python ddd_4k/scripts/prepare_gene_reports.py \
     --variants ${NOVEL_GENE_VARIANTS} \
