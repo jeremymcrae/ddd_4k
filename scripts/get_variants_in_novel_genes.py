@@ -108,7 +108,7 @@ def main():
     sites = de_novos[de_novos["symbol"].isin(new_genes) & ~de_novos["status"].isin(["inherited", "false_positive"]) ]
     sites = sites.sort(["symbol", "pos"])
     
-    sites[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", \
+    sites[["person_stable_id", "sex", "chrom", "pos", "ref", "alt", "symbol", \
         "consequence", "status"]].to_csv(args.output, sep="\t", index=False)
 
 if __name__ == '__main__':
