@@ -26,9 +26,6 @@ import os
 
 import pandas
 import psycopg2
-from tabulate import tabulate
-import markdown
-from weasyprint import HTML
 
 from ddd_4k.constants import PHENOTYPES, SANGER_IDS
 from ddd_4k.load_files import open_phenotypes
@@ -149,6 +146,8 @@ def get_clinical_details(variants, pheno):
     # tab = tabulate(table, header, tablefmt="pipe")
     #
     # tab = "\n" + tab + "\n"
+    # this can be piped to HTML by the markdown library, and formatted as pdf by
+    # the weasyprint library
     
     return table
 
