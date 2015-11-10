@@ -21,6 +21,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import argparse
 import getpass
+import sys
+import os
 
 import pandas
 import psycopg2
@@ -43,8 +45,8 @@ def get_options():
         help="Path to table of phenotypes.")
     parser.add_argument("--sanger-ids", default=SANGER_IDS, \
         help="Path to table of alternate IDs for participants.")
-    parser.add_argument("--output", default="temp.txt", \
-        help="Path to send output to.")
+    parser.add_argument("--output-dir", default="gene_reports", \
+        help="Folder to send output tables to.")
     
     args = parser.parse_args()
     
@@ -122,7 +124,7 @@ def get_variant_details(variants, ensembl, cur):
     
     return table
 
-def get_clinical_details(sample_ids, pheno):
+def get_clinical_details(variants, pheno):
     """ prepare a table of anthropometric data for the probands
     
     Args:
@@ -130,12 +132,16 @@ def get_clinical_details(sample_ids, pheno):
         pheno: pandas DataFrame of phenotypic data
     """
     
-    samples = pheno[pheno["person_stable_id"].isin(sample_ids)]
+    sample_ids = variants["person_stable_id"]
     
-    columns = ["patient_id", "gender", "mothers_age", "fathers_age",
-        "birthweight_sd", "gestation", "birth_ofc_sd",
-        "decimal_age_at_assessment", "height_sd", "weight_sd", "ofc_sd",
-        "walked_independently", "first_words", "child_terms"]
+    samples = pheno[pheno["person_stable_id"].isin(sample_ids)]
+    samples = samples.merge(variants, how="left", on="person_stable_id")
+    
+    columns = ["patient_id", "gender", "chrom", "pos", "ref", "alt",
+        "consequence", "mothers_age", "fathers_age", "birthweight_sd",
+        "gestation", "birth_ofc_sd", "decimal_age_at_assessment", "height_sd",
+        "weight_sd", "ofc_sd", "walked_independently", "first_words",
+        "child_terms"]
     table = samples[columns]
     
     # # format the table as markdown
@@ -162,7 +168,7 @@ def get_tables(ensembl, cur, variants, phenotypes):
     
     var_table = get_variant_details(variants, ensembl, cur)
     
-    clinical_table = get_clinical_details(variants["person_stable_id"], phenotypes)
+    clinical_table = get_clinical_details(variants, phenotypes)
     
     return (var_table, clinical_table)
 
@@ -174,15 +180,34 @@ def main():
     
     ensembl = EnsemblVariant(cache_folder="cache", genome_build="grch37")
     
-    pwd = getpass.getpass("DDD database password: ")
-    conn = psycopg2.connect(database="ddd_prod", user="ddd_login_ro", \
-            host="ddd-lims-db", port="5444", password=pwd)
-    cur = conn.cursor()
+    tries = 0
+    while tries < 3:
+        try:
+            pwd = getpass.getpass("DDD database password: ")
+            conn = psycopg2.connect(database="ddd_prod", user="ddd_login_ro", \
+                    host="ddd-lims-db", port="5444", password=pwd)
+            break
+        except psycopg2.OperationalError:
+            tries += 1
     
-    for name, group in variants.groupby("symbol"):
-        var_table, clinical_table = get_tables(ensembl, cur, group, phenotypes)
-        print(var_table)
-        print(clinical_table)
+    if tries == 3:
+        sys.exit("too many wrong password attempts")
+    
+    with conn.cursor() as cur:
+        
+        for name, group in variants.groupby("symbol"):
+            var_table, clinical_table = get_tables(ensembl, cur, group, phenotypes)
+            
+            var_path = os.path.join(args.output_dir, "{}_variants.txt".format(name))
+            clin_path = os.path.join(args.output_dir, "{}_clinical.txt".format(name))
+            
+            if not os.path.exists(args.output_dir):
+                os.mkdir(args.output_dir)
+            
+            var_table.to_csv(var_path, sep="\t", na_rep="NA", index=False)
+            clinical_table.to_csv(clin_path, sep="\t", na_rep="NA", index=False)
+    
+    conn.close()
 
 if __name__ == '__main__':
     main()
