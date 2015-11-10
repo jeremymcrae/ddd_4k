@@ -70,6 +70,7 @@ DDD_WITHOUT_HPOSIMILARITY_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagno
 # define paths to combined result files
 WITH_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.all.${DATE}.txt"
 WITHOUT_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.all.${DATE}.txt"
+NOVEL_GENE_VARIANTS=${RESULTS_DIR}/"novel_gene_variants.ddd_4k.${DATE}.txt"
 
 # define the paths to candidate CNVs
 CANDIDATE_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.${DATE}.txt"
@@ -373,6 +374,24 @@ Rscript mupit/scripts/combine_all_tests.R \
     --meta-clustering ${META_WITHOUT_CLUSTER_RESULTS} \
     --ddd-phenotype ${DDD_WITHOUT_HPOSIMILARITY_RESULTS} \
     --output ${WITHOUT_DIAGNOSED_RESULTS}
+
+################################################################################
+# identify variants in candidate novel genes, and prepare reports
+################################################################################
+
+python ddd_4k/scripts/get_variants_in_novel_genes.py \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --sanger-ids ${SAMPLE_IDS_PATH} \
+    --results ${WITHOUT_DIAGNOSED_RESULTS} \
+    --output ${NOVEL_GENE_VARIANTS} \
+
+python ddd_4k/scripts/prepare_gene_reports.py \
+    --variants ${NOVEL_GENE_VARIANTS} \
+    --phenotypes ${PHENOTYPES_PATH} \
+    --sanger-ids ${SAMPLE_IDS_PATH} \
+    --output "TEMP.txt"
+    
 
 ################################################################################
 # analyse autozygosity against probability of having a diagnosis

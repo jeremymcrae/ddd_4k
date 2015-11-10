@@ -19,7 +19,9 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+import argparse
 import getpass
+import json
 
 import psycopg2
 from tabulate import tabulate
@@ -29,15 +31,101 @@ from weasyprint import HTML
 from ddd_4k.constants import PHENOTYPES, SANGER_IDS
 from ddd_4k.load_files import open_phenotypes
 
-def get_variant_details():
-    """
+from denovonear.ensembl_requester import EnsemblRequest
+
+def get_options():
+    """ parse the command line arguments
     """
     
-    pwd = getpass.getpass("DDD database password: ")
-    conn = psycopg2.connect(database="ddd_prod", user="ddd_login_ro", \
-        host="ddd-lims-db", port="5444", password=pwd)
+    parser = argparse.ArgumentParser(description="")
+    parser.add_argument("--variants", \
+        help="Path to table of variants in novel geens.")
+    parser.add_argument("--phenotypes", default=PHENOTYPES, \
+        help="Path to table of phenotypes.")
+    parser.add_argument("--sanger-ids", default=SANGER_IDS, \
+        help="Path to table of alternate IDs for participants.")
+    parser.add_argument("--output", default="temp.txt", \
+        help="Path to send output to.")
     
-    conn.execute("select p.stable_id,p.decipher_id,clin.* from fe.person p join clinician clin using(id_clinician) where p.proband = true and p.failed = false")
+    args = parser.parse_args()
+    
+    return args
+
+class EnsemblVariant(EnsemblRequest):
+    
+    def parse_alternate_consequences(self, variant, gene, vep_cq):
+        """ at the moment we're looking for the HGVS nomenclature for the
+        canonical transcript, where that transcript needs to match our most
+        severe consequence.
+        
+        TODO: I might need to shift this to using HGVS nomenclature for the
+        longest protein_coding transcript, where that transcript consequence
+        matches our most severe consrquence prediction.
+        
+        Args:
+            variant: dictionary of possible consequences or variant, obtained
+                from the Ensembl REST API.
+            gene: HGNC symbol for the variant that we need to match against.
+            vep_cq: VEP consequence that we need to match against.
+        
+        Returns:
+            dictionary entry for the canonical transcript for the correct gene
+            and VEP consequence. Returns None if not found.
+        """
+        
+        for cq in variant["transcript_consequences"]:
+            if "gene_symbol" not in cq:
+                continue
+            if cq["gene_symbol"] != gene:
+                continue
+            if cq["biotype"] not in ["protein_coding", "polymorphic_pseudogene"]:
+                continue
+            if vep_cq not in cq["consequence_terms"]:
+                continue
+            
+            if "canonical" in cq:
+                return cq
+    
+    def get_variant_hgvs(self, chrom, pos, ref, alt, gene, vep_cq):
+        """ extract the HGVS predictions for a variant
+        """
+        
+        end_pos = pos + len(ref) - 1
+        
+        headers = {"Content-Type": "application/json"}
+        coordinate = "{}:{}:{}".format(chrom, pos, end_pos)
+        ext = "/vep/human/region/{}/{}?hgvs=1;canonical=1".format(coordinate, alt)
+        
+        r = self.ensembl_request(ext, coordinate, headers)
+        
+        variant = json.loads(r)[0]
+        
+        return self.parse_alternate_consequences(variant, gene, vep_cq)
+
+def get_variant_details(variants, ensembl, cur):
+    """
+    
+    Args:
+        cur: sql cursor, to access the DDD database
+    """
+    
+    for variant in variants:
+        ensembl.get_variant_hgvs(chrom, pos, ref, alt, hgnc, consequence)
+    
+    sample_ids = list(variants["person_id"])
+    
+    cur.execute("select p.stable_id,p.decipher_id,clin.* " \
+        "from fe.person p join clinician clin using(id_clinician) " \
+            "where p.proband = true and p.failed = false and p.stable_id = any(%s);", (sample_ids, ))
+    
+    query = cur.fetchall()
+    
+    clinicians = {}
+    for x in query:
+        decipher_id = x[1]
+        clinicians[decipher_id] = {}
+        clinicians[decipher_id]["email"] = x[3]
+        clinicians[decipher_id]["clinician"] = x[4]
     
     # we need decipher ID, sex, variant location, ref and alt alleles, vep
     # consequence, gene symbol, protein consequence (e.g. "p.Arg222*")referring
@@ -48,6 +136,10 @@ def get_variant_details():
 
 def get_anthropometric(sample_ids, pheno):
     """ prepare a markdown formatted table of anthropometric data for the probands
+    
+    Args:
+        sample_ids: list or pandas Series of DDD person IDs for probands
+        pheno: pandas DataFrame of phenotypic data
     """
     
     samples = pheno[pheno["person_stable_id"].isin(sample_ids)]
@@ -66,6 +158,10 @@ def get_anthropometric(sample_ids, pheno):
 
 def get_hpo_phenotypes(sample_ids, pheno):
     """ prepare markdown-formatted tables of HPO terms per proband
+    
+    Args:
+        sample_ids: list or pandas Series of DDD person IDs for probands
+        pheno: pandas DataFrame of phenotypic data
     """
     
     samples = pheno[pheno["person_stable_id"].isin(sample_ids)]
@@ -84,15 +180,34 @@ def get_hpo_phenotypes(sample_ids, pheno):
     
     return md
 
-phenotypes = open_phenotypes(PHENOTYPES, SANGER_IDS)
 
-sample_ids = ["DDDP111164", "DDDP102163"]
+def main():
+    
+    args = get_options()
+    variants = pandas.read_table(args.variants, sep="\t")
+    
+    ensembl = EnsemblVariant(cache_folder="cache", genome_build="grch37")
+    
+    pwd = getpass.getpass("DDD database password: ")
+    with psycopg2.connect(database="ddd_prod", user="ddd_login_ro", \
+            host="ddd-lims-db", port="5444", password=pwd) as conn:
+        with conn.cursor() as cur:
+            var_table = get_variant_details(variants, ensembl, cur)
+    
+    phenotypes = open_phenotypes(PHENOTYPES, SANGER_IDS)
+    
+    # sample_ids = ["DDDP111164", "DDDP102163"]
+    # decipher_ids = phenotypes["decipher_id"][phenotypes["person_stable_id"].isin(sample_ids)]
+    # decipher_ids = [ str(x) for x in decipher_ids ]
+    
+    md_text = ""
+    md_text += get_anthropometric(variants["person_id"], pheno)
+    md_text += get_hpo_phenotypes(variants["person_id"], pheno)
+    
+    html = markdown.markdown(md_text, ['markdown.extensions.extra'])
+    html = HTML(string=html)
+    
+    html.write_pdf('temp.pdf')
 
-md_text = ""
-md_text += get_anthropometric(sample_ids, pheno)
-md_text += get_hpo_phenotypes(sample_ids, pheno)
-
-html = markdown.markdown(md_text, ['markdown.extensions.extra'])
-html = HTML(string=html)
-
-html.write_pdf('temp.pdf')
+if __name__ == '__main__':
+    main()

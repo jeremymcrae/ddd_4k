@@ -41,7 +41,7 @@ def get_options():
         help="Path to table of tbale mapping sanger IDs to DDD IDs.")
     parser.add_argument("--results", default=RESULTS_PATH, \
         help="Path to table of association results.")
-    parser.add_argument("--output", default="de_novos_cnvs.txt", \
+    parser.add_argument("--output", default="novel_gene_variants.txt", \
         help="Path to send output to.")
     
     args = parser.parse_args()
@@ -108,7 +108,7 @@ def main():
     sites = sites.sort(["symbol", "pos"])
     
     sites[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", \
-        "consequence"]].to_csv(args.output, sep="\t", index=False)
+        "consequence", "status"]].to_csv(args.output, sep="\t", index=False)
 
 if __name__ == '__main__':
     main()
