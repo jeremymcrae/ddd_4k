@@ -38,7 +38,7 @@ def get_options():
         help="Path to table of known genes.")
     parser.add_argument("--results", default=RESULTS_PATH, \
         help="Path to table of association results.")
-    parser.add_argument("--output", default="de_novos_cnvs.txt", \
+    parser.add_argument("--output", default="missing_mechanism_genes.txt", \
         help="Path to send output to.")
     
     args = parser.parse_args()
@@ -113,8 +113,12 @@ def main():
     missing_lof = get_lof_genes(results, ddg2p)
     missing_gof = get_gof_genes(results, ddg2p)
     
-    print(missing_lof)
-    print(missing_gof)
+    missing_lof["reason"] = "missing loss-of-function mechanism"
+    missing_gof["reason"] = "missing gain-of-function mechanism"
+    
+    missing = missing_lof.append(missing_gof, ignore_index=True)
+    
+    missing.to_csv(args.output, sep="\t", index=False)
 
 if __name__ == '__main__':
     main()

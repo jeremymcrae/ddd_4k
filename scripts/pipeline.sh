@@ -71,6 +71,7 @@ DDD_WITHOUT_HPOSIMILARITY_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagno
 WITH_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.all.${DATE}.txt"
 WITHOUT_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.all.${DATE}.txt"
 NOVEL_GENE_VARIANTS=${RESULTS_DIR}/"novel_gene_variants.ddd_4k.${DATE}.txt"
+GENES_WITH_DISCREPANT_MECHANISMS=${RESULTS_DIR}/"missing_mechanism_genes.ddd_4k.${DATE}.txt"
 
 # define the paths to candidate CNVs
 CANDIDATE_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.${DATE}.txt"
@@ -443,3 +444,8 @@ python ddd_4k/get_overlapping_cnvs.py --cnvs ${CANDIDATE_CNVS} --associations ${
 # look into the power of exome sequencing vs genome sequencing
 python ddd_4k/scripts/exome_vs_genome.py \
     --output-folder "ddd_4k/results"
+
+python ddd/scripts/get_genes_with_discrepand_mechanisms.py \
+    --known-genes ${KNOWN_GENES} \
+    --results ${WITHOUT_DIAGNOSED_RESULTS} \
+    --output ${GENES_WITH_DISCREPANT_MECHANISMS}
