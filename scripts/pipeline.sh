@@ -445,6 +445,10 @@ python ddd_4k/get_overlapping_cnvs.py --cnvs ${CANDIDATE_CNVS} --associations ${
 python ddd_4k/scripts/exome_vs_genome.py \
     --output-folder "ddd_4k/results"
 
+# find genes with discrepant mechanisms (i.e. the known genes file lists the
+# gene as having a loss-of function mechanism, but we observe missense
+# enrichment and clustering, or the known genes file lists a gene as having
+# missense variants, but we observe loss-of-fucntion enrichment).
 python ddd/scripts/get_genes_with_discrepand_mechanisms.py \
     --known-genes ${KNOWN_GENES} \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
