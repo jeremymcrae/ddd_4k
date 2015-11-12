@@ -1,4 +1,6 @@
-# pipeline of processing and analysis scripts for the DDD 4K analyses
+# pipeline of processing and analysis scripts for the DDD 4K analyses. Most of
+# the steps here require the setup steps of the normal pipeline.sh script to be
+# run first.
 
 # DATE=`date +%Y-%m-%d`
 DATE="2015-10-12"
