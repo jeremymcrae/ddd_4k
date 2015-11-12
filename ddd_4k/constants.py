@@ -37,5 +37,6 @@ DATATYPES = "{}/person_datatypes.txt".format(datafreeze)
 # define parameters for the multiple-testing corrected p-value threshold.
 ALPHA = 0.01
 NUM_GENES = 18500
-NUM_TESTS = NUM_GENES * 2 + 6000 * 2
+META_ANALYSED_GENES = 6000
+NUM_TESTS = NUM_GENES * 2 + META_ANALYSED_GENES * 2
 THRESHOLD = ALPHA/NUM_TESTS
