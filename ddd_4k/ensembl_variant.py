@@ -55,7 +55,17 @@ class EnsemblVariant(EnsemblRequest):
                 continue
             if cq["biotype"] not in ["protein_coding", "polymorphic_pseudogene"]:
                 continue
-            if vep_cq not in cq["consequence_terms"]:
+            if vep_cq not in cq["consequence_terms"] and \
+                    (vep_cq == "conserved_exon_terminus_variant" and len(set(["missense_variant", "splice_region_variant"]) & set(cq["consequence_terms"])) == 0 ) and \
+                    (vep_cq in ["inframe_insertion", "inframe_deletion"] and "protein_altering_variant" not in cq["consequence_terms"]):
+                # Sometimes we have recorded the most severe consequence as
+                # "inframe_insertion", but VEP now classifies it as
+                # "protein_altering_variant". Other times we have reclassified
+                # variants as likely to alter splicing due to being at a
+                # conserved last base of an exon, which we predict can be a
+                # loss-of-function alteration. This makes sure we don't miss
+                # those variants, while avoiding transcripts where the
+                # consequence truly doesn't match.
                 continue
             
             if "canonical" in cq:
