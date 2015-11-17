@@ -60,7 +60,7 @@ def get_clinician_details(sample_ids, cur):
         dictionary of clinician details, indexed by DDD sample ID.
     """
     
-    cur.execute("select p.stable_id,p.decipher_id,clin.* " \
+    cur.execute("select p.stable_id,p.decipher_id,clin.email,clin.name " \
         "from fe.person p join clinician clin using(id_clinician) " \
             "where p.proband = true and p.failed = false and p.stable_id = any(%s);", (sample_ids, ))
     
@@ -73,8 +73,8 @@ def get_clinician_details(sample_ids, cur):
         sample_id = x[0]
         clinicians[sample_id] = {}
         clinicians[sample_id]["decipher_id"] = x[1]
-        clinicians[sample_id]["email"] = x[3]
-        clinicians[sample_id]["clinician"] = x[4]
+        clinicians[sample_id]["email"] = x[2]
+        clinicians[sample_id]["clinician"] = x[3]
     
     return clinicians
 
