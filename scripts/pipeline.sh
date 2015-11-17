@@ -393,9 +393,9 @@ python ddd_4k/scripts/prepare_gene_reports.py \
     --sanger-ids ${SAMPLE_IDS_PATH} \
     --output-dir "gene_reports"
 
-python ddd_4k/scripts/plot_de_novos_in_genes.py \
+python ddd_4k/scripts/plot_de_novos_in_gene.py \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
-    --external-sites "publishedDeNovos/data-raw/variants.txt.gz"
+    --external-sites "publishedDeNovos/data-raw/variants.txt.gz" \
     --validations ${VALIDATIONS_PATH} \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
     --output-dir "gene_reports"
