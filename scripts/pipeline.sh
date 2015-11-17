@@ -388,10 +388,17 @@ python ddd_4k/scripts/get_variants_in_novel_genes.py \
     --output ${NOVEL_GENE_VARIANTS}
 
 python ddd_4k/scripts/prepare_gene_reports.py \
-    --variants ${NOVEL_GENE_VARIANTS} \
+    --de-novos ${NOVEL_GENE_VARIANTS} \
     --phenotypes ${PHENOTYPES_PATH} \
     --sanger-ids ${SAMPLE_IDS_PATH} \
-    --output "gene_reports"
+    --output-dir "gene_reports"
+
+python ddd_4k/scripts/plot_de_novos_in_genes.py \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --external-sites "publishedDeNovos/data-raw/variants.txt.gz"
+    --validations ${VALIDATIONS_PATH} \
+    --results ${WITHOUT_DIAGNOSED_RESULTS} \
+    --output-dir "gene_reports"
 
 ################################################################################
 # analyse autozygosity against probability of having a diagnosis
@@ -449,7 +456,7 @@ python ddd_4k/scripts/exome_vs_genome.py \
 # gene as having a loss-of function mechanism, but we observe missense
 # enrichment and clustering, or the known genes file lists a gene as having
 # missense variants, but we observe loss-of-fucntion enrichment).
-python ddd/scripts/get_genes_with_discrepand_mechanisms.py \
+python ddd/scripts/get_genes_with_discrepant_mechanisms.py \
     --known-genes ${KNOWN_GENES} \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
     --output ${GENES_WITH_DISCREPANT_MECHANISMS}

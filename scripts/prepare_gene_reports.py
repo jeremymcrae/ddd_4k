@@ -36,8 +36,8 @@ def get_options():
     """
     
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--variants", \
-        help="Path to table of variants in novel geens.")
+    parser.add_argument("--de-novos", \
+        help="Path to table of variants in novel genes.")
     parser.add_argument("--phenotypes", default=PHENOTYPES, \
         help="Path to table of phenotypes.")
     parser.add_argument("--sanger-ids", default=SANGER_IDS, \
@@ -174,7 +174,7 @@ def get_tables(ensembl, cur, variants, phenotypes):
 def main():
     
     args = get_options()
-    variants = pandas.read_table(args.variants, sep="\t")
+    variants = pandas.read_table(args.de_novos, sep="\t")
     phenotypes = open_phenotypes(PHENOTYPES, SANGER_IDS)
     
     ensembl = EnsemblVariant(cache_folder="cache", genome_build="grch37")

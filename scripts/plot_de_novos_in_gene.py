@@ -46,7 +46,7 @@ def get_options():
     """
     
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--associations", default=ASSOCIATIONS, \
+    parser.add_argument("--results", default=ASSOCIATIONS, \
         help="Path to folder with association results.")
     parser.add_argument("--de-novos", default=DENOVO_PATH, \
         help="Path to file of candidate de novos.")
@@ -92,7 +92,7 @@ def plot_gene(transcript, variants, hgnc, protein_sequence, folder=None):
         if var["study_code"] == "ddd_unpublished":
             var_dict[key]["source"] = "internal"
     
-    filename = "gene_plot.{0}.pdf".format(hgnc)
+    filename = "{0}_gene_plot.pdf".format(hgnc)
     if folder is not None:
         filename = os.path.join(folder, filename)
     
@@ -144,7 +144,7 @@ def main():
     
     de_novos = load_de_novos(args.de_novos, args.validations, args.external_sites)
     
-    genes = pandas.read_table(args.associations)
+    genes = pandas.read_table(args.results)
     genes = genes[genes["p_min"] < THRESHOLD]
     
     if not os.path.exists(args.output_dir):
