@@ -47,6 +47,11 @@ get_options <- function() {
     return(args)
 }
 
+#' load the table of mutation rates for consequence types per gene
+#'
+#' @param rates_path path to table of mutation rates per gene.
+#'
+#' @return dataframe of mutation rates, formatted for running with mupiut
 get_rates_dataset <- function(rates_path) {
     rates = read.table(rates_path, header=TRUE, sep="\t", stringsAsFactors=FALSE)
     
@@ -276,7 +281,7 @@ simulate_power <- function(probands, de_novos, rates, threshold, dominant, genom
 #' @param output_path path to save output plot to
 plot_power <- function(power, output_path) {
     # reshape the power dataframe, so that we have the mean number of genes
-    # reaching genomewide siginifcnace for each condition
+    # reaching genomewide significance for each condition
     power = melt(power, id=c("budget", "relative_cost", "sensitivity"))
     power = cast(power, budget + relative_cost + sensitivity ~ variable, values="value", mean, na.rm=TRUE)
     power = melt(power, id=c("budget", "relative_cost", "sensitivity"))
