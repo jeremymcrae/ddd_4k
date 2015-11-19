@@ -262,8 +262,6 @@ simulate_power <- function(probands, de_novos, rates, threshold, dominant, genom
     pb = txtProgressBar(min=0, max=steps, initial=NA, style=3)
     
     step = 0
-    power = data.frame("budget"=numeric(0), "relative_cost"=numeric(0),
-        "sensitivity"=numeric(0), "genome"=numeric(0), "exome"=numeric(0))
     for (budget in budgets) {
         for (relative_cost in exome_relative_cost) {
             for (sensitivity in genome_sensitivity) {
@@ -271,13 +269,13 @@ simulate_power <- function(probands, de_novos, rates, threshold, dominant, genom
                     dominant, genomewide, genome_cost, budget,
                     relative_cost, sensitivity, iterations, pb, step)
                 
-                power = rbind(power, temp)
+                if (!exists("pow")) { pow = temp } else { pow = rbind(pow, temp) }
                 step = step + iterations
             }
         }
     }
     
-    return(power)
+    return(pow)
 }
 
 #' plot the results from simulation power of exome and genome sequencing
@@ -300,7 +298,7 @@ plot_power <- function(power, output_path) {
     p = p + geom_point()
     p = p + geom_line()
     p = p + theme_classic()
-    p = p + ggtitle("power of genome and exome sequencing at fixed bugets")
+    p = p + ggtitle("power of genome and exome sequencing at fixed budgets")
     p = p + ylab("dominant genes at genomewide signficance")
     p = p + xlab("relative cost of exome sequencing to genome sequencing")
     print(p)
