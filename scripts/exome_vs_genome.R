@@ -169,6 +169,13 @@ get_enrichment_in_sample <- function(n_trios, probands, de_novos, rates, thresho
 
 #' detect genes reaching genomewide significance, under specific conditions
 #'
+#' Given a budget, relative cost of exome sequencing to genome sequencing, and
+#' relative sensitivity of genome sequencing to detect de novo mutations,
+#' determine the number of genes that could be detected by sequencing as many
+#' trios as the budget allows. This function separately checks many random
+#' samples of probands used for each test, so as to capture the variation in the
+#' population.
+#'
 #' @param probands dataframe of proband IDs and sex info for DDD probands in trios
 #' @param de_novos dataframe of de novos in the DDD dataset
 #' @param rates dataframe of mutation rates per gene
