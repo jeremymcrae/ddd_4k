@@ -312,7 +312,12 @@ Rscript mupit/scripts/ddd_analysis.R \
 
 python ddd_4k/scripts/check_subset_differences.py \
     --baseline ${DDD_WITH_ENRICH} \
-    --modified ${ENRICH_WITH_ID} ${ENRICH_WITH_EPILEPSY} ${ENRICH_WITH_SCHIZOPHRENIA} ${ENRICH_WITH_CHD} ${ENRICH_WITH_ID_AND_AUTISM}  ${ENRICH_WITH_ALL} \
+    --modified ${ENRICH_WITH_ID} \
+               ${ENRICH_WITH_EPILEPSY} \
+               ${ENRICH_WITH_SCHIZOPHRENIA} \
+               ${ENRICH_WITH_CHD} \
+               ${ENRICH_WITH_ID_AND_AUTISM}  \
+               ${ENRICH_WITH_ALL} \
     --output "ddd_4k/results/power_differences.metanalysis.pdf"
 
 python ddd_4k/scripts/check_subset_differences.py \
@@ -475,8 +480,15 @@ python ddd_4k/scripts/mutations_by_phenotype.py \
 
 # identify candidate de novo CNVs in proband VCFs and identify candidate CNVs
 # overlapping candidate novel genes
-python ddd_4k/get_de_novo_cnvs.py --families ${FAMILIES_PATH} --trios ${TRIOS_PATH} --output ${CANDIDATE_CNVS}
-python ddd_4k/get_overlapping_cnvs.py --cnvs ${CANDIDATE_CNVS} --associations ${WITHOUT_DIAGNOSED_RESULTS} --output ${OVERLAPPING_CNVS}
+python ddd_4k/get_de_novo_cnvs.py \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --output ${CANDIDATE_CNVS}
+
+python ddd_4k/get_overlapping_cnvs.py \
+    --cnvs ${CANDIDATE_CNVS} \
+    --associations ${WITHOUT_DIAGNOSED_RESULTS} \
+    --output ${OVERLAPPING_CNVS}
 
 # look into the power of exome sequencing vs genome sequencing
 # runtime: < 10 hours, < 200 Mb of ram
