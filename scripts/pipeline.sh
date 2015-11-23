@@ -54,6 +54,9 @@ DDD_WITH_ENRICH=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.ddd_only.enrichme
 DDD_WITH_CLUSTER=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.ddd_only.txt"
 DDD_WITH_JSON=${RESULTS_DIR}/"probands_by_gene.with_diagnosed.json"
 ENRICH_WITH_ID=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_ID.enrichment_results.${DATE}.txt"
+ENRICH_WITH_CHD=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_CHD.enrichment_results.${DATE}.txt"
+ENRICH_WITH_SCHIZOPHRENIA=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_schizophrenia.enrichment_results.${DATE}.txt"
+ENRICH_WITH_EPILEPSY=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_epilepsy.enrichment_results.${DATE}.txt"
 ENRICH_WITH_ID_AND_AUTISM=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_ID_and_autism.enrichment_results.${DATE}.txt"
 ENRICH_WITH_ALL=${RESULTS_DIR}/"de_novos.ddd_4k.with_diagnosed.meta_with_all.enrichment_results.${DATE}.txt"
 
@@ -261,6 +264,39 @@ Rscript mupit/scripts/ddd_analysis.R \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
     --meta-analysis \
+    --meta-subset "epilepsy" \
+    --out-enrichment ${ENRICH_WITH_EPILEPSY}
+
+# runtime: < 5 minutes
+Rscript mupit/scripts/ddd_analysis.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --meta-analysis \
+    --meta-subset "congenital_heart_disease" \
+    --out-enrichment ${ENRICH_WITH_CHD}
+
+# runtime: < 5 minutes
+Rscript mupit/scripts/ddd_analysis.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --meta-analysis \
+    --meta-subset "schizophrenia" \
+    --out-enrichment ${ENRICH_WITH_SCHIZOPHRENIA}
+
+# runtime: < 5 minutes
+Rscript mupit/scripts/ddd_analysis.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --meta-analysis \
     --meta-subset "intellectual_disability,autism" \
     --out-enrichment ${ENRICH_WITH_ID_AND_AUTISM}
 
@@ -276,19 +312,13 @@ Rscript mupit/scripts/ddd_analysis.R \
 
 python ddd_4k/scripts/check_subset_differences.py \
     --baseline ${DDD_WITH_ENRICH} \
-    --modified ${ENRICH_WITH_ID}
+    --modified ${ENRICH_WITH_ID} ${ENRICH_WITH_EPILEPSY} ${ENRICH_WITH_SCHIZOPHRENIA} ${ENRICH_WITH_CHD} ${ENRICH_WITH_ID_AND_AUTISM}  ${ENRICH_WITH_ALL} \
+    --output "ddd_4k/results/power_differences.metanalysis.pdf"
 
 python ddd_4k/scripts/check_subset_differences.py \
     --baseline ${DDD_WITH_ENRICH} \
-    --modified ${ENRICH_WITH_ID_AND_AUTISM}
-
-python ddd_4k/scripts/check_subset_differences.py \
-    --baseline ${DDD_WITH_ENRICH} \
-    --modified ${META_WITH_ALL}
-
-python ddd_4k/scripts/check_subset_differences.py \
-    --baseline ${DDD_WITH_ENRICH} \
-    --modified ${DDD_WITHOUT_ENRICH}
+    --modified ${DDD_WITHOUT_ENRICH} \
+    --output "ddd_4k/results/power_differences.without_diagnosed.pdf"
 
 ################################################################################
 # analyse proximity clustering of de novo mutations
@@ -449,8 +479,16 @@ python ddd_4k/get_de_novo_cnvs.py --families ${FAMILIES_PATH} --trios ${TRIOS_PA
 python ddd_4k/get_overlapping_cnvs.py --cnvs ${CANDIDATE_CNVS} --associations ${WITHOUT_DIAGNOSED_RESULTS} --output ${OVERLAPPING_CNVS}
 
 # look into the power of exome sequencing vs genome sequencing
-python ddd_4k/scripts/exome_vs_genome.py \
-    --output-folder "ddd_4k/results"
+# runtime: < 10 hours, < 200 Mb of ram
+Rscript ddd_4k/scripts/exome_vs_genome.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH}  \
+    --ddg2p ${DDG2P_PATH} \
+    --iterations 1000 \
+    --output "ddd_4k/results/exome_vs_genome.pdf"
 
 # find genes with discrepant mechanisms (i.e. the known genes file lists the
 # gene as having a loss-of function mechanism, but we observe missense
