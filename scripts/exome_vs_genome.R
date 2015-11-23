@@ -217,8 +217,12 @@ run_iterations <- function(probands, de_novos, rates, threshold, dominant,
         } else {
             exome_genes = NULL
         }
-        genome_genes = get_enrichment_in_sample(n_genome_trios, probands,
-            de_novos, rates, threshold, dominant)
+        if (relative_cost == 1.0) {
+            genome_genes = get_enrichment_in_sample(n_genome_trios, probands,
+                de_novos, rates, threshold, dominant)
+        } else {
+            genome_genes = NULL
+        }
         
         if (is.null(exome_genes)) { n_exome = NA
         } else { n_exome = sum(exome_genes %in% genomewide) }
