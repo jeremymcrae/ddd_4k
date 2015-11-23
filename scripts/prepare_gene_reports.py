@@ -127,27 +127,23 @@ def get_clinical_details(variants, pheno):
     Args:
         sample_ids: list or pandas Series of DDD person IDs for probands
         pheno: pandas DataFrame of phenotypic data
+        ensembl: EnsemblVariant object, for pulling HGVS nomenclature out.
     """
     
-    sample_ids = variants["person_stable_id"]
+    sample_ids = variants["decipher_id"]
     
-    samples = pheno[pheno["person_stable_id"].isin(sample_ids)]
-    samples = samples.merge(variants, how="left", on="person_stable_id")
+    pheno["decipher_id"] = pheno["patient_id"].astype(str)
+    
+    samples = pheno[pheno["decipher_id"].isin(sample_ids)]
+    samples = samples.merge(variants, how="left", on="decipher_id")
     
     columns = ["patient_id", "gender", "chrom", "pos", "ref", "alt",
-        "consequence", "mothers_age", "fathers_age", "birthweight_sd",
+        "consequence", "transcript_hgvs", "protein_hgvs", "symbol",
+        "mothers_age", "fathers_age", "birthweight_sd",
         "gestation", "birth_ofc_sd", "decimal_age_at_assessment", "height_sd",
-        "weight_sd", "ofc_sd", "walked_independently", "first_words",
-        "child_terms"]
+        "weight_sd", "ofc_sd", "sat_independently", "walked_independently",
+        "first_words", "child_terms",  "syndrome", "additional_comments"]
     table = samples[columns]
-    
-    # # format the table as markdown
-    # table = table.values.tolist()
-    # tab = tabulate(table, header, tablefmt="pipe")
-    #
-    # tab = "\n" + tab + "\n"
-    # this can be piped to HTML by the markdown library, and formatted as pdf by
-    # the weasyprint library
     
     return table
 
@@ -167,7 +163,7 @@ def get_tables(ensembl, cur, variants, phenotypes):
     
     var_table = get_variant_details(variants, ensembl, cur)
     
-    clinical_table = get_clinical_details(variants, phenotypes)
+    clinical_table = get_clinical_details(var_table, phenotypes)
     
     return (var_table, clinical_table)
 
@@ -194,17 +190,16 @@ def main():
     
     with conn.cursor() as cur:
         
-        for name, group in variants.groupby("symbol"):
-            var_table, clinical_table = get_tables(ensembl, cur, group, phenotypes)
-            
-            var_path = os.path.join(args.output_dir, "{}_variants.txt".format(name))
-            clin_path = os.path.join(args.output_dir, "{}_clinical.txt".format(name))
-            
-            if not os.path.exists(args.output_dir):
-                os.mkdir(args.output_dir)
-            
-            var_table.to_csv(var_path, sep="\t", na_rep="NA", index=False)
-            clinical_table.to_csv(clin_path, sep="\t", na_rep="NA", index=False)
+        var_table, clinical_table = get_tables(ensembl, cur, variants, phenotypes)
+        
+        var_path = os.path.join(args.output_dir, "ddd_4k_variants.txt")
+        clin_path = os.path.join(args.output_dir, "ddd_4k_clinical.txt")
+        
+        if not os.path.exists(args.output_dir):
+            os.mkdir(args.output_dir)
+        
+        var_table.to_csv(var_path, sep="\t", na_rep="NA", index=False)
+        clinical_table.to_csv(clin_path, sep="\t", na_rep="NA", index=False)
     
     conn.close()
 
