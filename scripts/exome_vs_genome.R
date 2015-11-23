@@ -282,6 +282,40 @@ simulate_power <- function(probands, de_novos, rates, threshold, dominant, genom
     return(pow)
 }
 
+#' reshape the power dataframe, so that we have the mean number of genes
+#' reaching genomewide significance for each condition, along with the
+#' confidence intervals.
+#'
+#' @param power dataframe of numbers for genome and exome sequencing
+#' @param conf.interval confidence interval
+#'
+#' @return
+get_mean_and_ci <- function(power, conf.interval=0.95) {
+    
+    power = melt(power, id=c("budget", "relative_cost", "sensitivity"))
+    means = cast(power, budget + relative_cost + sensitivity ~ variable, value="value", mean, na.rm=TRUE)
+    stdevs = cast(power, budget + relative_cost + sensitivity ~ variable, value="value", sd, na.rm=TRUE)
+    lengths = cast(power, budget + relative_cost + sensitivity ~ variable, value="value", length)
+    
+    # find the t-statistic given the number of points for each group
+    genome_ci_mult = qt(conf.interval/2 + 0.5, lengths$genome - 1)
+    exome_ci_mult = qt(conf.interval/2 + 0.5, lengths$exome - 1)
+    
+    # find the confidence intervals
+    conf = means
+    conf$genome = stdevs$genome/sqrt(lengths$genome) * genome_ci_mult
+    conf$exome = stdevs$exome/sqrt(lengths$exome) * exome_ci_mult
+    
+    # reshape the dataset so we have the mean and confidence intervals in a
+    # single dataframe
+    means = melt(means, id=c("budget", "relative_cost", "sensitivity"))
+    conf = melt(conf, id=c("budget", "relative_cost", "sensitivity"))
+    means$ci = conf$value
+    means = means[!is.na(means$value), ]
+    
+    return(means)
+}
+
 #' plot the results from simulation power of exome and genome sequencing
 #'
 #' @param power dataframe of power simulations for each condition, containing
@@ -289,17 +323,13 @@ simulate_power <- function(probands, de_novos, rates, threshold, dominant, genom
 #'        exome sequencing
 #' @param output_path path to save output plot to
 plot_power <- function(power, output_path) {
-    # reshape the power dataframe, so that we have the mean number of genes
-    # reaching genomewide significance for each condition
-    power = melt(power, id=c("budget", "relative_cost", "sensitivity"))
-    power = cast(power, budget + relative_cost + sensitivity ~ variable, values="value", mean, na.rm=TRUE)
-    power = melt(power, id=c("budget", "relative_cost", "sensitivity"))
-    power = power[!is.na(power$value), ]
+    power = get_mean_and_ci(power)
     
     Cairo(output_path, type="pdf", height=15, width=15, units="cm")
     p = ggplot(power, aes(x=relative_cost, y=value, shape=factor(sensitivity), color=variable))
     p = p + facet_grid(. ~ budget)
     p = p + geom_point()
+    p = p + geom_errorbar(aes(ymin=value-ci, ymax=value+ci))
     p = p + geom_line()
     p = p + theme_classic()
     p = p + ggtitle("power of genome and exome sequencing at fixed budgets")
