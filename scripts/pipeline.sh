@@ -325,6 +325,14 @@ python ddd_4k/scripts/check_subset_differences.py \
     --modified ${DDD_WITHOUT_ENRICH} \
     --output "ddd_4k/results/power_differences.without_diagnosed.pdf"
 
+python ddd_4k/scripts/check_subset_proportion_diagnosed.py \
+    --external "publishedDeNovos/data-raw/variants.txt.gz" \
+    --known-genes ${DDG2P_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --diagnosed ${DIAGNOSED_PATH} \
+    --output "ddd_4k/results/diagnosed_per_subset.pdf"
+
 ################################################################################
 # analyse proximity clustering of de novo mutations
 ################################################################################
