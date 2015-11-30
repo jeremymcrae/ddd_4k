@@ -1,7 +1,7 @@
 # pipeline of processing and analysis scripts for the DDD 4K analyses
 
 # DATE=`date +%Y-%m-%d`
-DATE="2015-10-12"
+DATE="2015-11-24"
 DATAFREEZE="/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13"
 DDD1K_DATAFREEZE="/nfs/ddd0/Data/datafreeze/1133trios_20131218/"
 USER_DIR="/lustre/scratch113/projects/ddd/users/jm33"
@@ -22,6 +22,7 @@ DDD_1K_DIAGNOSES=${DDD1K_DATAFREEZE}/"Diagnosis_Summary_1133_20140328.xlsx"
 DDD_1K_VALIDATIONS=${DDD1K_DATAFREEZE}/"DNG_Validation_1133trios_20140130.tsv"
 DDD_4K_VALIDATIONS=${DATA_DIR}/"de_novos.ddd_4k.validation_results.2015-09-02.xlsx"
 LOW_PP_DNM_VALIDATIONS=${DATA_DIR}/"de_novos.ddd_4k.validation_results.low_pp_dnm.2015-10-02.xlsx"
+RECESSIVE_DIAGNOSED_PATH=${DATA_DIR}/"ddd_4k.diagnoses.additional_recessive.txt"
 
 # define paths to put some processed files
 LAST_BASE_PATH=${USER_DIR}/"last_base_sites_G.json"
@@ -162,7 +163,7 @@ python denovonear/scripts/identify_transcripts.py \
 
 # determine the consequence-specific mutation rates for the genes containing de
 # novos
-# runtime: < 20 hours, ~ 200 Mb
+# runtime: < 10 hours, ~ 200 Mb
 python denovonear/scripts/construct_mutation_rates.py \
     --genes ${TEMP_GENES} \
     --rates "denovonear/data/forSanger_1KG_mutation_rate_table.txt" \
@@ -177,6 +178,7 @@ Rscript mupit/scripts/get_diagnostic_probands.R \
     --ddd-1k-diagnoses ${DDD_1K_DIAGNOSES} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --low-pp-dnm ${LOW_PP_DNM_VALIDATIONS} \
+    --recessive-diagnoses ${RECESSIVE_DIAGNOSED_PATH} \
     --families ${FAMILIES_PATH} \
     --ddg2p ${DDG2P_PATH} \
     --out ${DIAGNOSED_PATH}
@@ -471,7 +473,7 @@ python ddd_4k/scripts/autozygosity_vs_diagnostic.py \
     --consanguinous ${KINSHIP_PATH} \
     --trios ${TRIOS_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
-    --output-groups "ddd_4k/results/autozygosity_vs_diagnosed.groups.pdf"
+    --output-groups "ddd_4k/results/autozygosity_vs_diagnosed.groups.pdf" \
     --output-regression "ddd_4k/results/autozygosity_vs_diagnosed.regression.pdf"
 
 # run de novo vs phenotypic severity checks
@@ -480,7 +482,7 @@ python ddd_4k/scripts/mutations_by_phenotype.py \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --ddg2p ${DDG2P_PATH} \
     --phenotypes ${PHENOTYPES_PATH} \
-    --sanger-ids ${SANGER_IDS} \
+    --sanger-ids ${SAMPLE_IDS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
@@ -488,12 +490,12 @@ python ddd_4k/scripts/mutations_by_phenotype.py \
 
 # identify candidate de novo CNVs in proband VCFs and identify candidate CNVs
 # overlapping candidate novel genes
-python ddd_4k/get_de_novo_cnvs.py \
+python ddd_4k/scripts/get_de_novo_cnvs.py \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
     --output ${CANDIDATE_CNVS}
 
-python ddd_4k/get_overlapping_cnvs.py \
+python ddd_4k/scripts/get_overlapping_cnvs.py \
     --cnvs ${CANDIDATE_CNVS} \
     --associations ${WITHOUT_DIAGNOSED_RESULTS} \
     --output ${OVERLAPPING_CNVS}
@@ -513,8 +515,8 @@ Rscript ddd_4k/scripts/exome_vs_genome.R \
 # find genes with discrepant mechanisms (i.e. the known genes file lists the
 # gene as having a loss-of function mechanism, but we observe missense
 # enrichment and clustering, or the known genes file lists a gene as having
-# missense variants, but we observe loss-of-fucntion enrichment).
-python ddd/scripts/get_genes_with_discrepant_mechanisms.py \
-    --known-genes ${KNOWN_GENES} \
-    --results ${WITHOUT_DIAGNOSED_RESULTS} \
+# missense variants, but we observe loss-of-function enrichment).
+python ddd_4k/scripts/get_genes_with_discrepant_mechanisms.py \
+    --known-genes ${DDG2P_PATH} \
+    --results ${WITH_DIAGNOSED_RESULTS} \
     --output ${GENES_WITH_DISCREPANT_MECHANISMS}
