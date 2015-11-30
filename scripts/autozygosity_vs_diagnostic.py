@@ -248,7 +248,6 @@ def plot_regression(lengths, diagnosed_ids, plot_path):
     consang = dict(zip(consang.keys(), [ x * 3e9 for x in consang.values() ]))
     
     for key in consang:
-        print(key, consang[key])
         expected = log10(consang[key])
         fig.ax.axvline(x=expected, linestyle="--", color='gray')
         ymin, ymax = pyplot.ylim()
