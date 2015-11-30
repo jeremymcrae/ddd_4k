@@ -67,8 +67,21 @@ def open_known_genes(path):
         DataFrame for the known genes.
     """
     
-    genes = pandas.read_table(path, sep="|")
-    genes = genes[genes["ddg2p_status"] != "Possible DD Gene"]
+    with open(path) as handle:
+        header = handle.readline()
+    
+    sep = "\t"
+    if header.count("|") > 0:
+        sep = "|"
+    
+    genes = pandas.read_table(path, sep=sep, index_col=False)
+    if "ddg2p_status" in genes.columns:
+        genes = genes[genes["ddg2p_status"] != "Possible DD Gene"]
+    else:
+        genes = genes[genes["type"] != "Possible DD Gene"]
+    
+    if "gencode_gene_name" not in genes.columns:
+        genes["gencode_gene_name"] = genes["gene"]
     
     return genes
 
