@@ -51,7 +51,7 @@ def get_options():
     parser = argparse.ArgumentParser(description="script to check whether"
         "probands with longer autozygous regions are less likely to have"
         "diagnoses")
-    parser.add_argument("--de-novos", default=DE_NOVOS, \
+    parser.add_argument("--de-novos", default=DENOVO_PATH, \
         help="Path to file of canddidate de novo variants.")
     parser.add_argument("--ddg2p", default=KNOWN_GENES, \
         help="path to known genes (DDG2P).")
@@ -221,29 +221,29 @@ def main():
     pheno = pheno[pheno["person_stable_id"].isin(probands)]
     
     plot_hpo_by_consequence(counts, pheno, args.output_folder)
-    plot_categorical(counts, pheno, args.output_folder, "gender")
-    plot_categorical(counts, pheno, args.output_folder, "scbu_nicu")
-    plot_categorical(counts, pheno, args.output_folder, "feeding_problems")
-    plot_categorical(counts, pheno, args.output_folder, "maternal_illness")
-    plot_categorical(counts, pheno, args.output_folder, "bleeding")
-    plot_categorical(counts, pheno, args.output_folder, "abnormal_scan")
-    plot_categorical(counts, pheno, args.output_folder, "assisted_reproduction")
+    plot_categorical(counts, pheno, "gender", args.output_folder)
+    plot_categorical(counts, pheno, "scbu_nicu", args.output_folder)
+    plot_categorical(counts, pheno, "feeding_problems", args.output_folder)
+    plot_categorical(counts, pheno, "maternal_illness", args.output_folder)
+    plot_categorical(counts, pheno, "bleeding", args.output_folder)
+    plot_categorical(counts, pheno, "abnormal_scan", args.output_folder)
+    plot_categorical(counts, pheno, "assisted_reproduction", args.output_folder)
     
     # birthweight (or birthweight corrected for duration of gestation, or
     # birthweight_percentile (if that corrects for duration of gestation))
-    plot_quantitative(counts, pheno, args.output_folder, "decimal_age_at_assessment", "Age at assessment (years)")
-    plot_quantitative(counts, pheno, args.output_folder, "birthweight", "Birthweight (grams)")
-    plot_quantitative(counts, pheno, args.output_folder, "gestation", "Gestation duration (weeks)")
-    plot_quantitative(counts, pheno, args.output_folder, "height_percentile", "Height (percentile)")
-    plot_quantitative(counts, pheno, args.output_folder, "weight_percentile", "weight (percentile)")
-    plot_quantitative(counts, pheno, args.output_folder, "ofc_percentile", "OFC (percentile)")
+    plot_quantitative(counts, pheno, "decimal_age_at_assessment", args.output_folder, "Age at assessment (years)")
+    plot_quantitative(counts, pheno, "birthweight", args.output_folder, "Birthweight (grams)")
+    plot_quantitative(counts, pheno, "gestation", args.output_folder, "Gestation duration (weeks)")
+    plot_quantitative(counts, pheno, "height_percentile", args.output_folder, "Height (percentile)")
+    plot_quantitative(counts, pheno, "weight_percentile", args.output_folder, "weight (percentile)")
+    plot_quantitative(counts, pheno, "ofc_percentile", args.output_folder, "OFC (percentile)")
     
     # plot distributions of time to achieve developmental milestones by
     # the functional categories
-    plot_achievement(counts, pheno, args.output_folder, "social_smile")
-    plot_achievement(counts, pheno, args.output_folder, "sat_independently")
-    plot_achievement(counts, pheno, args.output_folder, "walked_independently")
-    plot_achievement(counts, pheno, args.output_folder, "first_words")
+    plot_achievement(counts, pheno, "social_smile", args.output_folder)
+    plot_achievement(counts, pheno, "sat_independently", args.output_folder)
+    plot_achievement(counts, pheno, "walked_independently", args.output_folder)
+    plot_achievement(counts, pheno, "first_words", args.output_folder)
     
 
 if __name__ == '__main__':
