@@ -21,6 +21,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import sys
 import json
+import re
+import xml.etree.ElementTree as ET
 
 IS_PYTHON3 = sys.version_info[0] == 3
  
@@ -52,35 +54,36 @@ def open_url(url, headers):
     
     return response, status_code, headers
 
-def doi_to_pubmed(doi, email):
-    """ convert a doi to a pubmed ID, using the NCBI DOI converter REST API
+def doi_to_pubmed(doi):
+    """ convert a doi to a pubmed ID, using the pubmed search function
     
     Args:
         doi: digitical object identifier for an article e.g. "10.1093/nar/gks1195"
-        email: email address of the person using this tool (for the NCBI server
-            records).
     
     Returns:
         The pubmed ID for the article.
     """
     
+    # convert brackets in DOIs to dashes, this makes the search work
+    doi = re.sub("\(|\)", "-", doi)
     ncbi = "http://www.ncbi.nlm.nih.gov"
-    tool = "gene_reporter"
-    doi_url = "{}/pmc/utils/idconv/v1.0/?tool={}&email={}".format(ncbi, tool, email)
-    
-    url = "{}{}&ids={}&format=json".format(doi_url, email, doi)
+    url = "{}/pubmed/?term={}&report=uilist&format=text".format(ncbi, doi)
     
     headers = {}
     response, status_code, headers = open_url(url, headers)
     
     if status_code != 200:
-        sys.exit("failed to access the NCBI doi converter API at {}, returned status code: {}, with response:".format(url, status_code, response))
+        sys.exit("failed to access the pubmed search function at {}, " \
+            "returned status code: {}, with response:".format(url, \
+            status_code, response))
     
-    response = json.loads(response)
-    records = response["records"]
+    # the response is return as a xml list, there should only be one entry
+    response = ET.fromstring(response)
+    response = response.text.split("\n")
+    response = [ x for x in response if x != "" ]
     
     # What if there are multiple pubmed IDs for an article? I'll handle this
     # when it happens
-    assert len(records) == 1
+    assert len(response) == 1
     
-    return records[0]["pmid"]
+    return response[0]
