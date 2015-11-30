@@ -27,7 +27,7 @@ import os
 import pandas
 import psycopg2
 
-from ddd_4k.constants import PHENOTYPES, SANGER_IDS
+from ddd_4k.constants import PHENOTYPES, SANGER_IDS, DIAGNOSED
 from ddd_4k.load_files import open_phenotypes
 from ddd_4k.ensembl_variant import EnsemblVariant
 
@@ -42,6 +42,8 @@ def get_options():
         help="Path to table of phenotypes.")
     parser.add_argument("--sanger-ids", default=SANGER_IDS, \
         help="Path to table of alternate IDs for participants.")
+    parser.add_argument("--diagnosed", default=DIAGNOSED, \
+        help="Path to table of participants with diagnoses.")
     parser.add_argument("--output-dir", default="gene_reports", \
         help="Folder to send output tables to.")
     
@@ -171,7 +173,14 @@ def main():
     
     args = get_options()
     variants = pandas.read_table(args.de_novos, sep="\t")
-    phenotypes = open_phenotypes(PHENOTYPES, SANGER_IDS)
+    phenotypes = open_phenotypes(args.phenotypes, args.sanger_ids)
+    diagnosed = pandas.read_table(args.diagnosed, sep="\t")
+    
+    # remove the vairnats in diagnosed individuals, since they didn't contribute
+    # to identify the gene as being genomewide significant. These "diagnosed"
+    # individuals still need to be inspected, to make sure they don't conflict
+    # with the evidence from the other probands.
+    variants = variants[~variants["person_stable_id"].isin(diagnosed["person_id"])]
     
     ensembl = EnsemblVariant(cache_folder="cache", genome_build="grch37")
     
