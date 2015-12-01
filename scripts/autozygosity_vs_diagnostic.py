@@ -38,7 +38,7 @@ from ddd_4k.constants import TRIOS, DIAGNOSED
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-AUTOZYGOSITY_DIR = "/nfs/users/nfs_j/jm33/apps/recessiveStats/data-raw/autozygosity"
+AUTOZYGOSITY_DIR = "/lustre/scratch113/projects/ddd/users/jm33/autozygosity"
 CONSANG_PATH = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/kinship_and_pca_trios.txt"
 
 def get_options():
