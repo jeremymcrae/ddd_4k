@@ -54,6 +54,6 @@ def fishers_method(values):
         
         # estimate the P value using the chi square statistic and degrees of
         # freedom
-        p_value = 1 - scipy.stats.chi2.cdf(chi_square, df)
+        p_value = scipy.stats.chi2.sf(chi_square, df)
     
     return p_value
