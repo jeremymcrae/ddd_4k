@@ -77,6 +77,10 @@ WITHOUT_DIAGNOSED_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.all.
 NOVEL_GENE_VARIANTS=${RESULTS_DIR}/"novel_gene_variants.ddd_4k.${DATE}.txt"
 GENES_WITH_DISCREPANT_MECHANISMS=${RESULTS_DIR}/"missing_mechanism_genes.ddd_4k.${DATE}.txt"
 
+NO_DDD_ENRICH=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.no_ddd.enrichment_results.${DATE}.txt"
+NO_DDD_CLUSTER=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.no_ddd.txt"
+NO_DDD_CLUSTER_RESULTS=${RESULTS_DIR}/"de_novos.ddd_4k.without_diagnosed.no_ddd.clustering_results.txt"
+
 # define the paths to candidate CNVs
 CANDIDATE_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.${DATE}.txt"
 OVERLAPPING_CNVS=${RESULTS_DIR}/"ddd_4k.de_novo_cnvs.overlapping_novel_genes.${DATE}.txt"
@@ -420,6 +424,39 @@ Rscript mupit/scripts/combine_all_tests.R \
     --meta-clustering ${META_WITHOUT_CLUSTER_RESULTS} \
     --ddd-phenotype ${DDD_WITHOUT_HPOSIMILARITY_RESULTS} \
     --output ${WITHOUT_DIAGNOSED_RESULTS}
+
+################################################################################
+# check significance in the external studies alone
+################################################################################
+
+# runtime: < 5 minutes
+Rscript mupit/scripts/ddd_analysis.R \
+    --rates ${RATES_PATH} \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --families ${FAMILIES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --no-ddd \
+    --meta-analysis \
+    --meta-subset "intellectual_disability,epilepsy,autism,normal_iq_autism" \
+    --out-enrichment ${NO_DDD_ENRICH} \
+    --out-clustering ${NO_DDD_CLUSTER}
+
+# runtime: < 1 hour (due to being split into job array)
+python denovonear/scripts/run_batch.py \
+    --script "denovonear/scripts/clustering.py" \
+    --temp-dir ${TEMP_DIR} \
+    --in ${NO_DDD_CLUSTER} \
+    --rates "denovonear/data/forSanger_1KG_mutation_rate_table.txt" \
+    --out ${NO_DDD_CLUSTER_RESULTS}
+
+python ddd_4k/scripts/prepare_prior_evidence.py \
+    --external-enrichment ${NO_DDD_ENRICH} \
+    --external-clustering ${NO_DDD_CLUSTER_RESULTS} \
+    --external-de-novos "publishedDeNovos/data-raw/variants.txt.gz" \
+    --subsets "intellectual_disability,epilepsy,autism,normal_iq_autism" \
+    --results ${WITHOUT_DIAGNOSED_RESULTS} \
+    --output "gene_reports/prior_evidence.txt"
 
 ################################################################################
 # identify variants in candidate novel genes, and prepare reports
