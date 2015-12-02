@@ -22,12 +22,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import argparse
 
 import pandas
-from statsmodels.stats.multitest import fdrcorrection
 import inflect
 
-from ddd_4k.constants import ALPHA, NUM_GENES, THRESHOLD
+from ddd_4k.constants import THRESHOLD
 from ddd_4k.convert_doi import doi_to_pubmed
-from ddd_4k.combine_p_values import fishers_method
+from ddd_4k.combine_enrichment_and_clustering import get_gene_results
 
 def get_options():
     """ parse the command line arguments
@@ -35,18 +34,18 @@ def get_options():
     
     parser = argparse.ArgumentParser(description="script to determine the prior"
         "evidence for candidate novel genes.")
-    parser.add_argument("--external-enrichment", default=ENRICH, \
+    parser.add_argument("--external-enrichment", \
         help="Path to table of results from testing for de novo enrichment in"
             "the external studies alone.")
-    parser.add_argument("--external-clustering", default=CLUSTER, \
+    parser.add_argument("--external-clustering", \
         help="Path to table of results from testing for de novo clustering in"
             "the external studies alone.")
-    parser.add_argument("--external-de-novos", default=EXTERNAL_DE_NOVOS, \
+    parser.add_argument("--external-de-novos", \
         help="Path to table of results from testing for de novo clustering in"
             "the external studies alone.")
     parser.add_argument("--subsets", default="intellectual_disability,epilepsy,autism,normal_iq_autism", \
         help="comma-separated list of phenotypes to pull external de novos for.")
-    parser.add_argument("--results", default=RESULTS, \
+    parser.add_argument("--results", \
         help="Path to table of results from de novo testing.")
     parser.add_argument("--output", default="prior_evidence.txt", \
         help="Path to write gene sentences to.")
@@ -54,33 +53,6 @@ def get_options():
     args = parser.parse_args()
     
     return args
-
-def open_enrichment(path):
-    """ load the enrichment results, and count how many loss-of-function and
-    non-loss-of-function, but atill protein altering de novos the external
-    studies had have per gene
-    """
-    
-    enrich = pandas.read_table(path, sep="\t")
-    enrich["mis"] = enrich[["missense_indel", "missense_snv"]].sum(axis=1)
-    enrich["lof"] = enrich[["lof_indel", "lof_snv"]].sum(axis=1)
-    enrich["dnms"] = enrich[["mis", "lof"]].sum(axis=1)
-    
-    return enrich
-
-def open_clustering(path):
-    """ load the clustering results, and prepare the table for merging with the
-    enrichment results, i.e. rename columns and selct only the columns to be
-    merged
-    """
-    
-    cluster = pandas.read_table(path, sep="\t")
-    cluster = cluster[cluster["mutation_category"] == "missense"]
-    cluster["p_clust"] = cluster["probability"]
-    cluster["hgnc"] = cluster["gene_id"]
-    cluster = cluster[["hgnc", "p_clust"]]
-    
-    return cluster
 
 def get_external_variants(path, subsets):
     """ load the de novos from the external cohorts
@@ -98,10 +70,16 @@ def get_external_variants(path, subsets):
     variants = variants[variants["consequence"].isin(functional)]
     variants = variants[variants["study_phenotype"].isin(subsets)]
     
+    # figure out the pubmed IDs for all the variants from the doi codes
+    dois = variants["publication_doi"].unique()
+    pubmed_ids = [ doi_to_pubmed(x) for x in dois ]
+    recode = dict(zip(dois, pubmed_ids))
+    variants["pubmed"] = variants["publication_doi"].map(recode)
+    
     return variants
 
 def get_novel_genes(results_path):
-    """ get the HGNC symbols for the genes with genomewide significance
+    """ get the HGNC symbols for the novel genes with genomewide significance
     
     Args:
         results_path: path to table of results, one row for each gene
@@ -120,14 +98,14 @@ def format_pubmed(pubmed_ids):
     """ format a list of pubmed IDs into a text string suitable for a sentence
     
     Args:
-        pubmed_ids: list of pubmed IDs
+        pubmed_ids: list (or numpy array) of pubmed IDs
     
     Returns:
         correctly formatted stext string to insert in a sentence listing the
         pubmed IDs.
     """
     
-    pubmed_ids = sorted(pubmed_ids)
+    pubmed_ids = sorted(set(pubmed_ids))
     
     if len(pubmed_ids) == 0:
         pubmed = ""
@@ -140,7 +118,23 @@ def format_pubmed(pubmed_ids):
         
     return pubmed
 
-def initial_sentence(external, gene, pubmed, numbers):
+def initial_sentence(external, gene, pubmed_ids, numbers):
+    """ state how many de novos are in external cohorts (including pubmed IDs).
+    
+    Args:
+        external: pandas Series of values for a gene. The Series can be empty if
+            there aren't any de novos in that gene in the external cohorts.
+        gene: hgnc symbol for the gene of interest
+        pubmed_ids: list of pubmed IDs for the studies that the variants are
+            found in.
+        numbers: inflect engine, to convert python numbers into their word
+            equivalent, e.g. 1 -> "one".
+    
+    Returns:
+        text sentence stating the number of variants found in external cohorts.
+    """
+    
+    pubmed_text = format_pubmed(pubmed_ids)
     
     dnms = 0
     if len(external) > 0:
@@ -153,11 +147,23 @@ def initial_sentence(external, gene, pubmed, numbers):
     
     initial_text = "In other large scale exome sequencing projects de novo " \
         "mutations in {} have been identified {} {}{}.".format(gene,\
-        numbers.number_to_words(dnms), times, pubmed)
+        numbers.number_to_words(dnms), times, pubmed_text)
     
     return initial_text
 
 def counts_sentence(external, numbers):
+    """ state the count of de novos from external cohorts by consequence type.
+    
+    Args:
+        external: pandas Series of values for a gene. The Series can be empty if
+            there aren't any de novos in that gene in the external cohorts.
+        numbers: inflect engine, to convert python numbers into their word
+            equivalent, e.g. 1 -> "one".
+    
+    Returns:
+        text sentence stating the number of loss-of-function and
+        missense/inframe de novos found in external cohorts.
+    """
     
     lof_count = 0
     mis_count = 0
@@ -195,11 +201,12 @@ def strength_sentence(external):
         external: pandas Series of information for a gene. This includes entries
             for if the gene is "genomewide" significant, or "suggestive". If
             neither of these entries are true, then we consider the evidence to
-            be negligible.
+            be negligible. The Series can be empty if there aren't any de novos
+            in that gene in the external cohorts.
     
     Returns:
-        strength of evidence in a sentence e.g. "strong", "suggestive", or
-        "neglible"
+        sentence stating strength of evidence e.g. "strong", "suggestive", or
+        "neglible".
     """
     
     if len(external) == 0:
@@ -217,6 +224,18 @@ def strength_sentence(external):
     return strength_text
 
 def clustering_sentence(external):
+    """ state the evidence for clustering of de novos from external cohorts.
+    
+    Args:
+        external: pandas Series of information for a gene. This includes a
+            boolean entries for if the gene "has_clusering". The Series can be
+            empty if there aren't any de novos in that gene in the external
+            cohorts.
+    
+    Returns:
+        text sentence stating the evidence for de novo clustering from de novos
+        found in external cohorts.
+    """
     
     clustering = "is not"
     if len(external) > 0 and external["has_clustering"]:
@@ -227,68 +246,60 @@ def clustering_sentence(external):
     
     return clust_text
 
+def prepare_text(gene, enrich, variants, numbers):
+    """ state the prior evidence for a gene in a few sentences
+    
+    Args:
+        gene: hgnc symbol for a gene
+        enrich: pandas dataframe of enrichment results from the external cohorts
+        variants: pandas dataframe of variants included in the testing of the
+            external cohorts.
+        numbers: inflect engine, to convert python numbers into their word
+            equivalent, e.g. 1 -> "one".
+    
+    Returns:
+        text for a few sentences stating the prior evidence for a gene.
+    """
+    
+    external = enrich[enrich["hgnc"] == gene]
+    sites = variants[variants["hgnc"] == gene]
+    
+    # make sure the variant count matches the analyzed count
+    if gene not in list(enrich["hgnc"]):
+        assert len(sites) == 0
+    else:
+        assert list(external["dnms"])[0] == len(sites)
+    
+    if len(external) > 1:
+        text = "too many possible rows for {}".format(gene)
+    else:
+        external = external.squeeze()
+        initial_text = initial_sentence(external, gene, sites["pubmed"], numbers)
+        counts_text = counts_sentence(external, numbers)
+        clust_text = clustering_sentence(external)
+        evidence_text = strength_sentence(external)
+        
+        if len(external) > 0 and external["dnms"] > 0:
+            text = initial_text + " " + counts_text + " " + evidence_text+ " " + clust_text
+        else:
+            text = initial_text + " " + evidence_text
+    
+    return text
+
 def main():
     args = get_options()
     
-    numbers = inflect.engine()
-    
+    # load the de novo variants from the external cohorts, and the combined
+    # results from testing for enrichment and clustering in those datasets
     variants = get_external_variants(args.external_de_novos, args.subsets)
-    novel_genes = get_novel_genes(args.results)
-    enrich = open_enrichment(args.external_enrichment)
-    cluster = open_clustering(args.external_clustering)
+    enrich = get_gene_results(args.external_enrichment, args.external_clustering)
+    
+    print(enrich[enrich["hgnc"] == "MYT1L"])
+    
+    numbers = inflect.engine()
     output = open(args.output, "w")
-    
-    # figure out the pubmed IDs for all the variants from the doi codes
-    dois = variants["publication_doi"].unique()
-    pubmeds = [ doi_to_pubmed(x) for x in dois ]
-    
-    recode = dict(zip(dois, pubmeds))
-    variants["pubmed"] = variants["publication_doi"].map(recode)
-    
-    # combine the enrichment and clustering results
-    enrich = enrich.merge(cluster, how="left", on="hgnc")
-    enrich["p_combined"] = enrich[["p_func", "p_clust"]].apply(fishers_method, axis=1)
-    
-    # select the best performing model for each gene
-    enrich["p_min"] = enrich[["p_lof", "p_combined"]].min(axis=1)
-    enrich = enrich[~enrich["p_min"].isnull()]
-    enrich = enrich.sort("p_min")
-    enrich["fdr"] = fdrcorrection(enrich["p_min"])[1]
-    
-    # set a genomewide threshold for the external studies, based on the number
-    # genes in the genome.
-    num_tests = 2 * NUM_GENES
-    threshold = ALPHA/num_tests
-    
-    enrich["genomewide"] = enrich["p_min"] < threshold
-    enrich["suggestive"] = enrich["fdr"] < ALPHA
-    enrich["has_clustering"] = enrich["p_clust"] < ALPHA
-    
-    for gene in novel_genes:
-        external = enrich[enrich["hgnc"] == gene]
-        sites = variants[variants["hgnc"] == gene]
-        
-        # make sure the variant count matches the analyzed count
-        if gene not in list(enrich["hgnc"]):
-            assert len(sites) == 0
-        else:
-            assert list(external["dnms"])[0] == len(sites)
-        
-        pubmed = format_pubmed(sites["pubmed"].unique())
-        
-        if len(external) > 1:
-            text = "too many possible rows for {}".format(gene)
-        else:
-            external = external.squeeze()
-            initial_text = initial_sentence(external, gene, pubmed, numbers)
-            counts_text = counts_sentence(external, numbers)
-            clust_text = clustering_sentence(external)
-            evidence_text = strength_sentence(external)
-            
-            if len(external) > 0 and external["dnms"] > 0:
-                text = initial_text + " " + counts_text + " " + evidence_text+ " " + clust_text
-            else:
-                text = initial_text + " " + evidence_text
+    for gene in get_novel_genes(args.results):
+        text = prepare_text(gene, enrich, variants, numbers)
         
         output.write(gene + "\n")
         output.write(text + "\n")
