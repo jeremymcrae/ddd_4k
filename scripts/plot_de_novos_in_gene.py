@@ -71,37 +71,6 @@ def get_domains(protein_sequence):
     
     return results
 
-def plot_gene(transcript, variants, hgnc, protein_sequence, folder=None):
-    """ plot the gene, and de novos contained within the transcript
-    """
-    
-    # convert the variants to a dictionary, so we can easily iterate through the
-    # variants, and use the attributes as necessary. We need to use a tuple of
-    # position and person_id as they key, since the position alone might not be
-    # unique.
-    var_dict = {}
-    for idx, var in variants.iterrows():
-        key = (var["start_pos"], var["person_id"])
-        var_dict[key] = {}
-        var_dict[key]["start_pos"] = var["start_pos"]
-        var_dict[key]["ref_allele"] = var["ref_allele"]
-        var_dict[key]["alt_allele"] = var["alt_allele"]
-        var_dict[key]["consequence"] = var["consequence"]
-        
-        var_dict[key]["source"] = "external"
-        if var["study_code"] == "ddd_unpublished":
-            var_dict[key]["source"] = "internal"
-    
-    filename = "{0}_gene_plot.pdf".format(hgnc)
-    if folder is not None:
-        filename = os.path.join(folder, filename)
-    
-    plotter = DiagramPlotter(transcript, hgnc, var_dict, filename)
-    plotter.plot_gene()
-    plotter.plot_transcript()
-    plotter.plot_domains(get_domains(protein_sequence), protein_sequence)
-    plotter.export_figure()
-
 def standardise_ddd_de_novos(de_novos):
     """standardise the columns in the DDD de novos, so that we can easily
     integrate this with the externally reported de novos
@@ -139,6 +108,29 @@ def load_de_novos(de_novos, validations, external):
     
     return de_novos
 
+def variants_table_to_dictionary(variants):
+    """ convert the variants to a dictionary.
+    
+    This is so we can easily iterate through the variants, and use the
+    attributes as necessary. We need to use a tuple of position and person_id
+    as the key, since the position alone might not be unique.
+    """
+    
+    var_dict = {}
+    for idx, var in variants.iterrows():
+        key = (var["start_pos"], var["person_id"])
+        var_dict[key] = {}
+        var_dict[key]["start_pos"] = var["start_pos"]
+        var_dict[key]["ref_allele"] = var["ref_allele"]
+        var_dict[key]["alt_allele"] = var["alt_allele"]
+        var_dict[key]["consequence"] = var["consequence"]
+        
+        var_dict[key]["source"] = "external"
+        if var["study_code"] == "ddd_unpublished":
+            var_dict[key]["source"] = "internal"
+    
+    return var_dict
+
 def main():
     args = get_options()
     
@@ -155,11 +147,22 @@ def main():
         
         variants = de_novos[de_novos["hgnc"] == hgnc]
         
-        transcripts = load_gene(ensembl, hgnc, list(variants["start_pos"]))
+        variants = variants_table_to_dictionary(variants)
+        start_positions = [ v["start_pos"] for k, v in variants.items() ]
+        
+        transcripts = load_gene(ensembl, hgnc, start_positions)
         transcript = transcripts[0]
         protein_sequence = ensembl.get_protein_seq_for_transcript(transcript.get_name())
         
-        plot_gene(transcript, variants, hgnc, protein_sequence, args.output_dir)
+        filename = "{0}_gene_plot.pdf".format(hgnc)
+        if args.output_dir is not None:
+            filename = os.path.join(args.output_dir, filename)
+        
+        plotter = DiagramPlotter(transcript, hgnc, variants, filename)
+        plotter.plot_gene()
+        plotter.plot_transcript()
+        plotter.plot_domains(get_domains(protein_sequence), protein_sequence)
+        plotter.export_figure()
 
 if __name__ == '__main__':
     main()
