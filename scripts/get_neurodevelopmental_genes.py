@@ -20,11 +20,13 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import argparse
+import re
 
 import pandas
 
 from ddd_4k.constants import KNOWN_GENES
 from ddd_4k.load_files import open_known_genes
+from ddd_4k.hpo_matches import find_hpo_matches
 
 from hpo_similarity.ontology import Ontology
 from hpo_similarity.similarity import CalculateSimilarity
@@ -72,12 +74,8 @@ def get_hpo_genes(dominant_lof):
     neurodev_terms = cognition_terms | brain_terms
     
     # find the dominant LoF genes which have at least one brain/cognition term
-    term_genes = set([])
-    for pos, row in dominant_lof.iterrows():
-        if type(row["hpo_codes"]) == str:
-            terms = set(row["hpo_codes"].split(" ;"))
-            if len(terms & neurodev_terms) > 0:
-                term_genes.add(row["gencode_gene_name"])
+    matches = find_hpo_matches(dominant_lof["hpo_codes"], neurodev_terms)
+    term_genes = set(dominant_lof["gencode_gene_name"][matches].unique())
     
     return term_genes
 
