@@ -22,7 +22,11 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import re
 
 def find_hpo_matches(hpo_phenotypes, required):
-    """ for a list of HPO term list, find if any are in a set of required terms
+    """ for a list of HPO term list, find if any are in a set of required terms.
+    
+    This function should work on lists of terms from the known genes (entries
+    separated by " ;"), as well as terms from the phenotypes (entries separated
+    by "|").
     
     Args:
         hpo_phenotypes: pandas series of HPO strings per gene
