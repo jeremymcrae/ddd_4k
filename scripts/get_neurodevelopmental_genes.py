@@ -67,8 +67,10 @@ def get_hpo_genes(dominant_lof):
     
     # get the terms which are descendents of brain/cognition terms
     graph = CalculateSimilarity({}, hpo_graph)
-    cognition_terms = graph.get_descendants("HP:0100543")
-    brain_terms = graph.get_descendants("HP:0012443")
+    cognition_root = "HP:0100543"
+    brain_root = "HP:0012443"
+    cognition_terms = graph.get_descendants(cognition_root) | set([cognition_root])
+    brain_terms = graph.get_descendants(brain_root) | set([brain_root])
     
     neurodev_terms = cognition_terms | brain_terms
     
