@@ -130,7 +130,7 @@ def plot_genes_by_phenotype(clinical_table, phenotypes, names, output_dir):
     
     box = seaborn.factorplot(x="symbol", y="value", row="variable",
         data=clinical, order=["full DDD"] + genes, kind="box", fliersize=0,
-        size=6, aspect=6, sharey=False")
+        size=6, aspect=6, sharey=False)
     
     box = box.set_xticklabels(rotation=90)
     box.savefig(os.path.join(output_dir, "phenotypes_per_gene.box.pdf"), format="pdf")
