@@ -59,8 +59,7 @@ def main():
     # open the HPO ontology, so we can get the set of terms which are relevant to
     # each disorder
     hpo_ontology = Ontology(None)
-    hpo_graph = hpo_ontology.get_graph()
-    graph = CalculateSimilarity({}, hpo_graph)
+    graph = hpo_ontology.get_graph()
     
     # define the root nodes for each disorder
     roots = {"Autism spectrum disorder": ["HP:0000729"],
@@ -86,3 +85,6 @@ def main():
     
     counts = counts[columns]
     counts.to_csv(args.output, sep="\t", index=False)
+
+if __name__ == '__main__':
+    main()
