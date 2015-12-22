@@ -21,6 +21,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import print_function, division
 
+import os
 import argparse
 
 import matplotlib
@@ -53,6 +54,8 @@ def get_options():
         help="JSON file of HPO terms per proband.")
     parser.add_argument("--trios", default=TRIOS, \
         help="Path to table of alternate IDs for participants.")
+    parser.add_argument("--output-dir", \
+        help="Path to folder to save plots to.")
     
     args = parser.parse_args()
     
@@ -150,7 +153,7 @@ def rank_terms(graph, probands, proband_hpo):
     
     return table
 
-def plot_gene(graph, probands, proband_hpo, hgnc, trios, table):
+def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir):
     """ plot the terms relevant for a gene as a heatmap
     
     Args:
@@ -161,6 +164,7 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table):
         hgnc: HGNC symbol for the gene, used to determine a pdf filename.
         trios: table of probands in exome-sequenced, including decipher and DDD IDs.
         table: pandas DataFrame of relevant terms for the gene, one row per term.
+        output_dir: folder to save the plot to.
     """
     
     decipher = trios[trios["proband_stable_id"].isin(probands)]
@@ -189,7 +193,7 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table):
     # plot the heatmap
     ax = seaborn.heatmap(data, cmap="Blues", cbar=False, square=True)
     fig = ax.get_figure()
-    fig.savefig("{}.pdf".format(hgnc), format="pdf")
+    fig.savefig(os.path.join(output_dir, "{}_terms.pdf").format(hgnc), format="pdf")
     pyplot.close()
 
 def main():
@@ -224,7 +228,7 @@ def main():
         table = rank_terms(graph, probands, proband_hpo)
         
         if len(table) > 0:
-            plot_gene(graph, probands, proband_hpo, hgnc, trios, table)
+            plot_gene(graph, probands, proband_hpo, hgnc, trios, table, args.output_dir)
 
 if __name__ == '__main__':
     main()

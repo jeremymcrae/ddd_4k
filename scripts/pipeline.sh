@@ -491,6 +491,12 @@ python ddd_4k/scripts/plot_phenotypes_per_gene.py \
     --diagnosed ${DIAGNOSED_PATH} \
     --output-dir "ddd_4k/results"
 
+python ddd_4k/scripts/get_informative_terms_for_genes.py \
+    --de-novos ${NOVEL_GENE_VARIANTS} \
+    --phenotypes ${PHENOTYPES_JSON} \
+    --trios ${TRIOS_PATH} \
+    --output-dir "gene_reports"
+
 ################################################################################
 # analyse autozygosity against probability of having a diagnosis
 ################################################################################
