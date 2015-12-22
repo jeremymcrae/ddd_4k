@@ -484,6 +484,13 @@ python ddd_4k/scripts/plot_de_novos_in_gene.py \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
     --output-dir "gene_reports"
 
+python ddd_4k/scripts/plot_phenotypes_per_gene.py \
+    --de-novos ${NOVEL_GENE_VARIANTS} \
+    --phenotypes ${PHENOTYPES_PATH} \
+    --sanger-ids ${SAMPLE_IDS_PATH} \
+    --diagnosed ${DIAGNOSED_PATH} \
+    --output-dir "ddd_4k/results"
+
 ################################################################################
 # analyse autozygosity against probability of having a diagnosis
 ################################################################################

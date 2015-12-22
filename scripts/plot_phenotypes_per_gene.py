@@ -89,64 +89,7 @@ def connect_to_database():
     
     return conn
 
-def x_samples(x, y, jump):
-    while x < y:
-        yield x
-        x += jump
-
-def plot_phenotypes(gene_rows, phenotypes, fig, spec):
-    """
-    """
-    
-    to_plot = {"birthweight_sd": {"color": "red", "name": "birthweight"},
-               "height_sd": {"color": "green", "name": "height"},
-               "weight_sd": {"color": "blue", "name": "weight"},
-               "ofc_sd": {"color": "orange", "name": "OFC"} }
-    
-    subgrid = gridspec.GridSpecFromSubplotSpec(len(to_plot) + 1, 1, subplot_spec=spec)
-    x_min = -10
-    x_max = 10
-    jump = (x_max - x_min)/50
-    x_values = list(x_samples(x_min, x_max, jump))
-    
-    for pheno in sorted(to_plot):
-        
-        color = to_plot[pheno]["color"]
-        
-        ax = pyplot.Subplot(fig, subgrid[sorted(to_plot).index(pheno), :])
-        fig.add_subplot(ax)
-        
-        # generate kernel densities for the full DDD population, plot the
-        # population density,
-        population_kde = gaussian_kde(phenotypes[pheno][~phenotypes[pheno].isnull()])
-        population_y_values = list(population_kde(x_values))
-        pop = ax.fill_between(x_values, population_y_values, facecolor="gray", edgecolor="gray", alpha=0.5)
-        
-        try:
-            # if there are enough non-null values, plot a kernel density of the
-            # values for the probands for the gene
-            gene_kde = gaussian_kde(gene_rows[pheno][~gene_rows[pheno].isnull()])
-            gene_y_values = list(gene_kde(x_values))
-            gene = ax.fill_between(x_values, gene_y_values, facecolor=color, edgecolor=color, alpha=0.5)
-        except ValueError:
-            continue
-        
-        # set axis parameters
-        ax.spines['left'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['top'].set_visible(False)
-        ax.spines['bottom'].set_visible(False)
-        ax.yaxis.set_ticks_position('none')
-        ax.xaxis.set_ticks_position('none')
-        ticks = ax.yaxis.set_ticks(numpy.arange(min(x), max(x)+1))
-        # ticks = ax.yaxis.set_ticks([0, 0.1, 0.2, 0.3, 0.4])
-        # lab = ax.set_ylabel(to_plot[pheno]["name"])
-        
-        # only plot an x-axis for the last graph
-        # if pheno == sorted(pheno)[-1]:
-        #     ax.xaxis.set_ticks_position('bottom')
-
-def plot_genes_by_phenotype(clinical_table, phenotypes, names):
+def plot_genes_by_phenotype(clinical_table, phenotypes, names, output_dir):
     """ this plots an array of boxplots (and stripplots) for each phenotype.
     """
     
@@ -178,25 +121,23 @@ def plot_genes_by_phenotype(clinical_table, phenotypes, names):
     clin_without = clinical.copy()
     clin_without["value"][clin_without["symbol"] == "full DDD"] = None
     
-    kwargs = {"size": 15}
     strip = seaborn.factorplot(x="symbol", y="value", row="variable", data=clin_without,
         order=["full DDD"] + genes, kind="strip", alpha=0.5, jitter=True,
         size=6, aspect=6, sharey=False)
     
     strip = strip.set_xticklabels(rotation=90)
-    strip.savefig("phenotypes_per_gene.strip.pdf", format="pdf")
+    strip.savefig(os.path.join(output_dir, "phenotypes_per_gene.strip.pdf"), format="pdf")
     
     box = seaborn.factorplot(x="symbol", y="value", row="variable",
         data=clinical, order=["full DDD"] + genes, kind="box", fliersize=0,
-        size=6, aspect=6, sharey=False)
+        size=6, aspect=6, sharey=False")
     
     box = box.set_xticklabels(rotation=90)
-    box.savefig("phenotypes_per_gene.box.pdf", format="pdf")
+    box.savefig(os.path.join(output_dir, "phenotypes_per_gene.box.pdf"), format="pdf")
 
 def main():
     
     args = get_options()
-    args.de_novos = "/lustre/scratch113/projects/ddd/users/jm33/results/novel_gene_variants.ddd_4k.2015-11-24.txt"
     
     variants = pandas.read_table(args.de_novos, sep="\t")
     phenotypes = open_phenotypes(args.phenotypes, args.sanger_ids)
@@ -222,19 +163,7 @@ def main():
         size = math.ceil(math.sqrt(len(genes)))
         
         names = ["birthweight_sd", "height_sd", "weight_sd", "ofc_sd"]
-        plot_genes_by_phenotype(clinical_table, phenotypes, names)
-        
-        fig = plt.figure()
-        grid = gridspec.GridSpec(int(size), int(size))
-        
-        pos = 0
-        for gene in genes:
-            print(gene)
-            gene_rows = clinical_table[clinical_table["symbol"] == gene]
-            plot_phenotypes(gene_rows, phenotypes, fig, grid[pos])
-            pos += 1
-        
-        fig.savefig("phenotypes_per_gene.alternate.pdf", format="pdf")
+        plot_genes_by_phenotype(clinical_table, phenotypes, names, args.output_dir)
 
 if __name__ == '__main__':
     main()
