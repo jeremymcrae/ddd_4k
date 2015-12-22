@@ -20,7 +20,7 @@ MISSED_INDELS_PATH=${DATA_DIR}/"missed_denovo_indels_datafreeze_2015-04-13.txt"
 INDEL_FAILS_PATH=${DATA_DIR}/"de_novo_sample_fails_missed_indels.txt"
 DDD_1K_DIAGNOSES=${DDD1K_DATAFREEZE}/"Diagnosis_Summary_1133_20140328.xlsx"
 DDD_1K_VALIDATIONS=${DDD1K_DATAFREEZE}/"DNG_Validation_1133trios_20140130.tsv"
-DDD_4K_VALIDATIONS=${DATA_DIR}/"de_novos.ddd_4k.validation_results.2015-09-02.xlsx"
+DDD_4K_VALIDATIONS=${DATA_DIR}/"de_novos.ddd_4k.validation_results.2015-12-22.xlsx"
 LOW_PP_DNM_VALIDATIONS=${DATA_DIR}/"de_novos.ddd_4k.validation_results.low_pp_dnm.2015-10-02.xlsx"
 RECESSIVE_DIAGNOSED_PATH=${DATA_DIR}/"ddd_4k.diagnoses.additional_recessive.txt"
 
