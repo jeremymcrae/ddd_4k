@@ -497,6 +497,11 @@ python ddd_4k/scripts/get_informative_terms_for_genes.py \
     --trios ${TRIOS_PATH} \
     --output-dir "gene_reports"
 
+python ddd_4k/scripts/get_proportion_with_external_disorders.py \
+    --phenotypes ${PHENOTYPES_PATH} \
+    --trios ${TRIOS_PATH} \
+    --output "ddd_4k/results/ddd_proportion_with_external_disorders.tsv"
+
 ################################################################################
 # analyse autozygosity against probability of having a diagnosis
 ################################################################################
