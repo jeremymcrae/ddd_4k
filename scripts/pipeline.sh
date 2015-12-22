@@ -383,6 +383,7 @@ python denovonear/scripts/run_batch.py \
 python hpo_similarity/scripts/prepare_ddd_files.py \
     --phenotypes ${PHENOTYPES_PATH} \
     --sample-ids ${SAMPLE_IDS_PATH} \
+    --trios ${TRIOS_PATH} \
     --out ${PHENOTYPES_JSON}
 
 # runtime: < 1 hour (due to being split into job array)
