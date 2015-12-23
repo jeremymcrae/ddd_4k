@@ -216,6 +216,9 @@ def main():
             continue
         
         de_novos = get_overlapping(cnvs, transcript)
+        if len(de_novos) == 0:
+            continue
+        
         de_novos.loc[:, "associated_hgnc"] = row["hgnc"]
         de_novos.loc[:, "p_value"] = row["p_min"]
         de_novos.loc[:, "fdr_value"] = row["fdr"]
