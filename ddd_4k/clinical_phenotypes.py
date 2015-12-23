@@ -30,7 +30,8 @@ def get_clinical_details(variants, pheno):
     sample_ids = variants["decipher_id"]
     
     pheno["decipher_id"] = pheno["patient_id"].astype(str)
-    pheno = pheno.drop("symbol", axis=1)
+    if "symbol" in pheno.columns:
+        pheno = pheno.drop("symbol", axis=1)
     
     samples = pheno[pheno["decipher_id"].isin(sample_ids)]
     samples = samples.merge(variants, how="left", on="decipher_id")
