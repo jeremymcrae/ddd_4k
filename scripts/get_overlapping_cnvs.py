@@ -34,7 +34,7 @@ from ddd_4k.constants import THRESHOLD
 CNV_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/" \
     "ddd_4k.de_novo_cnvs.2015-10-12.txt"
 ASSOCIATIONS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/" \
-    "de_novos.ddd_4k.without_diagnosed.all.2015-10-12.txt"
+    "de_novos.ddd_4k.without_diagnosed.all.2015-11-24.txt"
 DDG2P_PATH = "/lustre/scratch113/projects/ddd/resources/ddd_data_releases/" \
     "2015-04-13/DDG2P/dd_genes_for_clinical_filter"
 
@@ -127,7 +127,7 @@ def get_transcript_for_gene(symbol, ensembl):
     
     # work through the transcript IDs in descending lengths
     transcript = None
-    for (transcript_id, length) in transcript_ids:
+    for transcript_id in sorted(transcript_ids, key=lambda k: -transcript_ids[k]):
         try:
             transcript = construct_gene_object(ensembl, transcript_id)
             break
