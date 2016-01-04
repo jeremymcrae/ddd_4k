@@ -26,7 +26,7 @@ from statsmodels.stats.multitest import fdrcorrection
 
 from ddd_4k.constants import DENOVO_PATH, VALIDATIONS, SANGER_IDS, THRESHOLD
 
-RESULTS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.without_diagnosed.all.2015-10-12.txt"
+RESULTS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.without_diagnosed.all.2015-11-24.txt"
 
 def get_options():
     """ parse the command line arguments
