@@ -31,7 +31,7 @@ from matplotlib import pyplot
 import pandas
 import seaborn
 
-from ddd_4k.constants import TRIOS
+from ddd_4k.constants import TRIOS, DIAGNOSED
 
 from hpo_similarity.ontology import Ontology
 from hpo_similarity.similarity import ICSimilarity
@@ -54,6 +54,8 @@ def get_options():
         help="JSON file of HPO terms per proband.")
     parser.add_argument("--trios", default=TRIOS, \
         help="Path to table of alternate IDs for participants.")
+    parser.add_argument("--diagnosed", default=DIAGNOSED, \
+        help="Path to table of probands with diagnoses.")
     parser.add_argument("--output-dir", \
         help="Path to folder to save plots to.")
     
@@ -199,8 +201,11 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir):
 def main():
     args = get_options()
     
-    args.de_novos = "/lustre/scratch113/projects/ddd/users/jm33/results/novel_gene_variants.ddd_4k.2015-11-24.txt"
+    # args.de_novos = "/lustre/scratch113/projects/ddd/users/jm33/results/novel_gene_variants.ddd_4k.2015-11-24.txt"
     variants = pandas.read_table(args.de_novos, sep="\t")
+    diagnosed = pandas.read_table(args.diagnosed, sep="\t")
+    
+    variants = variants[~variants["person_stable_id"].isin(diagnosed["person_id"])]
     
     # open the phenotype data, and restrict it to the probands with complete trios
     trios = pandas.read_table(args.trios, sep="\t")

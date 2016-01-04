@@ -33,7 +33,7 @@ from denovonear.transcript import Transcript
 from denovonear.ensembl_requester import EnsemblRequest
 from denovonear.load_gene import load_gene
 
-from ddd_4k.constants import THRESHOLD, DENOVO_PATH, VALIDATIONS
+from ddd_4k.constants import THRESHOLD, DENOVO_PATH, VALIDATIONS, DIAGNOSED
 from ddd_4k.load_files import open_de_novos
 
 ASSOCIATIONS = "/lustre/scratch113/projects/ddd/users/jm33/results/" \
@@ -52,6 +52,8 @@ def get_options():
         help="Path to file of candidate de novos.")
     parser.add_argument("--validations", default=VALIDATIONS, \
         help="Path to table of de novo validation results.")
+    parser.add_argument("--diagnosed", default=DIAGNOSED, \
+        help="Path to table of probands with other diagnoses.")
     parser.add_argument("--external-sites", default=EXTERNAL_DE_NOVOS, \
         help="Path to table of de novos from reported exome or" \
             "genome-sequencing studies.")
@@ -96,7 +98,7 @@ def standardise_ddd_de_novos(de_novos):
     
     return de_novos
 
-def load_de_novos(de_novos, validations, external):
+def load_de_novos(de_novos, validations, external, diagnosed):
     """ loads the
     """
     
@@ -105,6 +107,9 @@ def load_de_novos(de_novos, validations, external):
     
     external = pandas.read_table(external, compression="gzip")
     de_novos = de_novos.append(external, ignore_index=True)
+    
+    diagnosed = pandas.read_table(diagnosed)
+    de_novos = de_novos[~de_novos["person_stable_id"].isin(diagnosed["person_id"])]
     
     return de_novos
 
@@ -134,7 +139,8 @@ def variants_table_to_dictionary(variants):
 def main():
     args = get_options()
     
-    de_novos = load_de_novos(args.de_novos, args.validations, args.external_sites)
+    de_novos = load_de_novos(args.de_novos, args.validations,
+        args.external_sites, args.diagnosed)
     
     genes = pandas.read_table(args.results)
     genes = genes[genes["p_min"] < THRESHOLD]
