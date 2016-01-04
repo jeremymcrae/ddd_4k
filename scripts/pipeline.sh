@@ -470,6 +470,7 @@ python ddd_4k/scripts/get_variants_in_novel_genes.py \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
     --output ${NOVEL_GENE_VARIANTS}
 
+# this step requires access to the DDD database
 python ddd_4k/scripts/prepare_gene_reports.py \
     --de-novos ${NOVEL_GENE_VARIANTS} \
     --phenotypes ${PHENOTYPES_PATH} \
@@ -481,9 +482,11 @@ python ddd_4k/scripts/plot_de_novos_in_gene.py \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --external-sites "publishedDeNovos/data-raw/variants.txt.gz" \
     --validations ${VALIDATIONS_PATH} \
+    --diagnosed ${DIAGNOSED_PATH} \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
     --output-dir "gene_reports"
 
+# this step requires access to the DDD database
 python ddd_4k/scripts/plot_phenotypes_per_gene.py \
     --de-novos ${NOVEL_GENE_VARIANTS} \
     --phenotypes ${PHENOTYPES_PATH} \
@@ -495,6 +498,7 @@ python ddd_4k/scripts/get_informative_terms_for_genes.py \
     --de-novos ${NOVEL_GENE_VARIANTS} \
     --phenotypes ${PHENOTYPES_JSON} \
     --trios ${TRIOS_PATH} \
+    --diagnosed ${DIAGNOSED_PATH} \
     --output-dir "gene_reports"
 
 python ddd_4k/scripts/get_proportion_with_external_disorders.py \
