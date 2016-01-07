@@ -20,6 +20,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import argparse
+import math
 
 import pandas
 from statsmodels.stats.multitest import fdrcorrection
@@ -42,6 +43,9 @@ def get_options():
     parser.add_argument("--results", default=RESULTS_PATH, \
         help="Path to table of association results.")
     parser.add_argument("--output", default="novel_gene_variants.txt", \
+        help="Path to send output to.")
+    parser.add_argument("--output-association-table", \
+        default="association_table.tsv", \
         help="Path to send output to.")
     
     args = parser.parse_args()
@@ -91,6 +95,50 @@ def get_sites_for_validation(de_novos, new_genes):
     invalid[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol",  \
         "consequence"]].to_csv("ddd_4k_validations.repeat_validations.2015-10-12.txt", sep="\t", index=False)
 
+def prepare_association_table(table):
+    
+    # count the number of DDD and external de novos in the different functional
+    # categories
+    for pop in ["ddd", "meta"]:
+        table[pop + ".lof"] = table[pop + ".lof_indel"] + table[pop + ".lof_snv"]
+        table[pop + ".missense"] = table[pop + ".missense_indel"] + table[pop + ".missense_snv"]
+    
+    table["meta.lof"] = table["meta.lof"] - table["ddd.lof"]
+    table["meta.missense"] = table["meta.missense"] - table["ddd.missense"]
+    
+    # check whether the p-value came from the DDD only, or the meta-analysis
+    table["test"] = table["p_min"] == table["ddd.p_min"]
+    table["test"] = table["test"].map({True: "DDD", False: "Meta"})
+    table = table.sort("p_min")
+    
+    table["Gene"] = table["hgnc"]
+    table["P value"] = table["p_min"].map('{:.1e}'.format)
+    
+    # format the number of DDD and external de novos as "DDD n (external n)"
+    meta_nonzero = table["meta.missense"] > 0
+    table["PAV"][~meta_nonzero] = table["ddd.missense"][~meta_nonzero].astype(int).apply(str)
+    table["PAV"][meta_nonzero] = \
+        table["ddd.missense"][meta_nonzero].astype(int).apply(str) + " (" + \
+        table["meta.missense"][meta_nonzero].astype(int).apply(str) + ")"
+    meta_nonzero = table["meta.lof"] > 0
+    table["PTV"][~meta_nonzero] = table["ddd.lof"][~meta_nonzero].astype(int).apply(str)
+    table["PTV"][meta_nonzero] = \
+        table["ddd.lof"][meta_nonzero].astype(int).apply(str) + " (" + \
+        table["meta.lof"][meta_nonzero].astype(int).apply(str) + ")"
+    
+    # figure out whether the tested subset had clustering
+    table["Clustering"] = [ x["ddd.p_missense_clust"] if x["test"] == "DDD" \
+        else x["meta.p_missense_clust"] for row, x in table.iterrows() ]
+    table["Clustering"][table["Clustering"].isnull()] = 1
+    
+    # define the gene as having clustered mutations if the clustering p-value is
+    # less than 0.01 (the standard alpha for this manuscript)
+    table["Clustering"] = [ "Yes" if x < 0.01 else "No" for x in table["Clustering"] ]
+    
+    formatted = table[["Gene", "PAV", "PTV", "P value", "test", "Clustering"]]
+    
+    return formatted
+
 def main():
     args = get_options()
     
@@ -100,8 +148,9 @@ def main():
     results = pandas.read_table(args.results, sep="\t")
     
     # find the genes that exceed a multiple testing corrected genonmewide threshold
-    new_genes = results["hgnc"][results["p_min"] < THRESHOLD]
-    new_genes = new_genes[~new_genes.isnull()]
+    table = results[results["p_min"] < THRESHOLD]
+    table = table[~table["ddd.p_func"].isnull()]
+    new_genes = table["hgnc"]
     
     get_sites_for_validation(de_novos, new_genes)
     
@@ -110,6 +159,10 @@ def main():
     
     sites[["person_stable_id", "sex", "chrom", "pos", "ref", "alt", "symbol", \
         "consequence", "status"]].to_csv(args.output, sep="\t", index=False)
+    
+    formatted = prepare_association_table(table)
+    formatted.to_csv(args.output_association_table, sep="\t", index=False)
+    
 
 if __name__ == '__main__':
     main()
