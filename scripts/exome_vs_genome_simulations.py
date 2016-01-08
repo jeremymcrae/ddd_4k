@@ -181,38 +181,37 @@ def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
     expected = [ x * population_n for x in rates["lof"] ]
     
     # define a range of amounts of money for sequencing
-    budgets = [1e6, 2e6, 5e6, 1e7]
-    genome_cost = 1000
+    budgets = [1e6, 2e6, 5e6]
+    genome_cost = 1000 * 3
     exome_relative_cost = [ x/5 for x in range(1, 6) ]
     genome_sensitivity = [1.0, 1.05, 1.1, 1.15, 1.2]
     
     power = pandas.DataFrame(columns=["budget", "exome_cost", "sensitivity", "sequence", "power"])
     for budget in budgets:
+        sensitivity = 1
         for relative_cost in exome_relative_cost:
-            for sensitivity in genome_sensitivity:
-                n_genomes = budget/genome_cost
-                n_exomes = budget/(genome_cost * relative_cost)
-                print(budget, relative_cost, sensitivity)
-                
-                exome_expected = [ x/sensitivity for x in expected ]
-                
-                genome_probs = get_gene_probabilities(rates["lof"], expected, \
-                    threshold, n_genomes, population_n, disorder_freq)
-                exome_probs = get_gene_probabilities(rates["lof"], exome_expected, \
-                    threshold, n_exomes, population_n, disorder_freq)
-                
-                genome_median = median(genome_probs)
-                exome_median = median(exome_probs)
-                
-                power = power.append({"budget": budget,
-                    "exome_cost": relative_cost, "sensitivity": sensitivity,
-                    "sequence": "genome", "power": genome_median}, ignore_index=True)
-                power = power.append({"budget": budget,
-                    "exome_cost": relative_cost, "sensitivity": sensitivity,
-                    "sequence": "exome", "power": exome_median}, ignore_index=True)
+            n_exomes = budget/(genome_cost * relative_cost)
+            exome_probs = get_gene_probabilities(rates["lof"], expected, \
+                threshold, n_exomes, population_n, disorder_freq)
+            exome_median = median(exome_probs)
+            power = power.append({"budget": budget,
+                "exome_cost": relative_cost, "sensitivity": sensitivity,
+                "sequence": "exome", "power": exome_median}, ignore_index=True)
+        
+        for sensitivity in genome_sensitivity:
+            n_genomes = budget/genome_cost
+            genome_expected = [ x * sensitivity for x in expected ]
+            genome_probs = get_gene_probabilities(rates["lof"], genome_expected, \
+                threshold, n_genomes, population_n, disorder_freq)
+            
+            genome_median = median(genome_probs)
+            power = power.append({"budget": budget,
+                "exome_cost": relative_cost, "sensitivity": sensitivity,
+                "sequence": "genome-{}".format(sensitivity),
+                "power": genome_median}, ignore_index=True)
     
     fig = seaborn.factorplot(x="exome_cost", y="power", hue="sequence", \
-        col="budget", row="sensitivity", data=power)
+        col="budget", data=power)
     fig.savefig(plot_path, format="pdf")
 
 def main():
