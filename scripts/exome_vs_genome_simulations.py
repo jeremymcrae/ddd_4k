@@ -67,7 +67,11 @@ def get_options():
     parser = argparse.ArgumentParser(description=".")
     parser.add_argument("--rates", default=RATES_URL, \
         help="URL for mutation rates throughout genome.")
-    parser.add_argument("--output-folder", default="results", \
+    parser.add_argument("--output-haploinsufficiency", \
+        default="haploinsufficiency_power.pdf", \
+        help="Path to plot graph to.")
+    parser.add_argument("--output-exome", \
+        default="exome_vs_genome.pdf", \
         help="Path to plot graph to.")
     
     args = parser.parse_args()
@@ -231,9 +235,9 @@ def main():
     threshold = ALPHA/NUM_GENES
     
     check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq, \
-        os.path.join(args.output_folder, "haploinsufficiency_power.pdf"))
+        args.output_haploinsufficiency)
     exome_vs_genome(rates, threshold, population_n, disorder_freq, \
-        os.path.join(args.output_folder, "exome_vs_genome.pdf"))
+        args.output_exome)
 
 if __name__ == '__main__':
     main()
