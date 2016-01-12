@@ -28,7 +28,7 @@ import matplotlib
 matplotlib.use('Agg')
 import seaborn
 import pandas
-from scipy.stats import fisher_exact
+from scipy.stats import fisher_exact, mannwhitneyu
 from matplotlib import pyplot
 
 from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes, \
@@ -157,9 +157,18 @@ def plot_quantitative(counts, pheno, value, folder, y_label):
     
     merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
     
+    results = []
+    for known in [True, False]:
+        lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
+        func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
+        u, p_value = mannwhitneyu(lof, func)
+        results.append([known, p_value])
+    
     fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
     fig.set_ylabels(y_label)
+    pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
     fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
+    
     matplotlib.pyplot.close()
 
 def plot_hpo_by_consequence(counts, pheno, folder):
