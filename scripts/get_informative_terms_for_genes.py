@@ -64,7 +64,8 @@ def get_options():
     
     return args
 
-def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir):
+def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir, \
+    max_count=10, include_key=False):
     """ plot the terms relevant for a gene as a heatmap
     
     Args:
@@ -76,6 +77,11 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir):
         trios: table of probands in exome-sequenced, including decipher and DDD IDs.
         table: pandas DataFrame of relevant terms for the gene, one row per term.
         output_dir: folder to save the plot to.
+        max_count: the highest number of probands in a gene, for the highest
+            value that a heatmap can have. We pass this variable in to
+            standardise the heatmap colors between genes, by using the same
+            value across genes.
+        include_key: whether to include a key for the heatmap.
     """
     
     decipher = trios[trios["proband_stable_id"].isin(probands)]
@@ -102,7 +108,8 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir):
     data = data[data.columns].astype(float)
     
     # plot the heatmap
-    ax = seaborn.heatmap(data, cmap="Blues", cbar=False, square=True)
+    ax = seaborn.heatmap(data, cmap="Blues", cbar=include_key, square=True, \
+        vmin=0, vmax=max_count)
     fig = ax.get_figure()
     fig.savefig(os.path.join(output_dir, "{}_terms.pdf").format(hgnc), format="pdf")
     pyplot.close()
@@ -136,13 +143,20 @@ def main():
     
     graph.tally_hpo_terms(proband_hpo)
     
+    max_count = max(variants["symbol"].value_counts())
+    
     for hgnc in sorted(variants["symbol"].unique()):
         gene = variants[variants["symbol"] == hgnc]
         probands = list(gene["person_stable_id"])
         table = rank_terms(graph, probands, proband_hpo)
         
         if len(table) > 0:
-            plot_gene(graph, probands, proband_hpo, hgnc, trios, table, args.output_dir)
+            plot_gene(graph, probands, proband_hpo, hgnc, trios, table, \
+                args.output_dir, max_count)
+    
+    # replot the final gene, but this time include the key.
+    plot_gene(graph, probands, proband_hpo, hgnc, trios, table, \
+        args.output_dir, max_count, include_key=True)
 
 if __name__ == '__main__':
     main()
