@@ -30,6 +30,7 @@ matplotlib.use("Agg")
 from matplotlib import pyplot
 import pandas
 import seaborn
+import numpy
 
 from ddd_4k.constants import TRIOS, DIAGNOSED
 from ddd_4k.rank_hpo import rank_terms
@@ -107,9 +108,21 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir, \
     data = data[columns]
     data = data[data.columns].astype(float)
     
+    # create a colormap, so we can have discrete intervals in the key
+    cmaplist = seaborn.color_palette("Blues", max_count+1)
+    cmaplist[0] = (1, 1, 1)  # define zero values as white (i.e. blank)
+    cmap = matplotlib.colors.ListedColormap(cmaplist, name='from_list', N=max_count+1)
+    
+    # define the bins for the colormap and normalize
+    bounds = numpy.linspace(0, max_count+1, max_count+2)
+    norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+    
+    cbar_kws = {"cmap": cmap, "norm": norm, "spacing": "proportional",
+        "boundaries": bounds, "format": "%1i"}
+    
     # plot the heatmap
-    ax = seaborn.heatmap(data, cmap="Blues", cbar=include_key, square=True, \
-        vmin=0, vmax=max_count)
+    ax = seaborn.heatmap(data, cmap=cmap, cbar=include_key, square=True, \
+        vmin=0, vmax=max_count, cbar_kws=cbar_kws)
     fig = ax.get_figure()
     fig.savefig(os.path.join(output_dir, "{}_terms.pdf").format(hgnc), format="pdf")
     pyplot.close()
