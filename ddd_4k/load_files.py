@@ -20,13 +20,15 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 import pandas
+import numpy
 
-def open_de_novos(path, validations):
+def open_de_novos(path, validations=None, exclude_invalid=True):
     """ load the de novo dataset
     
     Args:
         path: path to known developmental disorder genes data file.
-        validations: path to de novo validation results data file.
+        validations: path to de novo validation results data file. If unused,
+            then we don't exclude any variants that failed validation.
     
     Returns:
         DataFrame for the de novo candidates.
@@ -37,7 +39,8 @@ def open_de_novos(path, validations):
     # define the loss-of-function and "missense" consequences
     lof_cq = ["transcript_ablation", "splice_donor_variant",
         "splice_acceptor_variant", "stop_gained", "frameshift_variant",
-        "coding_sequence_variant", "start_lost", "initiator_codon_variant"]
+        "coding_sequence_variant", "start_lost", "initiator_codon_variant",
+        "conserved_exon_terminus_variant"]
     missense_cq = ["stop_lost", "inframe_insertion", "inframe_deletion",
         "missense_variant", "transcript_amplification", "protein_altering_variant"]
     
@@ -49,11 +52,18 @@ def open_de_novos(path, validations):
     de_novos = de_novos[de_novos["consequence"].isin(lof_cq + missense_cq)]
     
     # remove candidates which have been excluded by validation tests
-    validations = pandas.read_table(validations)
-    de_novos = de_novos.merge(validations, how="left",
-        left_on=["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", "consequence"],
-        right_on=["person_id", "chrom", "start_pos", "ref_allele", "alt_allele", "hgnc", "consequence"])
-    de_novos = de_novos[~de_novos["status"].isin(["false_positive", "inherited"])]
+    if validations:
+        validations = pandas.read_table(validations)
+        de_novos = de_novos.merge(validations, how="left",
+            left_on=["person_stable_id", "chrom", "pos", "ref", "alt", \
+                "symbol", "consequence"],
+            right_on=["person_id", "chrom", "start_pos", "ref_allele", \
+                "alt_allele", "hgnc", "consequence"])
+    else:
+        de_novos["status"] = numpy.nan
+    
+    if exclude_invalid:
+        de_novos = de_novos[~de_novos["status"].isin(["false_positive", "inherited"])]
     
     return de_novos
 
@@ -132,5 +142,51 @@ def open_families(families_path, trios_path):
     families = families.merge(trios, "left", left_on="individual_id", right_on="proband_stable_id")
     
     return families
+
+def add_decipher_ids(de_novos, sanger_ids_path):
+    """ map the DDD stables IDs to decipher IDs.
     
+    open the sanger IDs table, strip out the parental IDs, and map the DDD
+    stable IDs to decipher IDs, since we only want to report decipher IDs to
+    clinicians.
     
+    Args:
+        de_novos: pandas dataframe of protein-altering (missense and
+            loss-of-function) de novo mutations.
+        sanger_ids_path: path to file mapping between DDD and decipher IDs.
+    
+    Returns:
+        pandas dataframe of de novos with an extra column of decpiher IDs.
+    """
+    
+    sanger_ids = pandas.read_table(sanger_ids_path, sep="\t")
+    sanger_ids = sanger_ids[~sanger_ids["decipher_id"].str.contains(":")]
+    recode = dict(zip(sanger_ids["person_stable_id"], sanger_ids["decipher_id"]))
+    
+    de_novos["decipher_id"] = de_novos["person_stable_id"].map(recode)
+    
+    return de_novos
+
+def get_significant_results(results_path, threshold, column="p_min"):
+    """ find the resuls for genes at genome-wide significance.
+    
+    Args:
+        results_path: path to results
+        threshold: p-value threshold for assigning genome-wide significance.
+        column: name of column containing p-values.
+    
+    Returns:
+        pandas Dataframe of results for genes at genome-wide significance.
+    """
+    
+    results = pandas.read_table(results_path, sep="\t")
+    
+    # find the genes that exceed a multiple testing corrected genonmewide threshold
+    table = results[results[column] < threshold]
+    
+    # ensure that we only select genes where the DDD has at least one de novo,
+    # otherwise we will pick up genes where our data does not contribute to the
+    # classififcation. Currently this only excludes one gene.
+    table = table[~table["ddd.p_func"].isnull()]
+    
+    return table

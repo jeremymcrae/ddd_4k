@@ -25,6 +25,8 @@ import math
 import pandas
 from statsmodels.stats.multitest import fdrcorrection
 
+from ddd_4k.load_files import open_de_novos, add_decipher_ids, \
+    get_significant_results
 from ddd_4k.constants import DENOVO_PATH, VALIDATIONS, SANGER_IDS, THRESHOLD
 
 RESULTS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.without_diagnosed.all.2015-11-24.txt"
@@ -52,29 +54,14 @@ def get_options():
     
     return args
 
-def open_de_novos(de_novos_path, validations_path, sanger_ids_path):
-    """ load the de novos, and their validation data
-    """
-    
-    validations = pandas.read_table(validations_path, sep="\t")
-    de_novos = pandas.read_table(de_novos_path, sep="\t")
-    de_novos = de_novos.merge(validations, how="left",
-        left_on=["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", "consequence"],
-        right_on=["person_id", "chrom", "start_pos", "ref_allele", "alt_allele", "hgnc", "consequence"])
-    
-    
-    sanger_ids = pandas.read_table(sanger_ids_path, sep="\t")
-    sanger_ids = sanger_ids[~sanger_ids["person_stable_id"].duplicated() ]
-    de_novos = de_novos.merge(sanger_ids, how="left", on="person_stable_id")
-    
-    de_novos = de_novos[["person_stable_id", "decipher_id", "sex", "chrom", "pos",
-        "ref", "alt", "symbol", "consequence", "status"]]
-    
-    return de_novos
-
-def get_sites_for_validation(de_novos, new_genes):
+def get_sites_for_validation(de_novos_path, validations_path, new_genes):
     """ find which sites still require validation
     """
+    
+    # reload the de novos file, but this time retain the sites which failed
+    # validation, so that we can count the sites which failed, as well as the
+    # sites which passed.
+    de_novos = open_de_novos(de_novos_path, validations_path, exclude_invalid=False)
     
     validations = pandas.DataFrame({"hgnc": new_genes, "tested": None, "untested": None, "invalid": None})
     for pos in validations.index:
@@ -90,10 +77,7 @@ def get_sites_for_validation(de_novos, new_genes):
     untested = de_novos[de_novos["symbol"].isin(new_genes) & de_novos["status"].isnull() ]
     invalid = de_novos[de_novos["symbol"].isin(new_genes) & de_novos["status"].isin(["inherited", "false_positive"]) ]
     
-    untested[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", \
-        "consequence"]].to_csv("ddd_4k_validations.additional_genes.2015-10-12.txt", sep="\t", index=False)
-    invalid[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol",  \
-        "consequence"]].to_csv("ddd_4k_validations.repeat_validations.2015-10-12.txt", sep="\t", index=False)
+    return (untested, invalid)
 
 def prepare_association_table(table):
     
@@ -107,8 +91,8 @@ def prepare_association_table(table):
     table["meta.missense"] = table["meta.missense"] - table["ddd.missense"]
     
     # check whether the p-value came from the DDD only, or the meta-analysis
-    table["test"] = table["p_min"] == table["ddd.p_min"]
-    table["test"] = table["test"].map({True: "DDD", False: "Meta"})
+    table["Test"] = table["p_min"] == table["ddd.p_min"]
+    table["Test"] = table["Test"].map({True: "DDD", False: "Meta"})
     table = table.sort("p_min")
     
     table["Gene"] = table["hgnc"]
@@ -116,8 +100,8 @@ def prepare_association_table(table):
     
     # format the number of DDD and external de novos as "DDD n (external n)"
     meta_nonzero = table["meta.missense"] > 0
-    table["PAV"][~meta_nonzero] = table["ddd.missense"][~meta_nonzero].astype(int).apply(str)
-    table["PAV"][meta_nonzero] = \
+    table["Missense"][~meta_nonzero] = table["ddd.missense"][~meta_nonzero].astype(int).apply(str)
+    table["Missense"][meta_nonzero] = \
         table["ddd.missense"][meta_nonzero].astype(int).apply(str) + " (" + \
         table["meta.missense"][meta_nonzero].astype(int).apply(str) + ")"
     meta_nonzero = table["meta.lof"] > 0
@@ -135,26 +119,23 @@ def prepare_association_table(table):
     # less than 0.01 (the standard alpha for this manuscript)
     table["Clustering"] = [ "Yes" if x < 0.01 else "No" for x in table["Clustering"] ]
     
-    formatted = table[["Gene", "PAV", "PTV", "P value", "test", "Clustering"]]
+    formatted = table[["Gene", "Missense", "PTV", "P value", "Test", "Clustering"]]
     
     return formatted
 
 def main():
     args = get_options()
     
-    de_novos = open_de_novos(args.de_novos, args.validations, args.sanger_ids)
-    de_novos = de_novos[~de_novos["consequence"].isin(["synonymous_variant"]) ]
+    de_novos = open_de_novos(de_novos_path, validations_path)
+    de_novos = add_decipher_ids(de_novos, args.sanger_ids)
     
-    results = pandas.read_table(args.results, sep="\t")
+    de_novos = de_novos[["person_stable_id", "decipher_id", "sex", "chrom", "pos",
+        "ref", "alt", "symbol", "consequence", "status"]]
     
-    # find the genes that exceed a multiple testing corrected genonmewide threshold
-    table = results[results["p_min"] < THRESHOLD]
-    table = table[~table["ddd.p_func"].isnull()]
+    table = get_significant_results(args.results, THRESHOLD)
     new_genes = table["hgnc"]
     
-    get_sites_for_validation(de_novos, new_genes)
-    
-    sites = de_novos[de_novos["symbol"].isin(new_genes) & ~de_novos["status"].isin(["inherited", "false_positive"]) ]
+    sites = de_novos[de_novos["symbol"].isin(new_genes)]
     sites = sites.sort(["symbol", "pos"])
     
     sites[["person_stable_id", "sex", "chrom", "pos", "ref", "alt", "symbol", \
@@ -162,6 +143,16 @@ def main():
     
     formatted = prepare_association_table(table)
     formatted.to_csv(args.output_association_table, sep="\t", index=False)
+    
+    # find sites for further validation experiments
+    (untested, invalid) = get_sites_for_validation(args.de_novos,
+        args.validations, de_novos, new_genes)
+    untested_path = "ddd_4k_validations.additional_genes.2015-10-12.txt"
+    retest_path = "ddd_4k_validations.repeat_validations.2015-10-12.txt"
+    untested[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", \
+        "consequence"]].to_csv(untested_path, sep="\t", index=False)
+    invalid[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol",  \
+        "consequence"]].to_csv(retest_path, sep="\t", index=False)
     
 
 if __name__ == '__main__':
