@@ -98,18 +98,18 @@ def standardise_ddd_de_novos(de_novos):
     
     return de_novos
 
-def load_de_novos(de_novos, validations, external, diagnosed):
+def load_de_novos(de_novo_path, validation_path, external_path, diagnosed_path):
     """ loads the
     """
     
-    de_novos = open_de_novos(de_novos, validations)
+    de_novos = open_de_novos(de_novo_path, validation_path)
     de_novos = standardise_ddd_de_novos(de_novos)
     
-    external = pandas.read_table(external, compression="gzip")
+    external = pandas.read_table(external_path, compression="gzip")
     de_novos = de_novos.append(external, ignore_index=True)
     
-    diagnosed = pandas.read_table(diagnosed)
-    de_novos = de_novos[~de_novos["person_stable_id"].isin(diagnosed["person_id"])]
+    diagnosed = pandas.read_table(diagnosed_path)
+    de_novos = de_novos[~de_novos["person_id"].isin(diagnosed["person_id"])]
     
     return de_novos
 
