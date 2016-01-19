@@ -203,9 +203,8 @@ def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
                 "sequence": "exome", "power": exome_median}, ignore_index=True)
         
         for sensitivity in genome_sensitivity:
-            n_genomes = budget/genome_cost
-            genome_expected = [ x * sensitivity for x in expected ]
-            genome_probs = get_gene_probabilities(rates["lof"], genome_expected, \
+            n_genomes = (budget/genome_cost) * sensitivity
+            genome_probs = get_gene_probabilities(rates["lof"], expected, \
                 threshold, n_genomes, population_n, disorder_freq)
             
             genome_median = median(genome_probs)
