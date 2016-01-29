@@ -52,9 +52,9 @@ def get_transcript_for_gene(symbol, ensembl):
     
     # work through the transcript IDs in descending lengths
     transcript = None
-    for (transcript_id, length) in transcript_ids:
+    for x in sorted(transcript_ids, key=transcript_ids.get, reverse=True):
         try:
-            transcript = construct_gene_object(ensembl, transcript_id)
+            transcript = construct_gene_object(ensembl, x)
             break
         except ValueError:
             continue
@@ -105,7 +105,7 @@ def get_rates_for_gene(gene_id, all_genes, mut_dict, ensembl):
     
     # get the site specific mutation rates for missense and lof possibilities in
     # the gene
-    site_weights = SiteRates(transcript, mut_dict)
+    rates = SiteRates(transcript, mut_dict)
     missense = site_weights.get_cds_rates("missense")
     lof = site_weights.get_cds_rates("lof")
     
