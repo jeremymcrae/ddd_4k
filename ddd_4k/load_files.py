@@ -22,13 +22,17 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import pandas
 import numpy
 
-def open_de_novos(path, validations=None, exclude_invalid=True):
+from mupit.constants import LOF_CQ, MISSENSE_CQ
+
+def open_de_novos(path, validations=None, exclude_invalid=True, exclude_synonymous=True):
     """ load the de novo dataset
     
     Args:
         path: path to known developmental disorder genes data file.
         validations: path to de novo validation results data file. If unused,
             then we don't exclude any variants that failed validation.
+        exclude_invalid: whether to remove the sites which failed validation
+        exclude_synonymous: whether to remove synonymous sites
     
     Returns:
         DataFrame for the de novo candidates.
@@ -36,20 +40,13 @@ def open_de_novos(path, validations=None, exclude_invalid=True):
     
     de_novos = pandas.read_table(path)
     
-    # define the loss-of-function and "missense" consequences
-    lof_cq = ["transcript_ablation", "splice_donor_variant",
-        "splice_acceptor_variant", "stop_gained", "frameshift_variant",
-        "coding_sequence_variant", "start_lost", "initiator_codon_variant",
-        "conserved_exon_terminus_variant"]
-    missense_cq = ["stop_lost", "inframe_insertion", "inframe_deletion",
-        "missense_variant", "transcript_amplification", "protein_altering_variant"]
-    
     # figure out whether the sites have loss-of-function consequences
-    recode = dict(zip(lof_cq + missense_cq, \
-        ["loss-of-function"] * len(lof_cq) + ["functional"] * len(missense_cq)))
+    recode = dict(zip(LOF_CQ + MISSENSE_CQ, \
+        ["loss-of-function"] * len(LOF_CQ) + ["functional"] * len(MISSENSE_CQ)))
     de_novos["category"] = de_novos["consequence"].map(recode)
     
-    de_novos = de_novos[de_novos["consequence"].isin(lof_cq + missense_cq)]
+    if exclude_synonymous:
+        de_novos = de_novos[de_novos["consequence"].isin(LOF_CQ + MISSENSE_CQ)]
     
     # remove candidates which have been excluded by validation tests
     if validations:
@@ -64,6 +61,8 @@ def open_de_novos(path, validations=None, exclude_invalid=True):
     
     if exclude_invalid:
         de_novos = de_novos[~de_novos["status"].isin(["false_positive", "inherited"])]
+    
+    de_novos["hgnc"] = de_novos["symbol"]
     
     return de_novos
 

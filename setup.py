@@ -35,6 +35,7 @@ setup(
                       'psycopg2 >= 2.6.0',
                       'denovonear >= 0.1.1',
                       'inflect >= 0.2.5'
+                      'mupit >= 0.3.0'
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",

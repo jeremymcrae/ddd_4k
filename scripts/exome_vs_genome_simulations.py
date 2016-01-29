@@ -37,9 +37,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import division, print_function
 
 import os
-import urllib
-import math
-import tempfile
 import argparse
 
 import pandas
@@ -52,13 +49,11 @@ matplotlib.use("Agg")
 import seaborn
 
 from ddd_4k.constants import ALPHA, NUM_GENES
+from mupit.mutation_rates import get_default_rates
 
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
-
-
-RATES_URL = "http://www.nature.com/ng/journal/v46/n9/extref/ng.3050-S2.xls"
 
 def get_options():
     """
@@ -77,31 +72,6 @@ def get_options():
     args = parser.parse_args()
     
     return args
-
-def get_mutation_rates(url):
-    """ obtain the table of mutation rates from the Samocha et al paper
-    
-    Args:
-        url: url to supplementary mutation rates table
-    
-    Returns:
-        dataframe of mutation rates, with an extra column for summed lof rate
-    """
-    
-    temp = tempfile.NamedTemporaryFile()
-    # get a list of lof mutation rates per gene
-    urllib.urlretrieve(url, temp.name)
-    rates = pandas.read_excel(temp.name, sheetname="mutation_probabilities")
-    
-    # convert the log10 adjusted rates back to unscaled numbers
-    rates["non"] = [ 10**x for x in rates["non"] ]
-    rates["splice_site"] = [ 10**x for x in rates["splice_site"] ]
-    rates["frameshift"] = [ 10**x for x in rates["frameshift"] ]
-    
-    # determine the summed loss-of-function mutation rate for each gene
-    rates["lof"] = rates[["non", "splice_site", "frameshift" ]].sum(axis=1)
-    
-    return rates
 
 def get_gene_probabilities(lof_rates, expected, threshold, cohort_n, population_n, disorder_freq):
     """ estimate probabilities of a significant result, at a cohort size
@@ -228,7 +198,9 @@ def main():
     # the prevalence of developmental disorders is 0.5% of the general population
     disorder_freq = 0.005
     
-    rates = get_mutation_rates(args.rates)
+    rates = get_default_rates(args.rates)
+    # determine the summed loss-of-function mutation rate for each gene
+    rates["lof"] = rates[["non", "splice_site", "frameshift" ]].sum(axis=1)
     
     # estimate a genome-wide significance threshold
     threshold = ALPHA/NUM_GENES

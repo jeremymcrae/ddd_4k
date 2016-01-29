@@ -109,12 +109,12 @@ git clone https://github.com/jeremymcrae/recessiveStats.git
 pip install git+git://github.com/jeremymcrae/denovoFilter.git
 pip install git+git://github.com/jeremymcrae/denovonear.git
 pip install git+git://github.com/jeremymcrae/hpo_similarity.git
+pip install git+git://github.com/jeremymcrae/muput.git
 
 # install the R packages, a R package that contains all of the externally
 # reported de novo mutations from exome or genome sequencing of trios with
-# developmental disorders, and a package to test enrichment of de novo mutations
+# developmental disorders
 R -e 'library(devtools);devtools::install_github(jeremymcrae/publishedDeNovos.git)'
-R -e 'library(devtools);devtools::install_github(jeremymcrae/mupit.git)'
 R -e 'library(devtools);devtools::install_github(jeremymcrae/recessiveStats.git)'
 
 # identify all of the sites where it is possible to have a conserved last base
@@ -178,13 +178,13 @@ python denovonear/scripts/construct_mutation_rates.py \
 ################################################################################
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/get_diagnostic_probands.R \
+python mupit/scripts/get_diagnostic_probands.py \
     --ddd-1k-diagnoses ${DDD_1K_DIAGNOSES} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --low-pp-dnm ${LOW_PP_DNM_VALIDATIONS} \
     --recessive-diagnoses ${RECESSIVE_DIAGNOSED_PATH} \
     --families ${FAMILIES_PATH} \
-    --ddg2p ${DDG2P_PATH} \
+    --known-genes ${DDG2P_PATH} \
     --out ${DIAGNOSED_PATH}
 
 ################################################################################
@@ -192,28 +192,29 @@ Rscript mupit/scripts/get_diagnostic_probands.R \
 ################################################################################
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --ddg2p ${DDG2P_PATH} \
+    --known-genes ${DDG2P_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
-    --meta-analysis \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "intellectual_disability,epilepsy,autism" \
     --out-manhattan ${META_WITHOUT_MANHATTAN} \
     --out-enrichment ${META_WITHOUT_ENRICH} \
     --out-clustering ${META_WITHOUT_CLUSTER}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --ddg2p ${DDG2P_PATH} \
+    --known-genes ${DDG2P_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
     --out-manhattan ${DDD_WITHOUT_MANHATTAN} \
     --out-enrichment ${DDD_WITHOUT_ENRICH} \
@@ -221,27 +222,28 @@ Rscript mupit/scripts/ddd_analysis.R \
     --out-probands-by-gene ${DDD_WITHOUT_JSON}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --ddg2p ${DDG2P_PATH} \
-    --meta-analysis \
+    --known-genes ${DDG2P_PATH} \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "intellectual_disability,epilepsy,autism" \
     --out-manhattan ${META_WITH_MANHATTAN} \
     --out-enrichment ${META_WITH_ENRICH} \
     --out-clustering ${META_WITH_CLUSTER}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --ddg2p ${DDG2P_PATH} \
+    --known-genes ${DDG2P_PATH} \
     --out-manhattan ${DDD_WITH_MANHATTAN} \
     --out-enrichment ${DDD_WITH_ENRICH} \
     --out-clustering ${DDD_WITH_CLUSTER} \
@@ -252,68 +254,74 @@ Rscript mupit/scripts/ddd_analysis.R \
 ################################################################################
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --meta-analysis \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "intellectual_disability" \
     --out-enrichment ${ENRICH_WITH_ID}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --meta-analysis \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "epilepsy" \
     --out-enrichment ${ENRICH_WITH_EPILEPSY}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --meta-analysis \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "congenital_heart_disease" \
     --out-enrichment ${ENRICH_WITH_CHD}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --meta-analysis \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "schizophrenia" \
     --out-enrichment ${ENRICH_WITH_SCHIZOPHRENIA}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --meta-analysis \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "intellectual_disability,autism" \
     --out-enrichment ${ENRICH_WITH_ID_AND_AUTISM}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --meta-analysis \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --out-enrichment ${ENRICH_WITH_ALL}
 
 python ddd_4k/scripts/check_subset_differences.py \
@@ -407,8 +415,8 @@ python hpo_similarity/scripts/run_batch.py \
 ################################################################################
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/combine_all_tests.R \
-    --ddg2p ${DDG2P_PATH} \
+python mupit/scripts/combine_tests.py \
+    --known-genes ${DDG2P_PATH} \
     --ddd-enrichment ${DDD_WITH_ENRICH} \
     --meta-enrichment ${META_WITH_ENRICH} \
     --ddd-clustering ${DDD_WITH_CLUSTER_RESULTS} \
@@ -417,8 +425,8 @@ Rscript mupit/scripts/combine_all_tests.R \
     --output ${WITH_DIAGNOSED_RESULTS}
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/combine_all_tests.R \
-    --ddg2p ${DDG2P_PATH} \
+python mupit/scripts/combine_tests.py \
+    --known-genes ${DDG2P_PATH} \
     --ddd-enrichment ${DDD_WITHOUT_ENRICH} \
     --meta-enrichment ${META_WITHOUT_ENRICH} \
     --ddd-clustering ${DDD_WITHOUT_CLUSTER_RESULTS} \
@@ -431,14 +439,15 @@ Rscript mupit/scripts/combine_all_tests.R \
 ################################################################################
 
 # runtime: < 5 minutes
-Rscript mupit/scripts/ddd_analysis.R \
+python mupit/scripts/ddd_analysis.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
-    --no-ddd \
-    --meta-analysis \
+    --skip-ddd \
+    --external-cohorts "publishedDeNovos/data-raw/cohorts.tsv" \
+    --external-variants "publishedDeNovos/data-raw/variants.txt.gz" \
     --meta-subset "intellectual_disability,epilepsy,autism,normal_iq_autism" \
     --out-enrichment ${NO_DDD_ENRICH} \
     --out-clustering ${NO_DDD_CLUSTER}
