@@ -32,30 +32,28 @@ from ddd_4k.load_files import open_de_novos, open_known_genes
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS
 from ddd_4k.count_mutations_per_person import get_count_by_person
 
+from mupit.mutation_rates import get_default_rates, get_expected_mutations
+from mupit.count_de_novos import get_de_novo_counts
+from mupit.gene_enrichment import gene_enrichment
+
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-CONSTRAINTS_PATH = "data/cleaned_exac_with_pLI_march16.txt"
+CONSTRAINTS_URL = "ftp://ftp.broadinstitute.org/pub/ExAC_release/release0.3/functional_gene_constraint/fordist_cleaned_exac_r03_march16_z_pli_rec_null_data.txt"
 HAPLOINSUFFICIENCY_URL = "http://files.figshare.com/410746/Dataset_S1.txt"
 
-def open_constraints(path):
+def open_constraints(url):
     """ open the constraints dataset
     
     Args:
-        path: path to constraints dataset.
+        url: URL for constraints dataset.
     
     Returns:
         pandas DataFrame of constraint scores by gene symbol.
     """
     
-    # We have received a constraints dataset from Kaitlin Samocha and Mark Daly.
-    # This data is largely identical to a file available from ExAC
-    # ftp://ftp.broadinstitute.org/pub/ExAC_release/release0.3/functional_gene_constraint/forweb_cleaned_exac_r03_2015_03_16_z_data.txt
-    # but with one additional column, pLI, which is their metric to predict
-    # loss-of-function intolerance.
-    
-    constraints = pandas.read_table(path)
+    constraints = pandas.read_table(url)
     
     return constraints
 
@@ -114,17 +112,61 @@ def main():
     known = open_known_genes(KNOWN_GENES)
     de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
     
-    # For each proband, count the number of functional de novos (split by lof
-    # and missense), in known developmental disorder genes (and other genes).
-    counts = get_count_by_person(de_novos)
+    counts = get_de_novo_counts(de_novos)
     
-    constraints = open_constraints(CONSTRAINTS_PATH)
-    haploinsufficiency = open_haploinsufficiency(HAPLOINSUFFICIENCY_URL)
-    enrichment = get_enrichment_ratios(constraints, haploinsufficiency)
+    # # For each proband, count the number of functional de novos (split by lof
+    # # and missense), in known developmental disorder genes (and other genes).
+    # counts = get_count_by_person(de_novos)
     
-    # plot the enrichment ratio for each bin
-    fig = seaborn.lmplot(x="pLI", y="enrichment", data=enrichment, size=6, lowess=True)
-    fig.savefig("results/enrichment_ratio.pdf", type="pdf")
+    male = 2407
+    female = 1887
+    rates = get_default_rates()
+    expected = get_expected_mutations(rates, male, female)
+    
+    enriched = gene_enrichment(expected, counts)
+    
+    ratios = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel", "missense_snv"]].copy()
+    ratios["lof_ratio"] = numpy.nan
+    ratios["mis_ratio"] = numpy.nan
+    
+    for (key, gene_exp) in ratios.iterrows():
+        print(key)
+        hgnc = gene_exp["hgnc"]
+        # gene_obs = counts[counts["hgnc"] == hgnc]
+        gene_obs = counts[counts["hgnc"] == hgnc]
+        
+        if len(gene_obs) == 0:
+            gene_obs = pandas.DataFrame({"lof_indel": [0], "lof_snv": [0],
+                "missense_indel": [0], "missense_snv": [0]})
+        
+        lof_exp = gene_obs[["lof_indel", "lof_snv"]]
+        lof_obs = gene_exp[["lof_indel", "lof_snv"]]
+        lof_ratio = float(lof_exp.sum(axis=1))/float(lof_obs.sum(axis=1))
+        
+        mis_exp = gene_obs[["missense_indel", "missense_snv"]]
+        mis_obs = gene_exp[["missense_indel", "missense_snv"]]
+        mis_ratio = float(mis_exp.sum(axis=1))/float(mis_obs.sum(axis=1))
+        
+        ratios.ix[key, "lof_ratio"] = lof_ratio
+        ratios.ix[key, "mis_ratio"] = mis_ratio
+    
+    constraints = open_constraints(CONSTRAINTS_URL)
+    recode = dict(zip(constraints["gene"], constraints["pLI"]))
+    
+    ratios["pLI"] = ratios["hgnc"].map(recode)
+    
+    quantiles = [ x/20 for x in range(21) ]
+    ratios["bin"], bins = pandas.qcut(ratios["pLI"], q=quantiles, labels=quantiles[:-1], retbins=True)
+    
+    lof_enrich = pandas.pivot_table(ratios, values="lof_ratio", rows=["bin"], aggfunc=numpy.mean, fill_value=0)
+    mis_enrich = pandas.pivot_table(ratios, values="mis_ratio", rows=["bin"], aggfunc=numpy.mean, fill_value=0)
+    
+    # haploinsufficiency = open_haploinsufficiency(HAPLOINSUFFICIENCY_URL)
+    # enrichment = get_enrichment_ratios(constraints, haploinsufficiency)
+    
+    # # plot the enrichment ratio for each bin
+    # fig = seaborn.lmplot(x="pLI", y="enrichment", data=enrichment, size=6, lowess=True)
+    # fig.savefig("results/enrichment_ratio.pdf", type="pdf")
 
 if __name__ == '__main__':
     main()
