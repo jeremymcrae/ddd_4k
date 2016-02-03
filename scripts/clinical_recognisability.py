@@ -47,10 +47,10 @@ def get_options():
     """ parse the command line arguments
     """
     
-    parser = argparse.ArgumentParser(description="script to examine differences" \
-        "in observed numbers of de novo mutations to expected numbers, across" \
-        "different levels of clinical recognisability. This is done for genes" \
-        "which are loss-of-function neurodevelopmental, and which have been" \
+    parser = argparse.ArgumentParser(description="script to examine differences " \
+        "in observed numbers of de novo mutations to expected numbers, across " \
+        "different levels of clinical recognisability. This is done for gene s" \
+        "which are loss-of-function neurodevelopmental, and which have been " \
         "scored for recognisability by a clinical geneticist.")
     parser.add_argument("--rates", default=RATES_PATH,
         help="Path to table of consequence specific mutation rates per gene.")
