@@ -29,7 +29,7 @@ matplotlib.use('Agg')
 import seaborn
 
 from ddd_4k.load_files import open_de_novos, open_known_genes
-from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS
+from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS, CONSTRAINTS_URL
 from ddd_4k.count_mutations_per_person import get_count_by_person
 
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
@@ -40,22 +40,7 @@ from mupit.gene_enrichment import gene_enrichment
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-CONSTRAINTS_URL = "ftp://ftp.broadinstitute.org/pub/ExAC_release/release0.3/functional_gene_constraint/fordist_cleaned_exac_r03_march16_z_pli_rec_null_data.txt"
 HAPLOINSUFFICIENCY_URL = "http://files.figshare.com/410746/Dataset_S1.txt"
-
-def open_constraints(url):
-    """ open the constraints dataset
-    
-    Args:
-        url: URL for constraints dataset.
-    
-    Returns:
-        pandas DataFrame of constraint scores by gene symbol.
-    """
-    
-    constraints = pandas.read_table(url)
-    
-    return constraints
 
 def open_haploinsufficiency(url):
     """ load the haploinsufficiency dataset
@@ -150,7 +135,7 @@ def main():
         ratios.ix[key, "lof_ratio"] = lof_ratio
         ratios.ix[key, "mis_ratio"] = mis_ratio
     
-    constraints = open_constraints(CONSTRAINTS_URL)
+    constraints = pandas.read_table(CONSTRAINTS_URL)
     recode = dict(zip(constraints["gene"], constraints["pLI"]))
     
     ratios["pLI"] = ratios["hgnc"].map(recode)

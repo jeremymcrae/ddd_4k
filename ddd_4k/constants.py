@@ -41,6 +41,8 @@ META_ANALYSED_GENES = 6000
 NUM_TESTS = NUM_GENES * 2 + META_ANALYSED_GENES * 2
 THRESHOLD = ALPHA/NUM_TESTS
 
+CONSTRAINTS_URL = "ftp://ftp.broadinstitute.org/pub/ExAC_release/release0.3/functional_gene_constraint/fordist_cleaned_exac_r03_march16_z_pli_rec_null_data.txt"
+
 SEIZURE_GENES = ["ADSL", "ALDH7A1", "ALG13", "AMT", "ARFGEF2", "ARHGEF9",
     "ARX", "ATP1A3", "ATRX", "CACNA1A", "CACNB4", "CBL", "CDKL5", "CHD2",
     "CHRNA2", "CHRNA4", "CHRNB2", "CNTNAP2", "CREBBP", "CSNK1G1", "CSTB",

@@ -38,6 +38,7 @@ import pandas
 from ddd_4k.combine_enrichment_and_clustering import get_gene_results
 from ddd_4k.load_files import open_known_genes
 from ddd_4k.convert_doi import open_url
+from ddd_4k.constants import CONSTRAINTS_URL
 
 RATES_PATH = "/lustre/scratch113/projects/ddd/users/jm33/de_novos.ddd_4k.mutation_rates.2015-11-24.txt"
 FILTERED_DE_NOVOS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/de_novos.ddd_4k.ddd_only.2015-11-24.txt"
@@ -49,7 +50,6 @@ TEMP_DIR = "/lustre/scratch113/projects/ddd/users/jm33/temp"
 DENOVONEAR_RATES = "denovonear/data/forSanger_1KG_mutation_rate_table.txt"
 INITIAL_ENRICH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.with_diagnosed.ddd_only.enrichment_results.2015-11-24.txt"
 INITIAL_CLUSTER = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.with_diagnosed.ddd_only.clustering_results.txt"
-pLI_URL = "https://docs.google.com/spreadsheets/d/18isx46crTMeeDif05BwBD37veko8Hyrvbf9WuACoubo"
 EXTERNAL_COHORTS = "publishedDeNovos/data-raw/cohorts.tsv"
 
 r_binary = "/software/R-3.2.2/bin/Rscript"
@@ -201,7 +201,7 @@ def check_subset(name, previous, cohorts, baseline, dominant):
 
 def main():
     # find the most constrained genes in the genome by pLI score, ~1800 genes
-    pLI = get_pli_scores()
+    pLI = pandas.read_table(CONSTRAINTS_URL)
     constrained = pLI["gene"][pLI["pLI"] >= 0.99]
     
     ddg2p = open_known_genes(DDG2P_PATH)
