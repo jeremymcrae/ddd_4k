@@ -43,6 +43,31 @@ seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 RATES_PATH = "/lustre/scratch113/projects/ddd/users/jm33/de_novos.ddd_4k.mutation_rates.2015-11-24.txt"
 NEURODEV_PATH = "/nfs/users/nfs_j/jm33/neurodevelopmental.dominant_lof_DRF.xlsx"
 
+def get_options():
+    """ parse the command line arguments
+    """
+    
+    parser = argparse.ArgumentParser(description="script to examine differences" \
+        "in observed numbers of de novo mutations to expected numbers, across" \
+        "different levels of clinical recognisability. This is done for genes" \
+        "which are loss-of-function neurodevelopmental, and which have been" \
+        "scored for recognisability by a clinical geneticist.")
+    parser.add_argument("--rates", default=RATES_PATH,
+        help="Path to table of consequence specific mutation rates per gene.")
+    parser.add_argument("--de-novos", default=DENOVO_PATH,
+        help="Path to table of candidate de novo mutations.")
+    parser.add_argument("--validations", default=VALIDATIONS,
+        help="Path to table of validation data.")
+    parser.add_argument("--neurodevelopmental-genes", default=NEURODEV_PATH,
+        help="Path to table of neurodevelopmental genes with loss-of-function mechanisms.")
+    parser.add_argument("--output",
+        default="results/clinical_recognisability.pdf",
+        help="Path to plot graph to.")
+    
+    args = parser.parse_args()
+    
+    return args
+
 def load_neurodevelopmental(path):
     """ load the dominant LoF neurodevelopmental genes, with recognizability
     """
@@ -63,7 +88,7 @@ def count_de_novos(de_novo_path, validations_path):
     
     return counts
 
-def plot_recognisability(neurodev):
+def plot_recognisability(neurodev, output):
     """ plot the observed expected ratios at different recognisability indexes
     """
     
@@ -75,7 +100,7 @@ def plot_recognisability(neurodev):
     lab = fig.ax.set_ylabel("observed/expected")
     lab = fig.ax.set_xlabel("Clinical recognisability")
     
-    fig.savefig("clinical_recognisability.pdf", format="pdf")
+    fig.savefig(output, format="pdf")
     matplotlib.pyplot.close()
 
 def estimate_missing_variants(neurodev):
@@ -110,8 +135,9 @@ def estimate_missing_variants(neurodev):
     return delta_ratio * expected_sum
 
 def main():
+    args = get_options()
     
-    rates = get_ddd_rates(RATES_PATH)
+    rates = get_ddd_rates(args.rates)
     
     # determine the number of mutations we expect per gene, given consequence
     # specific mutation rates for each gene.
@@ -121,8 +147,8 @@ def main():
     
     expected = dict(zip(expected["hgnc"], expected["expected"]))
     
-    counts = count_de_novos(DENOVO_PATH, VALIDATIONS)
-    neurodev = load_neurodevelopmental(NEURODEV_PATH)
+    counts = count_de_novos(args.de_novos, args.validations)
+    neurodev = load_neurodevelopmental(args.neurodevelopmental_genes)
     
     neurodev["observed"] = 0
     for hgnc in counts:
@@ -142,7 +168,7 @@ def main():
     recode = {1: "1+2", 2: "1+2", 3: 3, 4: 4, 5: 5}
     neurodev["Recognisable"] = neurodev["Recognisable"].map(recode)
     
-    plot_recognisability(neurodev)
+    plot_recognisability(neurodev, args.output)
     
     missing = estimate_missing_variants(neurodev)
     print(missing)
