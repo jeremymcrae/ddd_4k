@@ -41,12 +41,12 @@ def open_de_novos(path, validations=None, exclude_invalid=True, exclude_synonymo
     de_novos = pandas.read_table(path)
     
     # figure out whether the sites have loss-of-function consequences
-    recode = dict(zip(LOF_CQ + MISSENSE_CQ, \
+    recode = dict(zip(list(LOF_CQ) + list(MISSENSE_CQ), \
         ["loss-of-function"] * len(LOF_CQ) + ["functional"] * len(MISSENSE_CQ)))
     de_novos["category"] = de_novos["consequence"].map(recode)
     
     if exclude_synonymous:
-        de_novos = de_novos[de_novos["consequence"].isin(LOF_CQ + MISSENSE_CQ)]
+        de_novos = de_novos[de_novos["consequence"].isin(LOF_CQ | MISSENSE_CQ)]
     
     # remove candidates which have been excluded by validation tests
     if validations:
