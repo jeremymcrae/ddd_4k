@@ -28,7 +28,9 @@ import matplotlib
 matplotlib.use('Agg')
 import seaborn
 import pandas
-from scipy.stats import fisher_exact, linregress
+from scipy.stats import fisher_exact, linregress, mstats
+from statsmodels.genmod.generalized_linear_model import GLM
+from statsmodels.genmod.families import Binomial
 from matplotlib import pyplot
 from numpy import median, log10, mean
 
@@ -203,6 +205,25 @@ def autozygosity_vs_diagnosed(lengths, diagnosed_ids, plot_path):
     fig.set_xticklabels(rotation=90, fontsize="x-large")
     fig.savefig(plot_path, format="pdf")
 
+def logistic_regression(lengths):
+    """
+    """
+    
+    data = lengths[["diagnosed", "length"]].copy()
+    
+    data = data[data["length"] > 0]
+    data = data.dropna()
+    model = GLM(data["diagnosed"], mstats.zscore(data["length"]), family=Binomial())
+    result = model.fit()
+    
+    ratios = {}
+    ratios["name"] = "autozygosity_length"
+    ratios["beta"] = result.params[0]
+    ratios["upper"] = result.conf_int()[1][0]
+    ratios["lower"] = result.conf_int()[0][0]
+    
+    print(ratios)
+
 def plot_regression(lengths, diagnosed_ids, plot_path):
     """ plot regression of autozygosity length by diagnostic likelihood
     
@@ -227,6 +248,7 @@ def plot_regression(lengths, diagnosed_ids, plot_path):
             new_lengths = new_lengths.append(x, ignore_index=True)
     
     # get the linear regression parameters
+    logistic_regression(lengths)
     groups = new_lengths.groupby("median_length")
     data = [ (key, sum(x["diagnosed"])/len(x)) for (key, x) in groups ]
     model = linregress(zip(*data))

@@ -21,6 +21,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import os
 import argparse
+import math
 
 import numpy
 
@@ -28,7 +29,9 @@ import matplotlib
 matplotlib.use('Agg')
 import seaborn
 import pandas
-from scipy.stats import fisher_exact, mannwhitneyu
+from scipy.stats import fisher_exact, mannwhitneyu, norm, mstats
+from statsmodels.genmod.generalized_linear_model import GLM
+from statsmodels.genmod.families import Binomial
 from matplotlib import pyplot
 
 from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes, \
@@ -122,19 +125,33 @@ def plot_categorical(counts, pheno, value, folder):
         folder: the folder to save graphs into.
     """
     
+    ci_95 = norm.ppf(0.975)
+    
     merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
     
     cohort_counts = pheno[value].value_counts()
     summary = get_categorical_summary(merged, cohort_counts, value)
     
     # test whether differences exist between the groups for the value column
+    ratios = {}
     results = []
     for known in [True, False]:
         for cq in summary.consequence.unique():
             table = summary[(summary.known == known) & (summary.consequence == cq)]
             table = table[["tally", "total"]]
             odds_ratio, p_value = fisher_exact(table)
+            
+            standard_error = math.sqrt((1/table).sum().sum())
+            log_odds = math.log(odds_ratio)
+            upper_ci = math.exp(log_odds + ci_95 * standard_error)
+            lower_ci = math.exp(log_odds - ci_95 * standard_error)
             results.append([known, cq, p_value])
+            
+            if known == True and cq == "loss-of-function":
+                ratios["name"] = value
+                ratios["odds_ratio"] = odds_ratio
+                ratios["upper"] = upper_ci
+                ratios["lower"] = lower_ci
     
     fig = seaborn.factorplot(x="consequence", y="ratio", hue=value, col="known", data=summary, kind="bar")
     fig.set_ylabels("Frequency")
@@ -142,6 +159,8 @@ def plot_categorical(counts, pheno, value, folder):
     fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
     
     matplotlib.pyplot.close()
+    
+    return ratios
 
 def plot_quantitative(counts, pheno, value, folder, y_label):
     """ plot quantitative metric by functional category by known gene status
@@ -157,12 +176,28 @@ def plot_quantitative(counts, pheno, value, folder, y_label):
     
     merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
     
+    ratios = {}
     results = []
     for known in [True, False]:
         lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
         func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
         u, p_value = mannwhitneyu(lof, func)
         results.append([known, p_value])
+        
+        if known:
+            data = merged[[value, "consequence"]][(merged["known"] == known) &
+                (merged["consequence"].isin(["functional", "loss-of-function"]))].copy()
+            recode = {"functional": 0, "loss-of-function": 1}
+            data["consequence"] = data["consequence"].map(recode)
+            
+            data = data.dropna()
+            model = GLM(data.consequence, mstats.zscore(data[value]), family=Binomial())
+            result = model.fit()
+            
+            ratios["name"] = value
+            ratios["beta"] = result.params[0]
+            ratios["upper"] = result.conf_int()[1][0]
+            ratios["lower"] = result.conf_int()[0][0]
     
     fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
     fig.set_ylabels(y_label)
@@ -170,24 +205,8 @@ def plot_quantitative(counts, pheno, value, folder, y_label):
     fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
     
     matplotlib.pyplot.close()
-
-def plot_hpo_by_consequence(counts, pheno, folder):
-    """ Plot number of HPO terms by functional category by known gene status
     
-    Args:
-        counts: dataframe of number of de novos per proband per consequence type
-            (loss-of-function/functional) by known developmental gene status.
-        pheno: dataframe of phenotypic values for probands
-        value: the phenotypic value that we are grouping by.
-    """
-    
-    pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
-    hpo_counts = counts.merge(pheno[["person_stable_id", "child_hpo_n"]], on="person_stable_id")
-    
-    fig = seaborn.factorplot(x="known", y="child_hpo_n", hue="consequence", size=6, data=hpo_counts, kind="violin")
-    fig.set_ylabels("HPO terms per proband (n)")
-    fig.savefig("{}/hpo_by_consequence.pdf".format(folder), format="pdf")
-    matplotlib.pyplot.close()
+    return ratios
 
 def plot_achievement(counts, pheno, achievement, folder):
     """ plot developmental milestone achievement ages by consequence by known gene status
@@ -205,7 +224,54 @@ def plot_achievement(counts, pheno, achievement, folder):
     # duration, so that the values are more normally distributed.
     durations, unit = autoscale_durations(pheno[achievement].apply(get_duration))
     pheno[achievement] = numpy.log10(durations)
-    plot_quantitative(counts, pheno, achievement, folder, "{} log10({}s)".format(achievement, unit))
+    ratios = plot_quantitative(counts, pheno, achievement, folder, "{} log10({}s)".format(achievement, unit))
+    
+    return ratios
+
+def forest_plot(data):
+    """make a forest-like plot of 95% CI of odds ratios or betas.
+    """
+    
+    if "beta" in data.columns:
+        value = "beta"
+        h_pos = 0
+    elif "odds_ratio" in data.columns:
+        value = "odds_ratio"
+        h_pos = 1
+    
+    fig = pyplot.figure(figsize=(6, len(data) * 0.5))
+    ax = fig.gca()
+    
+    # sort by the value, to group variables by effects
+    data = data.sort(value)
+    data["name"] = data["name"].str.replace("_", " ")
+    
+    data.index = range(len(data))
+    data["y"] = data.index
+    
+    ax.plot(data[value], data["y"], linestyle='None', marker="o", color="gray")
+    for key, x in data.iterrows():
+        ax.plot([x["lower"], x["upper"]], [x["y"]] * 2, color="gray")
+    
+    # add a vertical line which the CI should intersect
+    ax.axvline(h_pos, color="black", linestyle="dashed")
+    ax.set_ylim((min(data["y"]) - 0.5), max(data["y"]) + 0.5)
+    
+    # Hide the right, top and bottom spines
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['top'].set_visible(False)
+    e = ax.spines['left'].set_visible(False)
+    e = ax.tick_params(direction='out')
+    
+    # Only show ticks on the left and bottom spines
+    e = ax.yaxis.set_ticks_position('left')
+    e = ax.xaxis.set_ticks_position('bottom')
+    
+    e = ax.set_yticks(data["y"])
+    e = ax.set_yticklabels(data["name"])
+    e = ax.set_xlabel(value)
+    
+    fig.savefig("{}.pdf".format(value), format="pdf")
 
 def main():
     args = get_options()
@@ -228,31 +294,46 @@ def main():
     families = open_families(args.families, args.trios)
     probands = families["individual_id"][~families["mother_stable_id"].isnull()]
     pheno = pheno[pheno["person_stable_id"].isin(probands)]
+    pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
     
-    plot_hpo_by_consequence(counts, pheno, args.output_folder)
-    plot_categorical(counts, pheno, "gender", args.output_folder)
-    plot_categorical(counts, pheno, "scbu_nicu", args.output_folder)
-    plot_categorical(counts, pheno, "feeding_problems", args.output_folder)
-    plot_categorical(counts, pheno, "maternal_illness", args.output_folder)
-    plot_categorical(counts, pheno, "bleeding", args.output_folder)
-    plot_categorical(counts, pheno, "abnormal_scan", args.output_folder)
-    plot_categorical(counts, pheno, "assisted_reproduction", args.output_folder)
+    ratios = []
+    ratios.append(plot_categorical(counts, pheno, "gender", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "scbu_nicu", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "feeding_problems", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "maternal_illness", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "bleeding", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "abnormal_scan", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "assisted_reproduction", args.output_folder))
+    
+    odds_ratios = pandas.DataFrame(ratios)
+    forest_plot(odds_ratios)
     
     # birthweight (or birthweight corrected for duration of gestation, or
     # birthweight_percentile (if that corrects for duration of gestation))
-    plot_quantitative(counts, pheno, "decimal_age_at_assessment", args.output_folder, "Age at assessment (years)")
-    plot_quantitative(counts, pheno, "birthweight", args.output_folder, "Birthweight (grams)")
-    plot_quantitative(counts, pheno, "gestation", args.output_folder, "Gestation duration (weeks)")
-    plot_quantitative(counts, pheno, "height_percentile", args.output_folder, "Height (percentile)")
-    plot_quantitative(counts, pheno, "weight_percentile", args.output_folder, "weight (percentile)")
-    plot_quantitative(counts, pheno, "ofc_percentile", args.output_folder, "OFC (percentile)")
+    betas = []
+    betas.append(plot_quantitative(counts, pheno, "child_hpo_n", args.output_folder, "Number of proband HPO terms"))
+    betas.append(plot_quantitative(counts, pheno, "decimal_age_at_assessment", args.output_folder, "Age at assessment (years)"))
+    betas.append(plot_quantitative(counts, pheno, "birthweight_sd", args.output_folder, "Birthweight (SD)"))
+    betas.append(plot_quantitative(counts, pheno, "gestation", args.output_folder, "Gestation duration (weeks)"))
+    betas.append(plot_quantitative(counts, pheno, "height_sd", args.output_folder, "Height (SD)"))
+    betas.append(plot_quantitative(counts, pheno, "weight_sd", args.output_folder, "weight (SD)"))
+    betas.append(plot_quantitative(counts, pheno, "ofc_sd", args.output_folder, "OFC (SD)"))
+    betas.append(plot_quantitative(counts, pheno, "fathers_age", args.output_folder, "Father's age (years)"))
+    
+    # and add in the values from the logistic regression of autozygosity length
+    # vs having a dominant diagnostic de novo. These values are determined in
+    # the autozygosity_vs_diagnosed.py script
+    betas.append({'upper': -0.13772607320296332, 'beta': -0.25055052100431563, 'lower': -0.36337496880566794, 'name': 'autozygosity_length'})
     
     # plot distributions of time to achieve developmental milestones by
     # the functional categories
-    plot_achievement(counts, pheno, "social_smile", args.output_folder)
-    plot_achievement(counts, pheno, "sat_independently", args.output_folder)
-    plot_achievement(counts, pheno, "walked_independently", args.output_folder)
-    plot_achievement(counts, pheno, "first_words", args.output_folder)
+    betas.append(plot_achievement(counts, pheno, "social_smile", args.output_folder))
+    betas.append(plot_achievement(counts, pheno, "sat_independently", args.output_folder))
+    betas.append(plot_achievement(counts, pheno, "walked_independently", args.output_folder))
+    betas.append(plot_achievement(counts, pheno, "first_words", args.output_folder))
+    
+    betas = pandas.DataFrame(betas)
+    forest_plot(betas)
     
 
 if __name__ == '__main__':

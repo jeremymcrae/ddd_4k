@@ -30,6 +30,7 @@ setup(
     license = "MIT",
     packages=["ddd_4k"],
     install_requires=['pandas >= 0.13.1',
+                      'statsmodels >= 0.5.0',
                       'matplotlib >= 1.3.1',
                       'seaborn >= 0.6.0',
                       'psycopg2 >= 2.6.0',
