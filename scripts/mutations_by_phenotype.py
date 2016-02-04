@@ -31,6 +31,7 @@ import seaborn
 import pandas
 from scipy.stats import fisher_exact, mannwhitneyu, norm, mstats
 from statsmodels.genmod.generalized_linear_model import GLM
+import statsmodels.formula.api as smf
 from statsmodels.genmod.families import Binomial
 from matplotlib import pyplot
 
@@ -174,7 +175,7 @@ def plot_quantitative(counts, pheno, value, folder, y_label):
         y_label: the y-axis label for the phenotype.
     """
     
-    merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
+    merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
     
     ratios = {}
     results = []
@@ -185,19 +186,23 @@ def plot_quantitative(counts, pheno, value, folder, y_label):
         results.append([known, p_value])
         
         if known:
-            data = merged[[value, "consequence"]][(merged["known"] == known) &
+            data = merged[[value, "gender", "consequence"]][(merged["known"] == known) &
                 (merged["consequence"].isin(["functional", "loss-of-function"]))].copy()
             recode = {"functional": 0, "loss-of-function": 1}
             data["consequence"] = data["consequence"].map(recode)
             
             data = data.dropna()
-            model = GLM(data.consequence, mstats.zscore(data[value]), family=Binomial())
+            data[value] = mstats.zscore(data[value])
+            
+            data["gender"] = data["gender"].map({"Female": 1, "Male": 0})
+            model = smf.glm(formula='consequence ~ {}:gender'.format(value),
+                data=data, family=Binomial())
             result = model.fit()
             
             ratios["name"] = value
-            ratios["beta"] = result.params[0]
-            ratios["upper"] = result.conf_int()[1][0]
-            ratios["lower"] = result.conf_int()[0][0]
+            ratios["beta"] = result.params[1]
+            ratios["upper"] = result.conf_int()[1][1]
+            ratios["lower"] = result.conf_int()[0][1]
     
     fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
     fig.set_ylabels(y_label)
@@ -316,7 +321,7 @@ def main():
     betas.append(plot_quantitative(counts, pheno, "birthweight_sd", args.output_folder, "Birthweight (SD)"))
     betas.append(plot_quantitative(counts, pheno, "gestation", args.output_folder, "Gestation duration (weeks)"))
     betas.append(plot_quantitative(counts, pheno, "height_sd", args.output_folder, "Height (SD)"))
-    betas.append(plot_quantitative(counts, pheno, "weight_sd", args.output_folder, "weight (SD)"))
+    # betas.append(plot_quantitative(counts, pheno, "weight_sd", args.output_folder, "weight (SD)"))
     betas.append(plot_quantitative(counts, pheno, "ofc_sd", args.output_folder, "OFC (SD)"))
     betas.append(plot_quantitative(counts, pheno, "fathers_age", args.output_folder, "Father's age (years)"))
     
