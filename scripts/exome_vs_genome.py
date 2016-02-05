@@ -1,21 +1,23 @@
-# Copyright (c) 2015 Genome Research Ltd.
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy of
-# this software and associated documentation files (the "Software"), to deal in
-# the Software without restriction, including without limitation the rights to
-# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-# of the Software, and to permit persons to whom the Software is furnished to do
-# so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""
+Copyright (c) 2016 Genome Research Ltd.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""
 
 import argparse
 import random
@@ -62,15 +64,17 @@ def get_options():
     
     return args
 
-
-#' get the probands from trios in the current DDD dataset
-#'
-#' @param families_path path to family relationships ped file, containing sample
-#'        IDs and sex
-#' @param trios_path path to table of information on the trios only
-#'
-#' @return dataframe of proband IDs and sex for the trio-based probands
 def get_probands(families_path, trios_path):
+    """ get the probands from trios in the current DDD dataset
+    
+    Args:
+        families_path: path to family relationships ped file, containing sample
+            IDs and sex
+        trios_path: path to table of information on the trios only
+    
+    Returns:
+        dataframe of proband IDs and sex for the trio-based probands
+    """
     
     families = pandas.read_table(families_path, sep="\t")
     
@@ -82,12 +86,17 @@ def get_probands(families_path, trios_path):
     
     return probands
 
-#' get the number of male and female probands in a cohort, or cohort subset
-#'
-#' @param probands path to table of DDD de novos
-#'
-#' @return list, with entries for counts of trios with male and female probands
+
 def get_trio_counts(probands):
+    """ get the number of male and female probands in a cohort, or cohort subset
+    
+    Args:
+        probands: path to table of DDD de novos
+    
+    Returns:
+        dictionary of counts of trios with male and female probands
+    """
+    
     # get the number of trios studied in our data for each sex
     sex = probands["sex"].value_counts()
     male = sex[["M"]]
@@ -95,13 +104,16 @@ def get_trio_counts(probands):
     
     return {"male": int(male), "female": int(female)}
 
-#' open de novo mutations from the DDD cohort, removing variants that failed validation
-#'
-#' @param de_novos_path path to table of DDD de novos
-#' @param validations_path path to table of results from validation experiments
-#'
-#' @return dataframe of de novos in the DDD dataset
 def get_de_novos(de_novos_path, validations_path):
+    """ open de novo mutations from the DDD cohort, removing variants that failed validation
+    
+    Args:
+        de_novos_path: path to table of DDD de novos
+        validations_path: path to table of results from validation experiments
+    
+    Returns:
+        dataframe of de novos in the DDD dataset
+    """
     
     variants = standardise_ddd_de_novos(de_novos_path)
     
@@ -117,17 +129,20 @@ def get_de_novos(de_novos_path, validations_path):
     
     return variants
 
-#' get the dominant DDG2P genes reaching genomewide significance
-#'
-#' @param n_trios number of trios to sample from among the probands
-#' @param probands dataframe of proband IDs and sex info for DDD probands in trios
-#' @param de_novos dataframe of de novos in the DDD dataset
-#' @param rates dataframe of mutation rates per gene
-#' @param threshold multiple testing corrected threshold for genomewide significance
-#' @param genes vector of dominant DDG2P genes
-#'
-#' @return vector of HGNC symbols for DDG2P genes reaching genomewide significance
 def get_enrichment_in_sample(n_trios, probands, de_novos, rates, threshold, genes):
+    """ get the dominant DDG2P genes reaching genomewide significance
+    
+    Args:
+        n_trios: number of trios to sample from among the probands
+        probands: dataframe of proband IDs and sex info for DDD probands in trios
+        de_novos: dataframe of de novos in the DDD dataset
+        rates: dataframe of mutation rates per gene
+        threshold: multiple testing corrected threshold for genomewide significance
+        genes: vector of dominant DDG2P genes
+    
+    Returns:
+        list of HGNC symbols for DDG2P genes reaching genomewide significance
+    """
     
     # Get a sampled subset of probands, then figure out the male and female
     # sex counts in the subset. Restrict the de novos to ones from probands
@@ -156,34 +171,37 @@ def get_enrichment_in_sample(n_trios, probands, de_novos, rates, threshold, gene
     
     return dominant
 
-#' detect genes reaching genomewide significance, under specific conditions
-#'
-#' Given a budget, relative cost of exome sequencing to genome sequencing, and
-#' relative sensitivity of genome sequencing to detect de novo mutations,
-#' determine the number of genes that could be detected by sequencing as many
-#' trios as the budget allows. This function separately checks many random
-#' samples of probands used for each test, so as to capture the variation in the
-#' population.
-#'
-#' @param probands dataframe of proband IDs and sex info for DDD probands in trios
-#' @param de_novos dataframe of de novos in the DDD dataset
-#' @param rates dataframe of mutation rates per gene
-#' @param threshold multiple testing corrected threshold for genomewide significance
-#' @param dominant vector of dominant DDG2P genes
-#' @param genomewide vector of genes reaching genomewide significance in
-#'        in the complete DDD dataset
-#' @param genome_cost reference cost of performing genome sequencing
-#' @param budget budget for the current conditions
-#' @param relative_cost relative cost of exome sequencing versus genome sequencing
-#' @param sensitivity relative sensitivity of genome sequencing for detecting de
-#'        novo mutations compared to exome sequencing.
-#' @param iterations number of iterations to run for the current conditions
-#'
-#' @return dataframe of test conditions, numbers of genes reaching genomewide
-#'         significance from genome and exome sequencing
 def run_iterations (probands, de_novos, rates, threshold, dominant,
     genomewide, genome_cost, budget, relative_cost, sensitivity,
     iterations):
+    """ detect genes reaching genomewide significance, under specific conditions
+    
+    Given a budget, relative cost of exome sequencing to genome sequencing, and
+    relative sensitivity of genome sequencing to detect de novo mutations,
+    determine the number of genes that could be detected by sequencing as many
+    trios as the budget allows. This function separately checks many random
+    samples of probands used for each test, so as to capture the variation in the
+    population.
+    
+    Args:
+        probands: dataframe of proband IDs and sex info for DDD probands in trios
+        de_novos: dataframe of de novos in the DDD dataset
+        rates: dataframe of mutation rates per gene
+        threshold: multiple testing corrected threshold for genomewide significance
+        dominant: vector of dominant DDG2P genes
+        genomewide: vector of genes reaching genomewide significance in
+            in the complete DDD dataset
+        genome_cost: reference cost of performing genome sequencing
+        budget: budget for the current conditions
+        relative_cost: relative cost of exome sequencing versus genome sequencing
+        sensitivity: relative sensitivity of genome sequencing for detecting de
+            novo mutations compared to exome sequencing.
+        iterations: number of iterations to run for the current conditions
+    
+    Returns:
+        dataframe of test conditions, numbers of genes reaching genomewide
+        significance from genome and exome sequencing
+    """
     
     # Determine the number of trios that could be sequenced, given the budget.
     # Adjust the number of genome trios upwards by the relative sensitivity of
@@ -220,20 +238,25 @@ def run_iterations (probands, de_novos, rates, threshold, dominant,
     
     return power
 
-#' simulate power of exome and genome sequencing to detect dominant genes, under various conditions
-#'
-#' @param probands dataframe of proband IDs and sex info for DDD probands in trios
-#' @param de_novos dataframe of de novos in the DDD dataset
-#' @param rates dataframe of mutation rates per gene
-#' @param threshold multiple testing corrected threshold for genomewide significance
-#' @param dominant vector of dominant DDG2P genes
-#' @param genomewide vector of genes reaching genomewide significance in
-#'        in the complete DDD dataset
-#' @param iterations number of iterations to run for the current conditions
-#'
-#' @return dataframe of power simulations for each condition, containing numbers
-#'         of genes reaching genomewide significance from genome and exome sequencing
-def simulate_power(probands, de_novos, rates, threshold, dominant, genomewide, iterations):
+def simulate_power(probands, de_novos, rates, threshold, dominant, genomewide,
+        iterations):
+    """ simulate power of exome and genome sequencing to detect dominant genes
+    
+    Args:
+        probands: dataframe of proband IDs and sex info for DDD probands in trios
+        de_novos: dataframe of de novos in the DDD dataset
+        rates: dataframe of mutation rates per gene
+        threshold: multiple testing corrected threshold for genomewide significance
+        dominant: vector of dominant DDG2P genes
+        genomewide: vector of genes reaching genomewide significance in
+            in the complete DDD dataset
+        iterations: number of iterations to run for the current conditions
+    
+    Returns:
+        dataframe of power simulations for each condition, containing numbers
+        of genes reaching genomewide significance from genome and exome
+        sequencing.
+    """
     budgets = [1e6, 2e6, 5e6]
     genome_cost = 1000
     exome_relative_cost = [ (x+1)/5.0 for x in range(5) ]
@@ -253,15 +276,18 @@ def simulate_power(probands, de_novos, rates, threshold, dominant, genomewide, i
     
     return power
 
-#' reshape the power dataframe, so that we have the mean number of genes
-#' reaching genomewide significance for each condition, along with the
-#' confidence intervals.
-#'
-#' @param power dataframe of numbers for genome and exome sequencing
-#' @param conf_interval confidence interval
-#'
-#' @return
-def get_mean_and_ci(power, conf_interval=0.95):
+def get_mean_power(power, conf_interval=0.95):
+    """
+    reshape the power dataframe, so that we have the mean number of genes
+    reaching genomewide significance for each condition
+    
+    Args:
+        power: dataframe of numbers for genome and exome sequencing
+        conf_interval: confidence interval
+    
+    Return:
+        dataframe with means
+    """
     
     power = pandas.melt(power, id_vars=["budget", "relative_cost", "sensitivity"])
     power = power[~power["value"].isnull()]
@@ -269,45 +295,33 @@ def get_mean_and_ci(power, conf_interval=0.95):
     
     reshaped = pandas.pivot_table(power, rows="variable",
         cols=["budget", "relative_cost", "sensitivity"],
-        values="value", aggfunc=[mean, std, len])
+        values="value", aggfunc=mean)
     
     means = reshaped["mean"].transpose()
-    stdevs = reshaped["std"].transpose()
-    lengths = reshaped["len"].transpose()
-    
-    # find the t-statistic given the number of points for each group
-    genome_ci_mult = t.interval(conf_interval, lengths["genome"])[1]
-    exome_ci_mult = t.interval(conf_interval, lengths["exome"])[1]
-    
-    # find the confidence intervals
-    conf = means.copy()
-    conf["genome"] = stdevs["genome"]/sqrt(lengths["genome"]) * genome_ci_mult
-    conf["exome"] = stdevs["exome"]/sqrt(lengths["exome"]) * exome_ci_mult
     
     index = means.index
     for x, name in enumerate(index.names):
         levels = index.levels[x]
         labels = index.labels[x]
         means[name] = [ levels[x] for x in labels ]
-        conf[name] = [ levels[x] for x in labels ]
     
     # reshape the dataset so we have the mean and confidence intervals in a
     # single dataframe
     means = pandas.melt(means, id_vars=["budget", "relative_cost", "sensitivity"])
-    conf = pandas.melt(conf, id_vars=["budget", "relative_cost", "sensitivity"])
-    means["ci"] = conf["value"]
     means = means[~means["value"].isnull()]
     
     return means
 
-#' plot the results from simulation power of exome and genome sequencing
-#'
-#' @param power dataframe of power simulations for each condition, containing
-#'        numbers of genes reaching genomewide significance from genome and
-#'        exome sequencing
-#' @param output_path path to save output plot to
 def plot_power(power, output_path):
-    power = get_mean_and_ci(power)
+    """ plot the results from simulation power of exome and genome sequencing
+    
+    Args:
+        power: dataframe of power simulations for each condition, containing
+            numbers of genes reaching genomewide significance from genome and
+            exome sequencing
+        output_path: path to save output plot to
+    """
+    power = get_mean_power(power)
     
     power["sequence"] = power["variable"] + "-" + power["sensitivity"].astype(str)
     
