@@ -293,11 +293,9 @@ def get_mean_power(power, conf_interval=0.95):
     power = power[~power["value"].isnull()]
     power["value"] = power["value"].astype(int)
     
-    reshaped = pandas.pivot_table(power, rows="variable",
-        cols=["budget", "relative_cost", "sensitivity"],
+    means = pandas.pivot_table(power, cols="variable",
+        rows=["budget", "relative_cost", "sensitivity"],
         values="value", aggfunc=mean)
-    
-    means = reshaped["mean"].transpose()
     
     index = means.index
     for x, name in enumerate(index.names):

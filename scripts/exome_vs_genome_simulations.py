@@ -60,13 +60,11 @@ def get_options():
     """
     
     parser = argparse.ArgumentParser(description=".")
-    parser.add_argument("--rates", default=RATES_URL, \
-        help="URL for mutation rates throughout genome.")
     parser.add_argument("--output-haploinsufficiency", \
         default="haploinsufficiency_power.pdf", \
         help="Path to plot graph to.")
     parser.add_argument("--output-exome", \
-        default="exome_vs_genome.pdf", \
+        default="exome_vs_genome.simulated.pdf", \
         help="Path to plot graph to.")
     
     args = parser.parse_args()
@@ -127,7 +125,7 @@ def check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq
     combined = pandas.DataFrame(columns=["hgnc", "cohort_n", "probability"])
     for cohort_n in cohorts:
         probabilities = get_gene_probabilities(rates["lof"], expected, threshold, cohort_n, population_n, disorder_freq)
-        temp = pandas.DataFrame({"hgnc": list(rates["gene"]),
+        temp = pandas.DataFrame({"hgnc": list(rates["hgnc"]),
             "cohort_n": [cohort_n] * len(probabilities),
             "probability": list(probabilities)})
         
@@ -184,7 +182,7 @@ def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
                 "power": genome_median}, ignore_index=True)
     
     fig = seaborn.factorplot(x="exome_cost", y="power", hue="sequence", \
-        col="budget", data=power)
+        col="budget", data=power, size=8, aspect=0.4)
     fig.savefig(plot_path, format="pdf")
 
 def main():
@@ -198,7 +196,7 @@ def main():
     # the prevalence of developmental disorders is 0.5% of the general population
     disorder_freq = 0.005
     
-    rates = get_default_rates(args.rates)
+    rates = get_default_rates()
     # determine the summed loss-of-function mutation rate for each gene
     rates["lof"] = rates[["non", "splice_site", "frameshift" ]].sum(axis=1)
     
