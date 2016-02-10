@@ -22,11 +22,14 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import argparse
 import sys
 import tempfile
+import math
 
 import pandas
-from numpy import median, mean
+from numpy import median, mean, sqrt
+from scipy.stats import norm, poisson
 import matplotlib
 matplotlib.use("Agg")
+from matplotlib import pyplot
 
 import seaborn
 
@@ -76,11 +79,14 @@ def load_neurodevelopmental(path):
     
     return neurodev
 
-def count_de_novos(de_novo_path, validations_path):
+def count_de_novos(de_novo_path, validations_path, lof_only=False):
     """ count the loss-of-function mutations for each gene.
     """
     
     de_novos = open_de_novos(de_novo_path, validations_path)
+    
+    if lof_only:
+        de_novos = de_novos[de_novos["category"] == "loss-of-function"]
     
     counts = {}
     for (gene, rows) in de_novos.groupby("hgnc"):
@@ -118,36 +124,77 @@ def estimate_missing_variants(neurodev):
         number of missing genes
     """
     
-    neurodev = neurodev[~neurodev["ratio"].isnull()].copy()
+    # concatenate the genes in ech recognisability category.
+    joined = pandas.pivot_table(neurodev, rows="Recognisable",
+        values=["observed", "expected"], aggfunc=sum)
+    joined["ratio"] = joined["observed"]/joined["expected"]
+    joined["Recognisable"] = joined.index
     
-    baseline = median(neurodev["ratio"][neurodev["Recognisable"] != 5])
-    recognisable = median(neurodev["ratio"][neurodev["Recognisable"] == 5])
+    baseline = joined[joined["Recognisable"] != "5"]
+    baseline = sum(baseline["ratio"])/len(baseline)
     
-    delta_ratio = (baseline - recognisable)
+    different = joined[joined["Recognisable"] == "5"]
+    delta = baseline * different["expected"] - different["observed"]
     
-    # figure out how many we should have expected in the group of most clinically
-    # recognisable genes.
-    expected_sum = neurodev["expected"][neurodev["Recognisable"] == 5].sum()
+    return delta[0]
+
+def plot_concatenated_recognisability(neurodev, output):
+    """
+    """
     
-    # count how many were missing from those genes, given the difference in
-    # obs/exp ratio for the most recognisable genes to the less recognisable
-    # genes
-    return delta_ratio * expected_sum
+    # concatenate the genes in ech recognisability category.
+    joined = pandas.pivot_table(neurodev, rows="Recognisable",
+        values=["observed", "expected"], aggfunc=sum)
+    joined["ratio"] = joined["observed"]/joined["expected"]
+    
+    # get the upper and lower confidence intervals for the observed counts
+    lower, upper = poisson.interval(0.95, joined["observed"])
+    joined["lower"] = abs(lower/joined["expected"] - joined["ratio"])
+    joined["upper"] = abs(upper/joined["expected"] - joined["ratio"])
+    
+    joined["Recognisable"] = joined.index
+    
+    fig = pyplot.figure(figsize=(6, 6))
+    ax = fig.gca()
+    
+    e = ax.bar(range(len(joined)), joined["ratio"], align="center",
+        yerr=[[0] * len(joined), joined["upper"]],
+        ecolor="black", capsize=10, error_kw={'capthick': 2})
+    
+    # fix the axis limits and ticks
+    e = ax.set_xlim((-0.5, len(joined) - 0.5))
+    e = ax.set_xticks(range(len(joined)))
+    e = ax.set_xticklabels(joined["Recognisable"])
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['top'].set_visible(False)
+    
+    e = ax.yaxis.set_ticks_position('left')
+    e = ax.xaxis.set_ticks_position('bottom')
+    
+    e = ax.set_xlabel("recognisability class")
+    e = ax.set_ylabel("observed/expected")
+    
+    fig.savefig(output, format="pdf")
+    pyplot.close()
 
 def main():
     args = get_options()
     
-    rates = get_ddd_rates(args.rates)
+    # rates = get_ddd_rates(args.rates)
+    rates = get_default_rates()
     
     # determine the number of mutations we expect per gene, given consequence
     # specific mutation rates for each gene.
     expected = get_expected_mutations(rates, male=2407, female=1887)
-    columns = ["lof_indel", "lof_snv", "missense_indel", "missense_snv"]
+    # columns = ["lof_indel", "lof_snv", "missense_indel", "missense_snv"]
+    columns = ["lof_indel", "lof_snv"]
     expected["expected"] = expected[columns].sum(axis=1)
     
-    expected = dict(zip(expected["hgnc"], expected["expected"]))
+    lof_only = False
+    if columns == ["lof_indel", "lof_snv"]:
+        lof_only = True
     
-    counts = count_de_novos(args.de_novos, args.validations)
+    counts = count_de_novos(args.de_novos, args.validations, lof_only)
     neurodev = load_neurodevelopmental(args.neurodevelopmental_genes)
     
     neurodev["observed"] = 0
@@ -156,6 +203,7 @@ def main():
             neurodev["observed"][neurodev["hgnc"] == hgnc] = counts[hgnc]
     
     # calculate the observed/expected ratio for individual genes
+    expected = dict(zip(expected["hgnc"], expected["expected"]))
     neurodev["expected"] = neurodev["hgnc"].map(expected)
     neurodev["ratio"] = neurodev["observed"]/neurodev["expected"]
     
@@ -165,13 +213,15 @@ def main():
     
     # Join the two least recognisable groups, since they are smaller than the
     # other groups.
-    recode = {1: "1+2", 2: "1+2", 3: 3, 4: 4, 5: 5}
+    recode = {1: "1+2", 2: "1+2", 3: "3", 4: "4", 5: "5"}
     neurodev["Recognisable"] = neurodev["Recognisable"].map(recode)
     
-    plot_recognisability(neurodev, args.output)
+    # plot_recognisability(neurodev, args.output)
+    plot_concatenated_recognisability(neurodev, args.output)
     
     missing = estimate_missing_variants(neurodev)
     print(missing)
+
 
 if __name__ == '__main__':
     main()
