@@ -26,6 +26,7 @@ import pandas
 
 import matplotlib
 matplotlib.use('Agg')
+from matplotlib import pyplot
 import seaborn
 
 from ddd_4k.load_files import open_de_novos, open_known_genes
@@ -92,48 +93,161 @@ def get_enrichment_ratios(constraints, haploinsufficiency):
     
     return enrichment
 
+def get_pp_dnm_threshold(de_novos, expected):
+    """ get the pp_dnm threshold where we expect as many synonymous de novos as we observed
+    
+    Args:
+        de_novos: pandas dataframe of all candidate coding de novos, including
+            synonymous variants
+        rates: pandas dataframe of numbers of expected mutations within the
+            cohort, acorss different categories. This includes a "synonymous_snv"
+            column. The table includes all genes in the genome (or as close as
+            possible), since the number of expected
+    
+    Returns:
+        pp_dnm value, which if we exclude candidates below this value, then the
+        ratio of observed synonymous variants to expected equals one. Applying
+        the threshold to all candidate de novos threshold ensures we do not have
+        more candidates due to errors than expected by chance in missense and
+        loss-of-function categories.
+    """
+    
+    rates = dict(zip(expected["hgnc"], expected["synonymous_snv"]))
+    
+    epsilon = 0.0009
+    low = 0
+    high = 1
+    while True:
+        # define a mid point to bisect at
+        mid = (low + high)/2
+        
+        # select the synonymous candidates above the midpoint threshold
+        synonymous = de_novos[(de_novos["consequence"] == "synonymous_variant") &
+            (de_novos["pp_dnm"].isnull() | (de_novos["pp_dnm"] > mid)) ]
+        synonymous = pandas.pivot_table(synonymous, rows="symbol",
+            values="alt", aggfunc=len)
+        synonymous = pandas.DataFrame({"hgnc": synonymous.index,
+            "synonymous_snv": synonymous})
+        
+        # make sure we have expected numbers available. Some genes lack
+        # expected numbers, so we exclude those genes, rather than counting
+        # extra genes, for which we can never know if we are near expectations
+        synonymous["expected"] = synonymous["hgnc"].map(rates)
+        synonymous = synonymous[~synonymous["expected"].isnull()]
+        
+        ratio = sum(synonymous["synonymous_snv"])/sum(expected["synonymous_snv"])
+        
+        if ratio > 1:
+            low = mid
+        elif ratio < 1:
+            high = mid
+        
+        if abs(ratio - 1) < epsilon:
+            break
+    
+    return mid
+
+def get_overall_consequence_ratios(expected, de_novos):
+    """ determine the ratio of obeserved to expected for synonymous, missense
+    and loss-of-function canddiate de novos
+    
+    Args:
+        expected: pandas dataframe of counts of expected de novo mutations for
+            all genes (or nearly all) in the genome.
+        de_novos: pandas dataframe of candidate de novo mutations observed in
+            the cohort.
+    
+    Returns:
+        dictionary of counts and ratios for synonymous, missense and
+        loss-of-function consequences.
+    """
+    
+    observed = get_de_novo_counts(de_novos)
+    synonymous_count = len(de_novos[de_novos["consequence"] == "synonymous_variant"])
+    
+    # sum the observed loss-of-function and missense candidates per gene
+    observed["lof_observed"] = observed[["lof_snv", "lof_indel"]].sum(axis=1)
+    observed["missense_observed"] = observed[["missense_snv", "missense_indel"]].sum(axis=1)
+    
+    # restrict the observed counts to the columns for merging.
+    observed = observed[["hgnc", "lof_observed", "missense_observed"]]
+    
+    # merge the observed counts with the expected counts, for genes without
+    # counts to merge, replace NA values with 0.
+    ratios = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel", "missense_snv"]].copy()
+    ratios = ratios.merge(observed, how="left", on="hgnc")
+    ratios["lof_observed"][ratios["lof_observed"].isnull()] = 0
+    ratios["missense_observed"][ratios["missense_observed"].isnull()] = 0
+    
+    # get the numbers of expecetd loss-of-function and missense mutations.
+    ratios["lof_expected"] = ratios[["lof_snv", "lof_indel"]].sum(axis=1)
+    ratios["missense_expected"] = ratios[["missense_snv", "missense_indel"]].sum(axis=1)
+    
+    lof_ratio = sum(ratios["lof_observed"])/sum(ratios["lof_expected"])
+    missense_ratio = sum(ratios["missense_observed"])/sum(ratios["missense_expected"])
+    
+    return {"synonymous": {"ratio": 1.0, "count": synonymous_count},
+        "loss-of-function": {"ratio": lof_ratio, "count": sum(ratios["lof_observed"])},
+        "missense": {"ratio": missense_ratio, "count": sum(ratios["missense_observed"])}}
+
+def plot_overall_ratios(ratios, output):
+    """ plot the ratio of observed to expected de novo counts for overall consequences
+    
+    Args:
+        ratios: dictionary of de novo counts and observed/expected ratios for
+            "synonymous", "loss-of-function" and "missense" candidate de novos.
+        output: path to save plot as pdf to.
+    """
+    
+    # format the ratios and counts
+    temp = pandas.DataFrame(ratios).transpose()
+    temp["consequence"] = temp.index
+    temp = temp.reindex(["synonymous", "missense", "loss-of-function"])
+    temp.index = range(len(temp))
+    
+    fig = pyplot.figure(figsize=(6, 6))
+    ax = fig.gca()
+    
+    e = ax.bar(range(len(temp)), temp["ratio"], align="center")
+    
+    # annotate the plot, to show the baseline, and the numbers of candidate de
+    # novos in each category
+    e = ax.axhline(1.0, color="black", linestyle="dashed")
+    for key, row in temp.iterrows():
+        excess = row["count"] - row["count"]/row["ratio"]
+        e = ax.text(key, row["ratio"]+0.01, "n={0:.0f}\nexcess={1:.0f}".format(row["count"], excess), horizontalalignment='center')
+    
+    # fix the axis limits and ticks
+    e = ax.set_xlim((-0.5, len(temp) - 0.5))
+    e = ax.set_xticks(range(len(temp)))
+    e = ax.set_xticklabels(temp["consequence"])
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['top'].set_visible(False)
+    
+    e = ax.yaxis.set_ticks_position('left')
+    e = ax.xaxis.set_ticks_position('bottom')
+    
+    e = ax.set_xlabel("consequence class")
+    e = ax.set_ylabel("observed/expected")
+    
+    fig.savefig(output, format="pdf")
+
 def main():
-    de_novos = open_de_novos(DENOVO_PATH, VALIDATIONS)
+    de_novos = open_de_novos(DENOVO_PATH, VALIDATIONS, exclude_synonymous=False)
     known = open_known_genes(KNOWN_GENES)
     de_novos["known"] = de_novos["symbol"].isin(known["gencode_gene_name"])
+    de_novos["start_pos"] = de_novos["pos"]
     
-    counts = get_de_novo_counts(de_novos)
-    
-    # # For each proband, count the number of functional de novos (split by lof
-    # # and missense), in known developmental disorder genes (and other genes).
-    # counts = get_count_by_person(de_novos)
+    pp_dnm_threshold = get_pp_dnm_threshold(de_novos, expected)
+    de_novos = de_novos[(de_novos["pp_dnm"].isnull() | (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
     
     male = 2407
     female = 1887
     rates = get_default_rates()
     expected = get_expected_mutations(rates, male, female)
     
-    enriched = gene_enrichment(expected, counts)
-    
-    ratios = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel", "missense_snv"]].copy()
-    ratios["lof_ratio"] = numpy.nan
-    ratios["mis_ratio"] = numpy.nan
-    
-    for (key, gene_exp) in ratios.iterrows():
-        print(key)
-        hgnc = gene_exp["hgnc"]
-        # gene_obs = counts[counts["hgnc"] == hgnc]
-        gene_obs = counts[counts["hgnc"] == hgnc]
-        
-        if len(gene_obs) == 0:
-            gene_obs = pandas.DataFrame({"lof_indel": [0], "lof_snv": [0],
-                "missense_indel": [0], "missense_snv": [0]})
-        
-        lof_exp = gene_obs[["lof_indel", "lof_snv"]]
-        lof_obs = gene_exp[["lof_indel", "lof_snv"]]
-        lof_ratio = float(lof_exp.sum(axis=1))/float(lof_obs.sum(axis=1))
-        
-        mis_exp = gene_obs[["missense_indel", "missense_snv"]]
-        mis_obs = gene_exp[["missense_indel", "missense_snv"]]
-        mis_ratio = float(mis_exp.sum(axis=1))/float(mis_obs.sum(axis=1))
-        
-        ratios.ix[key, "lof_ratio"] = lof_ratio
-        ratios.ix[key, "mis_ratio"] = mis_ratio
+    ratios = get_overall_consequence_ratios(expected, de_novos)
+    plot_overall_ratios(ratios, "results/excess_by_consequence.pdf")
     
     constraints = pandas.read_table(CONSTRAINTS_URL)
     recode = dict(zip(constraints["gene"], constraints["pLI"]))
