@@ -277,7 +277,7 @@ def model_mixing(known, de_novos, expected):
     
     # identify known haploinsufficient dominant genes
     haploinsufficient = set(monoallelic["gencode_gene_name"][
-        monoallelic["mech"].isin(["Activating", "Dominant negative"])]])
+        monoallelic["mech"].isin(["Loss of function"])])
     
     # identify known nonhaploinsufficient dominant genes
     nonhaploinsufficient = set(monoallelic["gencode_gene_name"][
@@ -347,7 +347,7 @@ def optimise_mixing(hi_start, non_hi_start, target, output):
     mixtures = pandas.DataFrame({"HI_frequency": lof_freqs, "goodness_of_fit": difference})
     plot_optimisation(mixtures, output)
     
-    return list(optimisation["HI_frequency"])[numpy.argmin(optimisation["difference"])]
+    return list(mixtures["HI_frequency"])[numpy.argmin(mixtures["goodness_of_fit"])]
 
 def aggregate(ratios, consequences=None, normalise=True):
     """ get the difference between observed and expected counts across pLI bins.
@@ -490,6 +490,8 @@ def main():
     plot_overall_ratios(ratios, "results/excess_by_consequence.pdf")
     
     proportions = model_mixing(known, de_novos, expected)
+    
+    print(proportions)
 
 if __name__ == '__main__':
     main()
