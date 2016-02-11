@@ -12,8 +12,8 @@
   versus p-values for neurodevelopmental DDG2P genes with loss-of-function
   mechanism. Bin neurodevelopmental loss-of-function genes by clinical
   recognizability and compare number of observed mutations to expected. This
-  relationship allows us to estimate the number of loss-of-function genes that
-  we don't observe due to ascertainment biases.
+  relationship allows us to estimate the number of loss-of-function variants
+  that we don't observe due to ascertainment biases.
 - count the genome-wide significant genes with a loss-of-function mechanism.
   These are genomewide genes with 1+ loss-of-function mutations. Given the
   current power to detect loss-of-function genes, estimate total number of
