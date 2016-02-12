@@ -27,7 +27,6 @@ import pandas
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot
-import seaborn
 
 from ddd_4k.load_files import open_de_novos, open_known_genes
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS, CONSTRAINTS_URL
@@ -36,12 +35,6 @@ from ddd_4k.count_mutations_per_person import get_count_by_person
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
 from mupit.count_de_novos import get_de_novo_counts
 from mupit.gene_enrichment import gene_enrichment
-
-# define the plot style
-seaborn.set_context("notebook", font_scale=2)
-seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
-
-HAPLOINSUFFICIENCY_URL = "http://files.figshare.com/410746/Dataset_S1.txt"
 
 def open_haploinsufficiency(url):
     """ load the haploinsufficiency dataset
