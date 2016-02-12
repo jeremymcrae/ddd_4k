@@ -27,6 +27,7 @@ import pandas
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot
+import seaborn
 
 from ddd_4k.load_files import open_de_novos, open_known_genes
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS, CONSTRAINTS_URL
@@ -35,6 +36,9 @@ from ddd_4k.count_mutations_per_person import get_count_by_person
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
 from mupit.count_de_novos import get_de_novo_counts
 from mupit.gene_enrichment import gene_enrichment
+
+seaborn.set_context("notebook", font_scale=2)
+seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 def count_synonymous_per_gene(de_novos):
     """
@@ -124,18 +128,21 @@ def merge_observed_and_expected(de_novos, expected):
     
     # merge the observed counts with the expected counts, for genes without
     # counts to merge, replace NA values with 0.
-    expected = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel", "missense_snv"]].copy()
+    expected = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel",
+        "missense_snv", "synonymous_snv"]].copy()
     merged = expected.merge(observed, how="left", on="hgnc")
     merged["lof_observed"][merged["lof_observed"].isnull()] = 0
     merged["missense_observed"][merged["missense_observed"].isnull()] = 0
     
-    # get the numbers of expected loss-of-function and missense mutations.
+    # get the numbers of expected loss-of-function, missense and
+    # synonymous mutations.
     merged["lof_expected"] = merged[["lof_snv", "lof_indel"]].sum(axis=1)
     merged["missense_expected"] = merged[["missense_snv", "missense_indel"]].sum(axis=1)
+    merged = merged.rename(columns={'synonymous_snv': 'synonymous_expected'})
     
     # restrict the table to the minimum required columns
     merged = merged[["hgnc", "lof_observed", "missense_observed",
-        "lof_expected", "missense_expected"]].copy()
+        "lof_expected", "missense_expected", "synonymous_expected"]].copy()
     
     return merged
 
@@ -442,11 +449,40 @@ def plot_by_hi_bin(aggregated, diff_type, output, expected=None, count_halves=Fa
     fig.savefig(output, format="pdf")
     pyplot.close()
 
-def check_excess_in_top_half(de_novos, expected, constraints):
-    """
+def excess_de_novos_from_pLI(de_novos, expected, constraints):
+    """ identify the excess de novo mutations in more constrained genes
+    
+    Estimate excess of mutations in top half of lof and missense pLI bins. The
+    pLI score for each gene is a good indicator of whether a gene can tolerate
+    loss-of-function mutations. We can stratify genes by pLI scores, and
+    determine the ratio of observed mutations to expected mutations for each pLI
+    bin. Under a null model, we expect mutations to occur randomly in genes
+    independent of pLI score. We can determine the excess as the difference in
+    number of mutations between the upper half of genes versus the lower half of
+    genes. When we break the variants down by consequence type, we expect the
+    biggest exess to ocur in VEP predicted loss-of-function mutations. Variants
+    which VEP classified as missense, but which have a loss-of-function
+    mechanism will also be enriched in genes in the upper half of pLI scores.
+    
+    In this way we can estimate the number of VEP-classified missense variants
+    which have a loss-of-function mechanism.
+    
+    Args:
+        de_novos: pandas DataFrame of coding candidate de novo mutations
+        expected: pandas DataFrame of numbers of expected mutations given our
+            cohort size for different consequence types.
+        constraints: pandas DataFrame of constraint scores, including columns
+            for hgnc symbols ("gene") and loss-of-function constraints ("pLI").
     """
     
     merged = merge_observed_and_expected(de_novos, expected)
+    
+    # include the synonymous observed counts in the combined counts table, to
+    # show that variants with no consequence are dispersed randomly by pLI score.
+    synonymous = count_synonymous_per_gene(de_novos)
+    recode = dict(zip(synonymous["hgnc"], synonymous["observed"]))
+    merged["synonymous_observed"] = merged["hgnc"].map(recode)
+    merged["synonymous_observed"][merged["synonymous_observed"].isnull()] = 0
     
     # load the pLI data, and append column to the table
     recode = dict(zip(constraints["gene"], constraints["pLI"]))
@@ -458,32 +494,16 @@ def check_excess_in_top_half(de_novos, expected, constraints):
     merged["pLI_bin"], bins = pandas.qcut(merged["pLI"], q=quantiles,
         labels=quantiles[:-1], retbins=True)
     
+    # get the ratio of observed to expected within the pLI bins for different
+    # consequence types
     missense_by_hi = aggregate(merged, consequences=["missense"], normalise=False)
     lof_by_hi = aggregate(merged, consequences=["lof"], normalise=False)
+    synonymous_by_hi = aggregate(merged, consequences=["synonymous"], normalise=False)
     
+    # plot the differences in observed vs expected for the different pLI bins
     plot_by_hi_bin(missense_by_hi, "ratio", "missense_excess.pdf", expected=1, count_halves=True)
     plot_by_hi_bin(lof_by_hi, "ratio", "lof_excess.pdf", expected=1, count_halves=True)
-    
-    # now check the synnonymous variants
-    synonymous = count_synonymous_per_gene(de_novos)
-    merged = expected[["hgnc", "synonymous_snv"]].merge(synonymous,
-        how="left", on="hgnc")
-    merged = merged.rename(columns={'synonymous_snv': 'expected'})
-    merged = merged[~merged["expected"].isnull()]
-    merged["observed"][merged["observed"].isnull()] = 0
-    
-    merged["pLI"] = merged["hgnc"].map(recode)
-    merged = merged[~merged["pLI"].isnull()]
-    
-    merged["pLI_bin"], bins = pandas.qcut(merged["pLI"], q=quantiles,
-        labels=quantiles[:-1], retbins=True)
-    
-    syn_by_hi = merged.pivot_table(rows="pLI_bin", values=["observed", "expected"], aggfunc=sum)
-    syn_by_hi["pLI_bin"] = syn_by_hi.index
-    syn_by_hi.index = range(len(syn_by_hi))
-    syn_by_hi["ratio"] = syn_by_hi["observed"]/syn_by_hi["expected"]
-    
-    plot_by_hi_bin(aggregated, "ratio", "synonymous_excess.pdf", expected=1, count_halves=True)
+    plot_by_hi_bin(synonymous_by_hi, "ratio", "synonymous_excess.pdf", expected=1, count_halves=True)
 
 def main():
     de_novos = open_de_novos(DENOVO_PATH, VALIDATIONS, exclude_synonymous=False)
@@ -506,6 +526,8 @@ def main():
     proportions = model_mixing(known, de_novos, expected, constraints)
     
     print(proportions)
+    
+    excess_de_novos_from_pLI(de_novos, expected, constraints)
 
 if __name__ == '__main__':
     main()
