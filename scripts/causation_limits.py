@@ -36,56 +36,6 @@ from mupit.mutation_rates import get_default_rates, get_expected_mutations
 from mupit.count_de_novos import get_de_novo_counts
 from mupit.gene_enrichment import gene_enrichment
 
-def open_haploinsufficiency(url):
-    """ load the haploinsufficiency dataset
-    
-    Args:
-        url: URL for haploinsufficiency dataset.
-    
-    Returns:
-        pandas DataFrame of haploinsufficiency scores by gene symbol.
-    """
-    
-    # get haploinsufficiency predictions genomewide. The data is from a report
-    # in PLOS Genetics, formatted as a bed file:
-    # PLOS Genet 6:e1001154 - doi:10.1371/journal.pgen.1001154
-    # TODO: look for updated list of haploinsufficiency, with newer gene symbols
-    # and get better threshold to classify haploinsufficiency.
-    hi = pandas.read_table(url, skiprows=1, header=None)
-    hi.columns = ["chrom", "start", "end", "name", "score", "strand",
-        "thick_start", "thick_end", "color"]
-    
-    # reformat the gene and chromosome from the table
-    hi["gene"] = [ x.split("|")[0] for x in hi["name"] ]
-    hi["chrom"] = [ x.strip("chr") for x in hi["chrom"] ]
-    
-    return hi
-
-def get_enrichment_ratios(constraints, haploinsufficiency):
-    """ figure out the haploinsufficiency enrichment by constraint bin
-    
-    Args:
-        constraints: pandas DataFrame of constraint scores by gene
-        haploinsufficiency: pandas DataFrame of haploinsufficiency scores by gene
-    
-    Returns:
-        pandas DataFrame of enrichment ratios for each pLI bin.
-    """
-    
-    # classify each gene as belonging to one of 20 evenly spaced bins
-    constraints["bin"], bins = pandas.cut(constraints["pLI"], bins=20, retbins=True)
-    
-    merged = constraints.merge(haploinsufficiency, on="gene")
-    groups = merged.groupby("bin")
-    
-    # determine the enrichment ratio in each pLI bin
-    threshold = 0.9
-    values = [ sum(x["score"] > threshold)/len(x.index) for i, x in groups ]
-    ratios = [ x/values[0] for x in values ]
-    enrichment = pandas.DataFrame({"pLI": bins[:-1], "enrichment": ratios})
-    
-    return enrichment
-
 def get_pp_dnm_threshold(de_novos, expected):
     """ get the pp_dnm threshold where we expect as many synonymous de novos as we observed
     
