@@ -36,6 +36,18 @@ from mupit.mutation_rates import get_default_rates, get_expected_mutations
 from mupit.count_de_novos import get_de_novo_counts
 from mupit.gene_enrichment import gene_enrichment
 
+def count_synonymous_per_gene(de_novos):
+    """
+    """
+    
+    synonymous = de_novos[de_novos["consequence"] == "synonymous_variant"]
+    counts = synonymous.pivot_table(rows="symbol", values="alt", aggfunc=len)
+    counts = pandas.DataFrame({"hgnc": counts.index, "observed": counts})
+    
+    counts.index = range(len(counts))
+    
+    return counts
+
 def get_pp_dnm_threshold(de_novos, expected):
     """ get the pp_dnm threshold where we expect as many synonymous de novos as we observed
     
@@ -63,20 +75,20 @@ def get_pp_dnm_threshold(de_novos, expected):
     while True:
         # define a mid point to bisect at
         mid = (low + high)/2
-        
-        # select the synonymous candidates above the midpoint threshold
-        syn = de_novos[(de_novos["consequence"] == "synonymous_variant") &
-            (de_novos["pp_dnm"].isnull() | (de_novos["pp_dnm"] > mid)) ]
-        syn = syn.pivot_table(rows="symbol", values="alt", aggfunc=len)
-        synonymous = pandas.DataFrame({"hgnc": syn.index, "synonymous_snv": syn})
+        # select the candidates above the midpoint threshold
+        candidates = de_novos[de_novos["pp_dnm"].isnull() | (de_novos["pp_dnm"] > mid) ]
+        synonymous = count_synonymous_per_gene(candidates)
         
         # make sure we have expected numbers available. Some genes lack
         # expected numbers, so we exclude those genes, rather than counting
-        # extra genes, for which we can never know if we are near expectations
+        # extra genes, for which we can never know if we are near expectations.
         synonymous["expected"] = synonymous["hgnc"].map(rates)
         synonymous = synonymous[~synonymous["expected"].isnull()]
         
-        ratio = sum(synonymous["synonymous_snv"])/sum(expected["synonymous_snv"])
+        # we divide by the total expected number of synonymous variants across
+        # all genes in the genome, rather than just the geens we have observed a
+        # syonymous variant in.
+        ratio = sum(synonymous["observed"])/sum(expected["synonymous_snv"])
         
         if ratio > 1:
             low = mid
@@ -112,20 +124,20 @@ def merge_observed_and_expected(de_novos, expected):
     
     # merge the observed counts with the expected counts, for genes without
     # counts to merge, replace NA values with 0.
-    ratios = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel", "missense_snv"]].copy()
-    ratios = ratios.merge(observed, how="left", on="hgnc")
-    ratios["lof_observed"][ratios["lof_observed"].isnull()] = 0
-    ratios["missense_observed"][ratios["missense_observed"].isnull()] = 0
+    expected = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel", "missense_snv"]].copy()
+    merged = expected.merge(observed, how="left", on="hgnc")
+    merged["lof_observed"][merged["lof_observed"].isnull()] = 0
+    merged["missense_observed"][merged["missense_observed"].isnull()] = 0
     
     # get the numbers of expected loss-of-function and missense mutations.
-    ratios["lof_expected"] = ratios[["lof_snv", "lof_indel"]].sum(axis=1)
-    ratios["missense_expected"] = ratios[["missense_snv", "missense_indel"]].sum(axis=1)
+    merged["lof_expected"] = merged[["lof_snv", "lof_indel"]].sum(axis=1)
+    merged["missense_expected"] = merged[["missense_snv", "missense_indel"]].sum(axis=1)
     
     # restrict the table to the minimum required columns
-    ratios = ratios[["hgnc", "lof_observed", "missense_observed",
+    merged = merged[["hgnc", "lof_observed", "missense_observed",
         "lof_expected", "missense_expected"]].copy()
     
-    return ratios
+    return merged
 
 def get_overall_consequence_ratios(expected, de_novos):
     """ determine the ratio of observed to expected for synonymous, missense
@@ -144,14 +156,14 @@ def get_overall_consequence_ratios(expected, de_novos):
     
     synonymous_count = len(de_novos[de_novos["consequence"] == "synonymous_variant"])
     
-    ratios = merge_observed_and_expected(de_novos, expected)
+    merged = merge_observed_and_expected(de_novos, expected)
     
-    lof_ratio = sum(ratios["lof_observed"])/sum(ratios["lof_expected"])
-    missense_ratio = sum(ratios["missense_observed"])/sum(ratios["missense_expected"])
+    lof_ratio = sum(merged["lof_observed"])/sum(merged["lof_expected"])
+    missense_ratio = sum(merged["missense_observed"])/sum(merged["missense_expected"])
     
     return {"synonymous": {"ratio": 1.0, "count": synonymous_count},
-        "loss-of-function": {"ratio": lof_ratio, "count": sum(ratios["lof_observed"])},
-        "missense": {"ratio": missense_ratio, "count": sum(ratios["missense_observed"])}}
+        "loss-of-function": {"ratio": lof_ratio, "count": sum(merged["lof_observed"])},
+        "missense": {"ratio": missense_ratio, "count": sum(merged["missense_observed"])}}
 
 def plot_overall_ratios(ratios, output):
     """ plot the ratio of observed to expected de novo counts for overall consequences
@@ -197,7 +209,7 @@ def plot_overall_ratios(ratios, output):
     
     fig.savefig(output, format="pdf")
 
-def model_mixing(known, de_novos, expected):
+def model_mixing(known, de_novos, expected, constraints):
     """ identify the optimal mixing proportion of haploinsufficient and
     nonhaploinsufficient across to match the observed mixture.
     
@@ -233,28 +245,27 @@ def model_mixing(known, de_novos, expected):
     haploinsufficient -= overlap
     nonhaploinsufficient -= overlap
     
-    ratios = merge_observed_and_expected(de_novos, expected)
+    merged = merge_observed_and_expected(de_novos, expected)
     
     # load the pLI data, and append column to the table
-    constraints = pandas.read_table(CONSTRAINTS_URL)
     recode = dict(zip(constraints["gene"], constraints["pLI"]))
-    ratios["pLI"] = ratios["hgnc"].map(recode)
-    ratios = ratios[~ratios["pLI"].isnull()]
+    merged["pLI"] = merged["hgnc"].map(recode)
+    merged = merged[~merged["pLI"].isnull()]
     
     # identify which pLI quantile each gene falls into
     quantiles = [ x/20.0 for x in range(21) ]
-    ratios["pLI_bin"], bins = pandas.qcut(ratios["pLI"], q=quantiles, labels=quantiles[:-1], retbins=True)
+    merged["pLI_bin"], bins = pandas.qcut(merged["pLI"], q=quantiles, labels=quantiles[:-1], retbins=True)
     
-    hi_ratios = ratios[ratios["hgnc"].isin(haploinsufficient)]
-    non_hi_ratios = ratios[ratios["hgnc"].isin(nonhaploinsufficient)]
+    hi_merged = merged[merged["hgnc"].isin(haploinsufficient)]
+    non_hi_merged = merged[merged["hgnc"].isin(nonhaploinsufficient)]
     
-    plot_by_hi_bin(ratios, ["missense", "lof"], "results/obs_to_exp_delta_by_hi_bin.all_genes.pdf")
-    plot_by_hi_bin(hi_ratios, ["lof"], "results/obs_to_exp_delta_by_hi_bin.hi_genes.pdf")
-    plot_by_hi_bin(non_hi_ratios, ["missense"], "results/obs_to_exp_delta_by_hi_bin.non_hi_genes.pdf")
+    target = aggregate(merged, ["missense", "lof"])
+    hi_start = aggregate(hi_merged, ["lof"])
+    non_hi_start = aggregate(non_hi_merged, ["missense"])
     
-    target = aggregate(ratios, ["missense", "lof"])
-    hi_start = aggregate(hi_ratios, ["lof"])
-    non_hi_start = aggregate(non_hi_ratios, ["missense"])
+    plot_by_hi_bin(target, "delta", "results/obs_to_exp_delta_by_hi_bin.all_genes.pdf")
+    plot_by_hi_bin(hi_start, "delta", "results/obs_to_exp_delta_by_hi_bin.hi_genes.pdf")
+    plot_by_hi_bin(non_hi_start, "delta", "results/obs_to_exp_delta_by_hi_bin.non_hi_genes.pdf")
     
     return optimise_mixing(hi_start, non_hi_start, target, "results/hi_bin_mixing_optimisation.pdf")
 
@@ -292,7 +303,7 @@ def optimise_mixing(hi_start, non_hi_start, target, output):
     
     return list(mixtures["HI_frequency"])[numpy.argmin(mixtures["goodness_of_fit"])]
 
-def aggregate(ratios, consequences=None, normalise=True):
+def aggregate(merged, consequences=None, normalise=True):
     """ get the difference between observed and expected counts across pLI bins.
     
     This returns the difference in the number of observed de novo mutations to
@@ -300,7 +311,7 @@ def aggregate(ratios, consequences=None, normalise=True):
     and as a ratio.
     
     Args:
-        ratios: pandas DataFrame containing one row per gene, which includes
+        merged: pandas DataFrame containing one row per gene, which includes
             columns for observed and expected counts, by lof and missense
             categories. This also includes a column indicating which pLI
             vigicile each genes falls into.
@@ -314,22 +325,22 @@ def aggregate(ratios, consequences=None, normalise=True):
         differences as delta and ratio.
     """
     
-    if consequences is not None:
+    if consequences is None:
         consequences = ["lof", "missense"]
         
     observed_columns = [ x + "_observed" for x in consequences ]
     expected_columns = [ x + "_expected" for x in consequences ]
     
-    aggregated = ratios.pivot_table(rows="pLI_bin",
+    aggregated = merged.pivot_table(rows="pLI_bin",
         values=observed_columns + expected_columns, aggfunc=sum)
     
     aggregated["pLI_bin"] = aggregated.index
     
-    observed = aggregated[observed_columns].sum(axis=1)
-    expected = aggregated[expected_columns].sum(axis=1)
+    aggregated["observed"] = aggregated[observed_columns].sum(axis=1)
+    aggregated["expected"] = aggregated[expected_columns].sum(axis=1)
     
-    aggregated["delta"] = observed - expected
-    aggregated["ratio"] = observed/expected
+    aggregated["delta"] = aggregated["observed"] - aggregated["expected"]
+    aggregated["ratio"] = aggregated["observed"]/aggregated["expected"]
     
     if normalise:
         aggregated["delta"] = aggregated["delta"]/sum(aggregated["delta"])
@@ -342,7 +353,8 @@ def aggregate(ratios, consequences=None, normalise=True):
             row = pandas.DataFrame({"pLI_bin": [x], "delta": [0], "ratio": [0]})
             aggregated = aggregated.append(row, ignore_index=True)
     
-    aggregated = aggregated[["pLI_bin", "delta", "ratio"]].copy()
+    aggregated = aggregated[["pLI_bin", "observed", "expected", "delta",
+        "ratio"]].copy()
     aggregated = aggregated.sort("pLI_bin")
     aggregated.index = range(len(aggregated))
     
@@ -377,24 +389,26 @@ def plot_optimisation(mixtures, output):
     
     fig.savefig(output, format="pdf")
 
-def plot_by_hi_bin(ratios, consequences, output):
+def plot_by_hi_bin(aggregated, diff_type, output, expected=None, count_halves=False):
     """ plot difference in observed to expected across pLI vigiciles
     
     Args:
-        ratios: pandas DataFrame containing observed and expected counts per
-            gene, along with pLI categories for each gene.
-        consequences: list of consequence types to include, for example
+        aggregated: pandas DataFrame of observed to expected differences across
+            the pLI bins.
+        diff_type: list of consequence types to include, for example
             ["missense"] or ["missense", "lof"] or ["lof"]
         output: path to save the plot to.
+        expected: position to plot horizontal line of expectation at, for
+            example, at a ratio of 1.0.
+        count_halves: whether to count the number of observed de novos in each
+            half of the plot.
     """
-    
-    aggregated = aggregate(ratios, consequences)
     
     fig = pyplot.figure(figsize=(12, 6))
     ax = fig.gca()
     
     barwidth = 0.04
-    e = ax.bar(aggregated["pLI_bin"], aggregated["delta"], width=barwidth,
+    e = ax.bar(aggregated["pLI_bin"], aggregated[diff_type], width=barwidth,
         align="center")
     
     # fix the axis limits and ticks
@@ -406,14 +420,70 @@ def plot_by_hi_bin(ratios, consequences, output):
     e = ax.spines['top'].set_visible(False)
     e = ax.spines['bottom'].set_visible(False)
     
+    if expected is not None:
+        e = ax.axhline(expected, linestyle="dashed", color="black")
+    
+    if count_halves:
+        e = ax.axvline(0.475, linestyle="dashed", color="black")
+        lower = sum(aggregated["observed"][aggregated["pLI_bin"] <= 0.45])
+        upper = sum(aggregated["observed"][aggregated["pLI_bin"] > 0.45])
+        
+        y_pos = ax.get_ylim()[1] * 0.9
+        
+        e = ax.text(0.35, y_pos, "n={0:.0f}".format(lower), horizontalalignment='center')
+        e = ax.text(0.60, y_pos, "n={0:.0f}".format(upper), horizontalalignment='center')
+    
     e = ax.xaxis.set_ticks_position('bottom')
     e = ax.yaxis.set_ticks_position('left')
     
     e = ax.set_xlabel("pLI bin (low to high)")
-    e = ax.set_ylabel("normalised observed - expected")
+    e = ax.set_ylabel("normalised observed vs expected")
     
     fig.savefig(output, format="pdf")
     pyplot.close()
+
+def check_excess_in_top_half(de_novos, expected, constraints):
+    """
+    """
+    
+    merged = merge_observed_and_expected(de_novos, expected)
+    
+    # load the pLI data, and append column to the table
+    recode = dict(zip(constraints["gene"], constraints["pLI"]))
+    merged["pLI"] = merged["hgnc"].map(recode)
+    merged = merged[~merged["pLI"].isnull()]
+    
+    # identify which pLI quantile each gene falls into
+    quantiles = [ x/20.0 for x in range(21) ]
+    merged["pLI_bin"], bins = pandas.qcut(merged["pLI"], q=quantiles,
+        labels=quantiles[:-1], retbins=True)
+    
+    missense_by_hi = aggregate(merged, consequences=["missense"], normalise=False)
+    lof_by_hi = aggregate(merged, consequences=["lof"], normalise=False)
+    
+    plot_by_hi_bin(missense_by_hi, "ratio", "missense_excess.pdf", expected=1, count_halves=True)
+    plot_by_hi_bin(lof_by_hi, "ratio", "lof_excess.pdf", expected=1, count_halves=True)
+    
+    # now check the synnonymous variants
+    synonymous = count_synonymous_per_gene(de_novos)
+    merged = expected[["hgnc", "synonymous_snv"]].merge(synonymous,
+        how="left", on="hgnc")
+    merged = merged.rename(columns={'synonymous_snv': 'expected'})
+    merged = merged[~merged["expected"].isnull()]
+    merged["observed"][merged["observed"].isnull()] = 0
+    
+    merged["pLI"] = merged["hgnc"].map(recode)
+    merged = merged[~merged["pLI"].isnull()]
+    
+    merged["pLI_bin"], bins = pandas.qcut(merged["pLI"], q=quantiles,
+        labels=quantiles[:-1], retbins=True)
+    
+    syn_by_hi = merged.pivot_table(rows="pLI_bin", values=["observed", "expected"], aggfunc=sum)
+    syn_by_hi["pLI_bin"] = syn_by_hi.index
+    syn_by_hi.index = range(len(syn_by_hi))
+    syn_by_hi["ratio"] = syn_by_hi["observed"]/syn_by_hi["expected"]
+    
+    plot_by_hi_bin(aggregated, "ratio", "synonymous_excess.pdf", expected=1, count_halves=True)
 
 def main():
     de_novos = open_de_novos(DENOVO_PATH, VALIDATIONS, exclude_synonymous=False)
@@ -425,6 +495,7 @@ def main():
     female = 1887
     rates = get_default_rates()
     expected = get_expected_mutations(rates, male, female)
+    constraints = pandas.read_table(CONSTRAINTS_URL)
     
     pp_dnm_threshold = get_pp_dnm_threshold(de_novos, expected)
     de_novos = de_novos[(de_novos["pp_dnm"].isnull() | (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
@@ -432,7 +503,7 @@ def main():
     ratios = get_overall_consequence_ratios(expected, de_novos)
     plot_overall_ratios(ratios, "results/excess_by_consequence.pdf")
     
-    proportions = model_mixing(known, de_novos, expected)
+    proportions = model_mixing(known, de_novos, expected, constraints)
     
     print(proportions)
 
