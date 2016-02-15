@@ -21,6 +21,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import division
 
+from math import ceil
+
 import pandas
 
 def get_all_terms(graph, probands, proband_hpo):
@@ -103,8 +105,8 @@ def rank_terms(graph, probands, proband_hpo):
             "count": [count], "score": [ic * count]})
         table = table.append(temp, ignore_index=True)
     
-    # min_count = max(2, floor(len(probands/3)))
-    min_count = 2
+    min_count = max(2, ceil(len(probands)/4.0))
+    # min_count = 2
     # only include terms which are used for more than one proband
     table = table[table["count"] >= min_count]
     
