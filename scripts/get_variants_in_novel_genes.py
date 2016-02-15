@@ -99,6 +99,8 @@ def prepare_association_table(table):
     table["P value"] = table["p_min"].map('{:.1e}'.format)
     
     # format the number of DDD and external de novos as "DDD n (external n)"
+    table["Missense"] = 0
+    table["PTV"] = 0
     meta_nonzero = table["meta.missense"] > 0
     table["Missense"][~meta_nonzero] = table["ddd.missense"][~meta_nonzero].astype(int).apply(str)
     table["Missense"][meta_nonzero] = \
@@ -111,7 +113,7 @@ def prepare_association_table(table):
         table["meta.lof"][meta_nonzero].astype(int).apply(str) + ")"
     
     # figure out whether the tested subset had clustering
-    table["Clustering"] = [ x["ddd.p_missense_clust"] if x["test"] == "DDD" \
+    table["Clustering"] = [ x["ddd.p_missense_clust"] if x["Test"] == "DDD" \
         else x["meta.p_missense_clust"] for row, x in table.iterrows() ]
     table["Clustering"][table["Clustering"].isnull()] = 1
     
@@ -126,7 +128,7 @@ def prepare_association_table(table):
 def main():
     args = get_options()
     
-    de_novos = open_de_novos(de_novos_path, validations_path)
+    de_novos = open_de_novos(args.de_novos, args.validations)
     de_novos = add_decipher_ids(de_novos, args.sanger_ids)
     
     de_novos = de_novos[["person_stable_id", "decipher_id", "sex", "chrom", "pos",
@@ -146,7 +148,7 @@ def main():
     
     # find sites for further validation experiments
     (untested, invalid) = get_sites_for_validation(args.de_novos,
-        args.validations, de_novos, new_genes)
+        args.validations, new_genes)
     untested_path = "ddd_4k_validations.additional_genes.2015-10-12.txt"
     retest_path = "ddd_4k_validations.repeat_validations.2015-10-12.txt"
     untested[["person_stable_id", "chrom", "pos", "ref", "alt", "symbol", \
