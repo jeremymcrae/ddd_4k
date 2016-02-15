@@ -56,7 +56,7 @@ def get_options():
         help="JSON file of HPO terms per proband.")
     parser.add_argument("--trios", default=TRIOS, \
         help="Path to table of alternate IDs for participants.")
-    parser.add_argument("--diagnosed", default=DIAGNOSED, \
+    parser.add_argument("--diagnosed", default=None, \
         help="Path to table of probands with diagnoses.")
     parser.add_argument("--output-dir", \
         help="Path to folder to save plots to.")
@@ -65,9 +65,33 @@ def get_options():
     
     return args
 
-def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir, \
-    max_count=10, include_key=False):
-    """ plot the terms relevant for a gene as a heatmap
+def create_colormap(max_count):
+    """ create a colormap for heatmap
+    
+    Args:
+        max_count: the highest number of probands in a gene, for the highest
+            value that a heatmap can have. We pass this variable in to
+            standardise the heatmap colors between genes, by using the same
+            value across genes.
+    
+    Returns:
+        dictionary of keyword arguments for the heatmap function.
+    """
+    
+    # create a colormap, so we can have discrete intervals in the key
+    cmaplist = seaborn.color_palette("Blues", max_count+1)
+    cmaplist[0] = (1, 1, 1)  # define zero values as white (i.e. blank)
+    cmap = matplotlib.colors.ListedColormap(cmaplist, name='from_list', N=max_count+1)
+    
+    # define the bins for the colormap and normalize
+    bounds = numpy.linspace(0, max_count+1, max_count+2)
+    norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+    
+    return cmap, {"cmap": cmap, "norm": norm, "spacing": "proportional",
+        "boundaries": bounds, "format": "%1i"}
+
+def prepare_table(graph, probands, proband_hpo, hgnc, trios, table):
+    """ prepare a table to be used in creating a HPO term heatmap
     
     Args:
         graph: ICSimilarity object, used to look up and down the HPO graph.
@@ -77,12 +101,10 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir, \
         hgnc: HGNC symbol for the gene, used to determine a pdf filename.
         trios: table of probands in exome-sequenced, including decipher and DDD IDs.
         table: pandas DataFrame of relevant terms for the gene, one row per term.
-        output_dir: folder to save the plot to.
-        max_count: the highest number of probands in a gene, for the highest
-            value that a heatmap can have. We pass this variable in to
-            standardise the heatmap colors between genes, by using the same
-            value across genes.
-        include_key: whether to include a key for the heatmap.
+    
+    Returns:
+        pandas DataFrame of terms by proband, with counts of how many times each
+        term occurs, for the probands in which the terms occur.
     """
     
     decipher = trios[trios["proband_stable_id"].isin(probands)]
@@ -108,23 +130,43 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir, \
     data = data[columns]
     data = data[data.columns].astype(float)
     
-    # create a colormap, so we can have discrete intervals in the key
-    cmaplist = seaborn.color_palette("Blues", max_count+1)
-    cmaplist[0] = (1, 1, 1)  # define zero values as white (i.e. blank)
-    cmap = matplotlib.colors.ListedColormap(cmaplist, name='from_list', N=max_count+1)
+    return data
+
+def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir, \
+    max_count=10, include_key=False):
+    """ plot the terms relevant for a gene as a heatmap
     
-    # define the bins for the colormap and normalize
-    bounds = numpy.linspace(0, max_count+1, max_count+2)
-    norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+    Args:
+        graph: ICSimilarity object, used to look up and down the HPO graph.
+        probands: list of proband IDs for the gene.
+        proband_hpo: dictionary of HPO terms by proband for the full ddd 4k
+            cohort, indexed by proband IDs.
+        hgnc: HGNC symbol for the gene, used to determine a pdf filename.
+        trios: table of probands in exome-sequenced, including decipher and DDD IDs.
+        table: pandas DataFrame of relevant terms for the gene, one row per term.
+        output_dir: folder to save the plot to.
+        max_count: the highest number of probands in a gene, for the highest
+            value that a heatmap can have. We pass this variable in to
+            standardise the heatmap colors between genes, by using the same
+            value across genes.
+        include_key: whether to include a key for the heatmap.
+    """
     
-    cbar_kws = {"cmap": cmap, "norm": norm, "spacing": "proportional",
-        "boundaries": bounds, "format": "%1i"}
+    data = prepare_table(graph, probands, proband_hpo, hgnc, trios, table)
+    cmap, cbar_kws = create_colormap(max_count)
+    
+    char_width = max([ len(x) for x in data.index ])
+    id_width = max([ len(str(x)) for x in data.columns ])
+    width = 0.2 * char_width + len(data.columns) * 0.4
+    height = 0.2 * id_width + len(data) * 0.4
     
     # plot the heatmap
-    ax = seaborn.heatmap(data, cmap=cmap, cbar=include_key, square=True, \
+    ax = seaborn.heatmap(data, cmap=cmap, cbar=include_key, square=True,
         vmin=0, vmax=max_count, cbar_kws=cbar_kws)
     fig = ax.get_figure()
-    fig.savefig(os.path.join(output_dir, "{}_terms.pdf").format(hgnc), format="pdf")
+    fig.set_size_inches(width, height)
+    fig.savefig(os.path.join(output_dir, "{}_terms.pdf").format(hgnc),
+        format="pdf", bbox_inches='tight', pad_inches=0)
     pyplot.close()
 
 def main():
@@ -132,9 +174,10 @@ def main():
     
     # args.de_novos = "/lustre/scratch113/projects/ddd/users/jm33/results/novel_gene_variants.ddd_4k.2015-11-24.txt"
     variants = pandas.read_table(args.de_novos, sep="\t")
-    diagnosed = pandas.read_table(args.diagnosed, sep="\t")
     
-    variants = variants[~variants["person_stable_id"].isin(diagnosed["person_id"])]
+    if args.diagnosed is not None:
+        diagnosed = pandas.read_table(args.diagnosed, sep="\t")
+        variants = variants[~variants["person_stable_id"].isin(diagnosed["person_id"])]
     
     # open the phenotype data, and restrict it to the probands with complete trios
     trios = pandas.read_table(args.trios, sep="\t")
