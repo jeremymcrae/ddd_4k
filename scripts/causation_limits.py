@@ -40,8 +40,46 @@ from mupit.gene_enrichment import gene_enrichment
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def count_synonymous_per_gene(de_novos):
+def classify_monoallelic_genes(known):
+    """ classify monoalleleic genes into haploinsufficient and
+        nonhaploinsufficient sets
+    
+    Args:
+        known: pandas DataFrame of known developmental dfisorder genes
+    
+    Returns:
+        dictionary of gene sets, one entry for haploinsufficient genes, one
+        entry for nonhaploinsufficient genes
     """
+    
+    # identify known haploinsufficient dominant genes
+    monoallelic = known[known["mode"].isin(["Monoallelic", "X-linked dominant"])]
+    haploinsufficient = set(monoallelic["gencode_gene_name"][
+        monoallelic["mech"].isin(["Loss of function"])])
+    
+    # identify known nonhaploinsufficient dominant genes
+    nonhaploinsufficient = set(monoallelic["gencode_gene_name"][
+        monoallelic["mech"].isin(["Activating", "Dominant negative"])])
+    
+    # remove genes which fall into both categories, since de novos in those will
+    # be a mixture of the two models, and we need to cleanly separate the
+    # underlying models.
+    overlap = haploinsufficient & nonhaploinsufficient
+    haploinsufficient -= overlap
+    nonhaploinsufficient -= overlap
+    
+    return {"haploinsufficient": haploinsufficient,
+        "nonhaploinsufficient": nonhaploinsufficient}
+
+def count_synonymous_per_gene(de_novos):
+    """ count the number of synonymous mutations per gene
+    
+    Args:
+        de_novos: pandas DataFrame containing one row per candidate de novo
+            mutation.
+    
+    Returns:
+        pandas DataFrame of counts of synonymous variants per gene
     """
     
     synonymous = de_novos[de_novos["consequence"] == "synonymous_variant"]
@@ -146,6 +184,69 @@ def merge_observed_and_expected(de_novos, expected):
     
     return merged
 
+def include_constraints(table, constraints):
+    """ add a column for pLI constraints scores
+    
+    Args:
+        table: pandas DataFrame, with one gene per row
+        constraints: table of constraints scores, including columns for HGNC
+            symbols ("gene") and constraints score ("pLI").
+    
+    Returns:
+        same pandas DataFrame, with an extra pLI column (and minus genes without
+        pLI scores.)
+    """
+    
+    # load the pLI data, and append column to the table
+    recode = dict(zip(constraints["gene"], constraints["pLI"]))
+    table["pLI"] = table["hgnc"].map(recode)
+    
+    # drop genes which lacka constraint score
+    table = table[~table["pLI"].isnull()]
+    
+    return table
+
+def get_constraint_bins(table, bins=20, rate_correct=False):
+    """ identify the quantile bins each gene falls into.
+    
+    Args:
+        table: pandas DataFrame, with one gene per row.
+        bins: number of quantiles to divide into.
+        rate_correct: whether to adjust the bins to account for different
+            mutation rates of genes depending on the pLI score. If used, each
+            bin will expect equal numbers of synonymous mutations.
+    
+    Returns:
+        pandas Series, indicating the bin each gene falls into.
+    """
+    
+    # identify which pLI quantile each gene falls into
+    quantiles = [ x/float(bins) for x in range(bins + 1) ]
+    
+    if not rate_correct:
+        pLI_bin, bins = pandas.qcut(table["pLI"], q=quantiles,
+            labels=quantiles[:-1], retbins=True)
+    else:
+        summed_synonymous = sum(table["synonymous_expected"])
+        
+        pLI_bin = []
+        current_bin = 0
+        current_sum = 0
+        pli_sorted = table.sort("pLI")
+        for key, row in pli_sorted.iterrows():
+            if current_sum > summed_synonymous/float(bins):
+                current_bin += 1
+                current_sum = 0
+            
+            current_sum += row["synonymous_expected"]
+            pLI_bin.append(quantiles[current_bin])
+        
+        pli_sorted["pLI_bin"] = pLI_bin
+        pli_sorted = pli_sorted.sort_index()
+        pLI_bin = pli_sorted["pLI_bin"]
+    
+    return pLI_bin
+
 def get_overall_consequence_ratios(expected, de_novos):
     """ determine the ratio of observed to expected for synonymous, missense
     and loss-of-function canddiate de novos
@@ -237,37 +338,20 @@ def model_mixing(known, de_novos, expected, constraints):
     
     monoallelic = known[known["mode"].isin(["Monoallelic", "X-linked dominant"])]
     
-    # identify known haploinsufficient dominant genes
-    haploinsufficient = set(monoallelic["gencode_gene_name"][
-        monoallelic["mech"].isin(["Loss of function"])])
-    
-    # identify known nonhaploinsufficient dominant genes
-    nonhaploinsufficient = set(monoallelic["gencode_gene_name"][
-        monoallelic["mech"].isin(["Activating", "Dominant negative"])])
-    
-    # remove genes which fall into both categories, since de novos in those will
-    # be a mixture of the two models, and we need to cleanly separate the
-    # underlying models.
-    overlap = haploinsufficient & nonhaploinsufficient
-    haploinsufficient -= overlap
-    nonhaploinsufficient -= overlap
+    # classify known dominant genes
+    mono = classify_monoallelic_genes(known)
     
     merged = merge_observed_and_expected(de_novos, expected)
     
-    # load the pLI data, and append column to the table
-    recode = dict(zip(constraints["gene"], constraints["pLI"]))
-    merged["pLI"] = merged["hgnc"].map(recode)
-    merged = merged[~merged["pLI"].isnull()]
-    
     # identify which pLI quantile each gene falls into
-    quantiles = [ x/20.0 for x in range(21) ]
-    merged["pLI_bin"], bins = pandas.qcut(merged["pLI"], q=quantiles, labels=quantiles[:-1], retbins=True)
+    merged = include_constraints(merged, constraints)
+    merged["pLI_bin"] = get_constraint_bins(merged, bins=20)
     
-    hi_merged = merged[merged["hgnc"].isin(haploinsufficient)]
-    non_hi_merged = merged[merged["hgnc"].isin(nonhaploinsufficient)]
+    hi_merged = merged[merged["hgnc"].isin(mono["haploinsufficient"])]
+    non_hi_merged = merged[merged["hgnc"].isin(mono["nonhaploinsufficient"])]
     
     target = aggregate(merged, ["missense", "lof"])
-    hi_start = aggregate(hi_merged, ["lof"])
+    hi_start = aggregate(hi_merged, ["lof", "missense"])
     non_hi_start = aggregate(non_hi_merged, ["missense"])
     
     plot_by_hi_bin(target, "delta", "results/obs_to_exp_delta_by_hi_bin.all_genes.pdf")
@@ -484,15 +568,9 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     merged["synonymous_observed"] = merged["hgnc"].map(recode)
     merged["synonymous_observed"][merged["synonymous_observed"].isnull()] = 0
     
-    # load the pLI data, and append column to the table
-    recode = dict(zip(constraints["gene"], constraints["pLI"]))
-    merged["pLI"] = merged["hgnc"].map(recode)
-    merged = merged[~merged["pLI"].isnull()]
-    
     # identify which pLI quantile each gene falls into
-    quantiles = [ x/20.0 for x in range(21) ]
-    merged["pLI_bin"], bins = pandas.qcut(merged["pLI"], q=quantiles,
-        labels=quantiles[:-1], retbins=True)
+    merged = include_constraints(merged, constraints)
+    merged["pLI_bin"] = get_constraint_bins(merged, bins=20)
     
     # get the ratio of observed to expected within the pLI bins for different
     # consequence types
@@ -504,6 +582,71 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     plot_by_hi_bin(missense_by_hi, "ratio", "missense_excess.pdf", expected=1, count_halves=True)
     plot_by_hi_bin(lof_by_hi, "ratio", "lof_excess.pdf", expected=1, count_halves=True)
     plot_by_hi_bin(synonymous_by_hi, "ratio", "synonymous_excess.pdf", expected=1, count_halves=True)
+
+def plot_proportion_known_by_pLI(de_novos, expected,  constraints, known):
+    
+    merged = merge_observed_and_expected(de_novos, expected)
+    
+    # identify known haploinsufficient dominant genes
+    mono = classify_monoallelic_genes(known)
+    
+    # identify which pLI quantile each gene falls into
+    merged = include_constraints(merged, constraints)
+    merged["pLI_bin"] = get_constraint_bins(merged, bins=20)
+    
+    merged["haploinsufficient"] = merged["hgnc"].isin(mono["haploinsufficient"])
+    merged["nonhaploinsufficient"] = merged["hgnc"].isin(mono["nonhaploinsufficient"])
+    
+    hi = merged.pivot_table(rows="pLI_bin", values="haploinsufficient", aggfunc=[sum, len])
+    non_hi = merged.pivot_table(rows="pLI_bin", values="nonhaploinsufficient", aggfunc=[sum, len])
+    
+    hi["ratio"] = hi["sum"]/hi["len"]
+    non_hi["ratio"] = non_hi["sum"]/non_hi["len"]
+    
+    hi["pLI_bin"] = hi.index
+    non_hi["pLI_bin"] = non_hi.index
+    
+    fig = pyplot.figure()
+    ax = fig.gca()
+    
+    e = ax.plot(hi["pLI_bin"], hi["ratio"])
+    e = ax.plot(non_hi["pLI_bin"], non_hi["ratio"])
+    
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['top'].set_visible(False)
+    
+    e = ax.xaxis.set_ticks_position('bottom')
+    e = ax.yaxis.set_ticks_position('left')
+    
+    e = ax.set_xlabel("pLI bin (low to high)")
+    e = ax.set_ylabel("proportion known pathogenic")
+    
+    fig.savefig("temp.pdf", format="pdf")
+    
+    hi_lof = merged[merged["haploinsufficient"]].pivot_table(rows="pLI_bin", values="lof_observed", aggfunc=sum)
+    non_hi_mis = merged[merged["nonhaploinsufficient"] | merged["haploinsufficient"]].pivot_table(rows="pLI_bin", values="missense_observed", aggfunc=sum)
+    
+    lof = merged.pivot_table(rows="pLI_bin", values="lof_observed", aggfunc=sum)
+    mis = merged.pivot_table(rows="pLI_bin", values="missense_observed", aggfunc=sum)
+    
+    known_proportions = pandas.DataFrame({"pLI_bin": lof.index, "lof_ratio": hi_lof/lof, "mis_ratio": non_hi_mis/mis})
+    
+    fig = pyplot.figure()
+    ax = fig.gca()
+    
+    e = ax.plot(known_proportions["pLI_bin"], known_proportions["lof_ratio"])
+    e = ax.plot(known_proportions["pLI_bin"], known_proportions["mis_ratio"])
+    
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['top'].set_visible(False)
+    
+    e = ax.xaxis.set_ticks_position('bottom')
+    e = ax.yaxis.set_ticks_position('left')
+    
+    e = ax.set_xlabel("pLI bin (low to high)")
+    e = ax.set_ylabel("proportion known pathogenic")
+    
+    fig.savefig("temp2.pdf", format="pdf")
 
 def main():
     de_novos = open_de_novos(DENOVO_PATH, VALIDATIONS, exclude_synonymous=False)
@@ -518,16 +661,19 @@ def main():
     constraints = pandas.read_table(CONSTRAINTS_URL)
     
     pp_dnm_threshold = get_pp_dnm_threshold(de_novos, expected)
-    de_novos = de_novos[(de_novos["pp_dnm"].isnull() | (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
+    # filtered = de_novos[(de_novos["pp_dnm"].isnull() | (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
+    filtered = de_novos[(~de_novos["pp_dnm"].isnull() & (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
     
-    ratios = get_overall_consequence_ratios(expected, de_novos)
+    ratios = get_overall_consequence_ratios(expected, filtered)
     plot_overall_ratios(ratios, "results/excess_by_consequence.pdf")
     
-    proportions = model_mixing(known, de_novos, expected, constraints)
+    proportions = model_mixing(known, filtered, expected, constraints)
     
     print(proportions)
     
-    excess_de_novos_from_pLI(de_novos, expected, constraints)
+    excess_de_novos_from_pLI(filtered, expected, constraints)
+    
+    plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
 
 if __name__ == '__main__':
     main()
