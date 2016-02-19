@@ -48,7 +48,7 @@
   neurodevelopmental genes, particularly in the genes less depleted from
   ascertainment bias, i.e. the genes with low recognizability. From there it's
   matter of estimating the proportion of the DDD with any pathogenic de novo,
-  which is the proportion with a pathogenic de nov, plus the proportion with a
+  which is the proportion with a pathogenic de novo, plus the proportion with a
   pathogenic de novo CNV (~10%), and the proportion missed from our cohort
   (estimated from the missing genes due to recognizability). Once this
   proportion is corrected for the DDD enrichment factor, we have an estimate of
