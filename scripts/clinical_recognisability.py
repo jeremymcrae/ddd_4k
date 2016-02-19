@@ -98,6 +98,12 @@ def plot_recognisability(neurodev, output):
     """ plot the observed expected ratios at different recognisability indexes
     """
     
+    neurodev["ratio"] = neurodev["observed"]/neurodev["expected"]
+    
+    # some genes lack an expected count, since we don't have mutation rates for
+    # genes which lack any mutations in them. Their ratio must be 0.
+    neurodev["ratio"][neurodev["ratio"].isnull()] = 0
+    
     fig = seaborn.factorplot(x="Recognisable", y="ratio", data=neurodev,
         kind="box", order=["1+2", 3, 4, 5], size=6, fliersize=0)
     
@@ -106,7 +112,7 @@ def plot_recognisability(neurodev, output):
     lab = fig.ax.set_ylabel("observed/expected")
     lab = fig.ax.set_xlabel("Clinical recognisability")
     
-    fig.savefig(output, format="pdf")
+    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
     matplotlib.pyplot.close()
 
 def estimate_missing_variants(neurodev):
@@ -158,7 +164,7 @@ def plot_concatenated_recognisability(neurodev, output):
     ax = fig.gca()
     
     e = ax.bar(range(len(joined)), joined["ratio"], align="center",
-        yerr=[[0] * len(joined), joined["upper"]],
+        yerr=[joined["lower"], joined["upper"]],
         ecolor="black", capsize=10, error_kw={'capthick': 2})
     
     # fix the axis limits and ticks
@@ -174,8 +180,25 @@ def plot_concatenated_recognisability(neurodev, output):
     e = ax.set_xlabel("recognisability class")
     e = ax.set_ylabel("observed/expected")
     
-    fig.savefig(output, format="pdf")
+    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
     pyplot.close()
+
+def get_enrichment_factor(neurodev):
+    """ get the enrichment factor for neurodevelopmental genes with low recognizability
+    
+    Args:
+        neurodev: pandas DataFrame of counts per gene, containing columns for
+            clinical recognizability ("Recognisable"), the
+    
+    Returns:
+        float value for enrichment factor.
+    """
+    
+    # get the known dominant haploinsufficient genes with low clinical
+    # recognisability
+    low_recog = neurodev[neurodev["Recognisable"] != "5"]
+    
+    return sum(low_recog["observed"])/sum(low_recog["expected"])
 
 def main():
     args = get_options()
@@ -205,11 +228,7 @@ def main():
     # calculate the observed/expected ratio for individual genes
     expected = dict(zip(expected["hgnc"], expected["expected"]))
     neurodev["expected"] = neurodev["hgnc"].map(expected)
-    neurodev["ratio"] = neurodev["observed"]/neurodev["expected"]
-    
-    # some genes lack an expected count, since we don't have mutation rates for
-    # genes which lack any mutations in them. Their ratio must be 0.
-    neurodev["ratio"][neurodev["ratio"].isnull()] = 0
+    neurodev = neurodev[~neurodev["expected"].isnull()]
     
     # Join the two least recognisable groups, since they are smaller than the
     # other groups.
@@ -220,8 +239,10 @@ def main():
     plot_concatenated_recognisability(neurodev, args.output)
     
     missing = estimate_missing_variants(neurodev)
-    print(missing)
-
+    print("missing lof variants: {}".format(missing))
+    
+    enrich_factor = get_enrichment_factor(neurodev)
+    print("enrichment: {}".format(enrichment_factor))
 
 if __name__ == '__main__':
     main()
