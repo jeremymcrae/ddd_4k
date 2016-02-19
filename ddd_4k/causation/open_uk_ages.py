@@ -19,27 +19,25 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-from setuptools import setup
+from __future__ import absolute_import
 
-setup(
-    name = "ddd_4k",
-    version = "0.1.0",
-    author = "Jeremy McRae",
-    author_email = "jeremy.mcrae@sanger.ac.uk",
-    description = ("Analysis of de novos in the DDD 4k trios."),
-    license = "MIT",
-    packages=["ddd_4k", 'ddd_4k.causation'],
-    install_requires=['pandas >= 0.13.1',
-                      'statsmodels >= 0.5.0',
-                      'matplotlib >= 1.3.1',
-                      'seaborn >= 0.6.0',
-                      'psycopg2 >= 2.6.0',
-                      'denovonear >= 0.1.1',
-                      'inflect >= 0.2.5',
-                      'mupit >= 0.3.0'
-    ],
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "License :: OSI Approved :: MIT License",
-    ]
-)
+import pandas
+
+def open_uk_parent_ages(path):
+    """ gets tables of numbers of UK-wide father and mothers by age
+    
+    Args:
+        path: path to excel spreadsheet containing UK-wide counts for mother's
+            and father's by age.
+    
+    Returns:
+        tuple of pandas DataFrames, one for fathers ages, one for mother's ages
+    """
+    
+    ages = pandas.read_excel(path, sheetname="Mothers_Fathers", skiprows=1)
+    ages.columns = ['fathers_age_raw', 'fathers_count_raw',
+        'fathers_cumulative_frequency', 'mothers_age_raw', 'mothers_count_raw',
+        'fathers_cumulative_frequency', 'none', 'none', 'age',
+        'fathers_count', 'none', 'mothers_age', 'mothers_count']
+    
+    return ages[['age', 'fathers_count', 'mothers_count']].copy()

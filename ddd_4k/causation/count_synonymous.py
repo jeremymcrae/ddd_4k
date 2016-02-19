@@ -19,27 +19,23 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-from setuptools import setup
+import pandas
 
-setup(
-    name = "ddd_4k",
-    version = "0.1.0",
-    author = "Jeremy McRae",
-    author_email = "jeremy.mcrae@sanger.ac.uk",
-    description = ("Analysis of de novos in the DDD 4k trios."),
-    license = "MIT",
-    packages=["ddd_4k", 'ddd_4k.causation'],
-    install_requires=['pandas >= 0.13.1',
-                      'statsmodels >= 0.5.0',
-                      'matplotlib >= 1.3.1',
-                      'seaborn >= 0.6.0',
-                      'psycopg2 >= 2.6.0',
-                      'denovonear >= 0.1.1',
-                      'inflect >= 0.2.5',
-                      'mupit >= 0.3.0'
-    ],
-    classifiers=[
-        "Development Status :: 3 - Alpha",
-        "License :: OSI Approved :: MIT License",
-    ]
-)
+def count_synonymous_per_gene(de_novos):
+    """ count the number of synonymous mutations per gene
+    
+    Args:
+        de_novos: pandas DataFrame containing one row per candidate de novo
+            mutation.
+    
+    Returns:
+        pandas DataFrame of counts of synonymous variants per gene
+    """
+    
+    synonymous = de_novos[de_novos["consequence"] == "synonymous_variant"]
+    counts = synonymous.pivot_table(rows="symbol", values="alt", aggfunc=len)
+    counts = pandas.DataFrame({"hgnc": counts.index, "observed": counts})
+    
+    counts.index = range(len(counts))
+    
+    return counts
