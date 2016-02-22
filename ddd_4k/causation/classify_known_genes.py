@@ -19,12 +19,14 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-def classify_monoallelic_genes(known):
+def classify_monoallelic_genes(known, remove_overlap=True):
     """ classify monoallelic genes into haploinsufficient and
         nonhaploinsufficient sets
     
     Args:
-        known: pandas DataFrame of known developmental dfisorder genes
+        known: pandas DataFrame of known developmental disorder genes
+        remove_overlap: whether to remove genes which have both
+            haploinsufficient and nonhaploinsufficient mechanisms.
     
     Returns:
         dictionary of gene sets, one entry for haploinsufficient genes, one
@@ -40,12 +42,13 @@ def classify_monoallelic_genes(known):
     nonhaploinsufficient = set(monoallelic["gencode_gene_name"][
         monoallelic["mech"].isin(["Activating", "Dominant negative"])])
     
-    # remove genes which fall into both categories, since de novos in those will
-    # be a mixture of the two models, and we need to cleanly separate the
-    # underlying models.
-    overlap = haploinsufficient & nonhaploinsufficient
-    haploinsufficient -= overlap
-    nonhaploinsufficient -= overlap
+    if remove_overlap:
+        # remove genes which fall into both categories, since de novos in those
+        # will be a mixture of the two models, and we need to cleanly separate
+        # the underlying models.
+        overlap = haploinsufficient & nonhaploinsufficient
+        haploinsufficient -= overlap
+        nonhaploinsufficient -= overlap
     
     return {"haploinsufficient": haploinsufficient,
         "nonhaploinsufficient": nonhaploinsufficient}
