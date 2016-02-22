@@ -26,7 +26,7 @@ import pandas
 
 import matplotlib
 matplotlib.use('Agg')
-from matplotlib import pyplot
+from matplotlib import pyplot, gridspec
 import seaborn
 
 from ddd_4k.causation.classify_known_genes import classify_monoallelic_genes
@@ -75,9 +75,19 @@ def model_mixing(known, de_novos, expected, constraints):
     hi_start = aggregate(hi_merged, ["lof", "missense"])
     non_hi_start = aggregate(non_hi_merged, ["missense"])
     
-    plot_by_hi_bin(target, "delta", "results/obs_to_exp_delta_by_hi_bin.all_genes.pdf")
-    plot_by_hi_bin(hi_start, "delta", "results/obs_to_exp_delta_by_hi_bin.hi_genes.pdf")
-    plot_by_hi_bin(non_hi_start, "delta", "results/obs_to_exp_delta_by_hi_bin.non_hi_genes.pdf")
+    fig = pyplot.figure(figsize=(12, 8))
+    gs = gridspec.GridSpec(3, 1)
+    
+    all_ax = pyplot.subplot(gs[0])
+    hi_ax = pyplot.subplot(gs[1])
+    nonhi_ax = pyplot.subplot(gs[2])
+    
+    plot_by_hi_bin(target, "delta", title="all genes", ax=all_ax)
+    plot_by_hi_bin(hi_start, "delta", title="HI genes", ax=hi_ax)
+    plot_by_hi_bin(non_hi_start, "delta", title="non-HI genes", ax=nonhi_ax)
+    
+    fig.savefig("results/obs_to_exp_delta_by_hi_bin.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    pyplot.close()
     
     return optimise_mixing(hi_start, non_hi_start, target, "results/hi_bin_mixing_optimisation.pdf")
 

@@ -29,7 +29,7 @@ import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def plot_by_hi_bin(aggregated, diff_type, output, expected=None, count_halves=False):
+def plot_by_hi_bin(aggregated, diff_type, output=None, title=None, expected=None, count_halves=False, ax=None):
     """ plot difference in observed to expected across pLI vigiciles
     
     Args:
@@ -44,8 +44,9 @@ def plot_by_hi_bin(aggregated, diff_type, output, expected=None, count_halves=Fa
             half of the plot.
     """
     
-    fig = pyplot.figure(figsize=(12, 6))
-    ax = fig.gca()
+    if ax is None:
+        fig = pyplot.figure()
+        ax = fig.gca()
     
     barwidth = 0.04
     e = ax.bar(aggregated["pLI_bin"], aggregated[diff_type], width=barwidth,
@@ -59,6 +60,9 @@ def plot_by_hi_bin(aggregated, diff_type, output, expected=None, count_halves=Fa
     e = ax.spines['right'].set_visible(False)
     e = ax.spines['top'].set_visible(False)
     e = ax.spines['bottom'].set_visible(False)
+    
+    if title is not None:
+        e = ax.set_title(title, fontsize='medium')
     
     if expected is not None:
         e = ax.axhline(expected, linestyle="dashed", color="black")
@@ -79,5 +83,7 @@ def plot_by_hi_bin(aggregated, diff_type, output, expected=None, count_halves=Fa
     e = ax.set_xlabel("pLI bin (low to high)")
     e = ax.set_ylabel("normalised observed vs expected")
     
-    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
-    pyplot.close()
+    if output is not None:
+        fig = ax.get_figure()
+        fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
+        pyplot.close()

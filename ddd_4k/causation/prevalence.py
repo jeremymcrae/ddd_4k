@@ -60,6 +60,10 @@ def get_birth_prevalence(cohort_n, excess, cnv_yield=0.1, missing_variants=119,
     cohort_yield = (excess["loss-of-function"]["excess"] + excess["missense"]["excess"])/cohort_n
     missing_yield = missing_variants/cohort_n + cnv_yield
     
+    # adjust the yield in the DDD for the proportions that exist outside the
+    # DDD, since these expand the DDD cohort size.
+    cohort_yield = cohort_yield/(1 + missing_yield)
+    
     return (cohort_yield + missing_yield)/enrichment
 
 def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages, mutations_per_year=2.5):
@@ -90,9 +94,10 @@ def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages, mutations
     plot_ddd_age_distribution(ages_axes, phenotypes, diagnosed, low_age, high_age)
     plot_uk_age_distribution(ages_axes, uk_ages, low_age, high_age)
     
+    e = ages_axes.legend(fontsize="small")
     e = ages_axes.set_xlabel("Age")
     
-    fig.savefig("prevalence_by_age.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    fig.savefig("results/prevalence_by_age.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
     pyplot.close()
 
 def plot_birth_prevalences(ax, prevalence, phenotypes, yearly_mutations,
@@ -140,8 +145,8 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, yearly_mutations,
     lower_mutations = pre_puberty_n + (lower_age - puberty_age) * yearly_mutations
     upper_mutations = pre_puberty_n + (upper_age - puberty_age) * yearly_mutations
     
-    lower_prevalence = causative_per_mutation * lower_mutations
-    upper_prevalence = causative_per_mutation * upper_mutations
+    lower_prevalence = lower_mutations/median_mutations * prevalence
+    upper_prevalence = upper_mutations/median_mutations * prevalence
     
     ages = [lower_age, median_age, upper_age]
     prevalences = [lower_prevalence, prevalence, upper_prevalence]
@@ -178,7 +183,7 @@ def plot_ddd_age_distribution(ax, phenotypes, diagnosed, lower_age=20, upper_age
     
     density = gaussian_kde(ages)
     x = numpy.arange(lower_age, upper_age, 0.1)
-    e = ax.plot(x, density(x))
+    e = ax.plot(x, density(x), label="DDD")
     
     e = ax.set_xlim((lower_age - 2, upper_age + 2))
     e = ax.spines['right'].set_visible(False)
@@ -239,7 +244,7 @@ def plot_uk_age_distribution(ax, uk_ages, lower_age=20, upper_age=40):
     
     density = gaussian_kde(male_ages)
     x = numpy.arange(lower_age, upper_age, 0.1)
-    e = ax.plot(x, density(x), color="gray")
+    e = ax.plot(x, density(x), color="gray", label="UK")
     
     e = ax.set_xlim((lower_age - 2, upper_age + 2))
     e = ax.spines['right'].set_visible(False)

@@ -19,6 +19,8 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
+from matplotlib import pyplot, gridspec
+
 from ddd_4k.causation.merging import merge_observed_and_expected
 from ddd_4k.causation.count_synonymous import count_synonymous_per_gene
 from ddd_4k.causation.pli_functions import include_constraints, get_constraint_bins
@@ -70,7 +72,17 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     lof_by_hi = aggregate(merged, consequences=["lof"], normalise=False)
     synonymous_by_hi = aggregate(merged, consequences=["synonymous"], normalise=False)
     
+    fig = pyplot.figure(figsize=(12, 8))
+    gs = gridspec.GridSpec(3, 1 )
+    
+    lof_ax = pyplot.subplot(gs[0])
+    mis_ax = pyplot.subplot(gs[1])
+    syn_ax = pyplot.subplot(gs[2])
+    
     # plot the differences in observed vs expected for the different pLI bins
-    plot_by_hi_bin(missense_by_hi, "ratio", "missense_excess.pdf", expected=1, count_halves=True)
-    plot_by_hi_bin(lof_by_hi, "ratio", "lof_excess.pdf", expected=1, count_halves=True)
-    plot_by_hi_bin(synonymous_by_hi, "ratio", "synonymous_excess.pdf", expected=1, count_halves=True)
+    plot_by_hi_bin(missense_by_hi, "ratio", title="missense", expected=1, count_halves=True, ax=mis_ax)
+    plot_by_hi_bin(lof_by_hi, "ratio", title="loss-of-function", expected=1, count_halves=True, ax=lof_ax)
+    plot_by_hi_bin(synonymous_by_hi, "ratio", title="synonymous", expected=1, count_halves=True, ax=syn_ax)
+    
+    fig.savefig("results/excess_by_consequence.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    pyplot.close()

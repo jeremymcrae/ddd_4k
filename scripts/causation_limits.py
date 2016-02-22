@@ -110,7 +110,7 @@ def main():
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
     
     prevalence = get_birth_prevalence(male + female, excess,
-        cnv_yield=0.1, missing_variants=119, enrichment=120.0)
+        cnv_yield=0.1, missing_variants=119.9, enrichment=118.8)
     
     plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
         mutations_per_year=2.5)
