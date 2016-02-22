@@ -36,6 +36,7 @@ from ddd_4k.causation.de_novo_threshold import get_pp_dnm_threshold
 from ddd_4k.causation.excess_by_pli import excess_de_novos_from_pLI
 from ddd_4k.causation.proportion_known_by_pli import plot_proportion_known_by_pLI
 from ddd_4k.causation.open_uk_ages import open_uk_parent_ages
+from ddd_4k.causation.prevalence_from_baseline import check_prevalence_from_baseline_lof
 
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
 
@@ -114,6 +115,12 @@ def main():
     
     plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
         mutations_per_year=2.5)
+        
+    prevalance_from_rates = check_prevalence_from_baseline_lof(rates, known,
+        mis_to_lof=2.0, missing=0.5)
+    
+    print(prevalance_from_rates)
+    
 
 if __name__ == '__main__':
     main()
