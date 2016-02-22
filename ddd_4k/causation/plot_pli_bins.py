@@ -37,11 +37,16 @@ def plot_by_hi_bin(aggregated, diff_type, output=None, title=None, expected=None
             the pLI bins.
         diff_type: list of consequence types to include, for example
             ["missense"] or ["missense", "lof"] or ["lof"]
-        output: path to save the plot to.
+        output: path to save the plot to, or None, if not saving the figure in
+            this function.
+        title: title for the plot.
         expected: position to plot horizontal line of expectation at, for
             example, at a ratio of 1.0.
         count_halves: whether to count the number of observed de novos in each
             half of the plot.
+        ax: pyplot Axes to put the current polot in, if making a multi-plot
+            figure. Or None, if you want to save the plot as an independent
+            figure.
     """
     
     if ax is None:
