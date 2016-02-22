@@ -84,5 +84,6 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     plot_by_hi_bin(lof_by_hi, "ratio", title="loss-of-function", expected=1, count_halves=True, ax=lof_ax)
     plot_by_hi_bin(synonymous_by_hi, "ratio", title="synonymous", expected=1, count_halves=True, ax=syn_ax)
     
-    fig.savefig("results/excess_consequence_by_pli.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    fig.savefig("results/excess_consequence_by_pli.pdf", format="pdf",
+        bbox_inches='tight', pad_inches=0, transparent=True)
     pyplot.close()
