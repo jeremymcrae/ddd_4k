@@ -39,6 +39,8 @@ def check_prevalence_from_baseline_lof(rates, known, mis_to_lof=2.0,
             loss-of-function mutations.
         missing: proportion of genes yet to be discovered (relative to the
             currently known genes).
+        cnv_adjust: the ratio of predicted diagnostic yield of DDD probands with
+            any dominant de novo to the predicted yield without CNV de novos.
     
     Returns:
         estimate for the prevalance of live births with developmental disorders
