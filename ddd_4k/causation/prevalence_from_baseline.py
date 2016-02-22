@@ -73,5 +73,3 @@ def check_prevalence_from_baseline_lof(rates, known, mis_to_lof=2.0,
     prevalence_adjusted = prevalence_baseline * (1.0 + missing) * cnv_adjust
     
     return prevalence_adjusted
-    
-    
