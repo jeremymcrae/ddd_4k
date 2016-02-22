@@ -25,7 +25,7 @@ import tempfile
 import math
 
 import pandas
-from numpy import median, mean, sqrt
+from numpy import median, mean, sqrt, log10
 from scipy.stats import norm, poisson
 import matplotlib
 matplotlib.use("Agg")
@@ -45,6 +45,7 @@ seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 RATES_PATH = "/lustre/scratch113/projects/ddd/users/jm33/de_novos.ddd_4k.mutation_rates.2015-11-24.txt"
 NEURODEV_PATH = "/nfs/users/nfs_j/jm33/neurodevelopmental.dominant_lof_DRF.xlsx"
+RESULTS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.with_diagnosed.all.2015-11-24.txt"
 
 def get_options():
     """ parse the command line arguments
@@ -63,6 +64,8 @@ def get_options():
         help="Path to table of validation data.")
     parser.add_argument("--neurodevelopmental-genes", default=NEURODEV_PATH,
         help="Path to table of neurodevelopmental genes with loss-of-function mechanisms.")
+    parser.add_argument("--results", default=RESULTS_PATH,
+        help="Path to table of results from testing for significance.")
     parser.add_argument("--output",
         default="results/clinical_recognisability.pdf",
         help="Path to plot graph to.")
@@ -183,6 +186,41 @@ def plot_concatenated_recognisability(neurodev, output):
     fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
     pyplot.close()
 
+def plot_rate_by_p_value(neurodev, results):
+    """ plot the mutation rate by p-value for neurodevelopmental genes. Shade by
+    clinical recognisability.
+    """
+    
+    results = dict(zip(results["hgnc"], results["p_min"]))
+    neurodev["p_value"] = -log10(neurodev["hgnc"].map(results))
+    neurodev = neurodev[~neurodev["p_value"].isnull()]
+    
+    # data = neurodev[["expected", "p_value", "Recognisable"]].copy()
+    
+    colors = ["cornflowerblue", "blue", "mediumblue", "darkblue"]
+    groups = ["1+2", "3", "4", "5"]
+    fig = pyplot.figure(figsize=(6, 6))
+    ax = fig.gca()
+    
+    for group, color in zip(groups, colors):
+        data = neurodev[neurodev["Recognisable"] == group]
+        e = ax.plot(data["expected"], data["p_value"], linestyle='None',
+            color=color, marker=".", markersize=10, label=group)
+    
+    e = ax.legend(fontsize="small")
+    
+    # fix the axis limits and ticks
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['top'].set_visible(False)
+    e = ax.yaxis.set_ticks_position('left')
+    e = ax.xaxis.set_ticks_position('bottom')
+    
+    e = ax.set_xlabel("Expected loss-of-function mutation rate")
+    e = ax.set_ylabel("-log10(P)")
+    
+    fig.savefig("results/rate_by_p_value.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    pyplot.close()
+
 def get_enrichment_factor(neurodev):
     """ get the enrichment factor for neurodevelopmental genes with low recognizability
     
@@ -205,6 +243,8 @@ def main():
     
     # rates = get_ddd_rates(args.rates)
     rates = get_default_rates()
+    
+    results = pandas.read_table(args.results)
     
     # determine the number of mutations we expect per gene, given consequence
     # specific mutation rates for each gene.
@@ -242,7 +282,9 @@ def main():
     print("missing lof variants: {}".format(missing))
     
     enrich_factor = get_enrichment_factor(neurodev)
-    print("enrichment: {}".format(enrichment_factor))
+    print("enrichment: {}".format(enrich_factor))
+    
+    plot_rate_by_p_value(neurodev, results)
 
 if __name__ == '__main__':
     main()
