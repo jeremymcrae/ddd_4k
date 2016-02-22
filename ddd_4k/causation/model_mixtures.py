@@ -57,8 +57,6 @@ def model_mixing(known, de_novos, expected, constraints):
         difference in observed to expected counts across the pLI bins.
     """
     
-    monoallelic = known[known["mode"].isin(["Monoallelic", "X-linked dominant"])]
-    
     # classify known dominant genes
     mono = classify_monoallelic_genes(known)
     
