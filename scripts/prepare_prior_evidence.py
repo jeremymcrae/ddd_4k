@@ -294,8 +294,6 @@ def main():
     variants = get_external_variants(args.external_de_novos, args.subsets)
     enrich = get_gene_results(args.external_enrichment, args.external_clustering)
     
-    print(enrich[enrich["hgnc"] == "MYT1L"])
-    
     numbers = inflect.engine()
     output = open(args.output, "w")
     for gene in get_novel_genes(args.results):
