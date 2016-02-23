@@ -29,7 +29,7 @@ import matplotlib
 matplotlib.use('Agg')
 import seaborn
 import pandas
-from scipy.stats import fisher_exact, mannwhitneyu, norm, mstats
+from scipy.stats import fisher_exact, mannwhitneyu, norm, mstats, pearsonr, spearmanr
 from statsmodels.genmod.generalized_linear_model import GLM
 import statsmodels.formula.api as smf
 from statsmodels.genmod.families import Binomial
@@ -130,40 +130,44 @@ def plot_categorical(counts, pheno, value, folder):
     
     merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
     
-    cohort_counts = pheno[value].value_counts()
-    summary = get_categorical_summary(merged, cohort_counts, value)
+    table = merged.pivot_table(rows="known", cols=value, values="person_stable_id", aggfunc=len)
+    odds_ratio, p_value = fisher_exact(table)
     
-    # test whether differences exist between the groups for the value column
+    standard_error = math.sqrt((1/table).sum().sum())
+    log_odds = math.log(odds_ratio)
+    upper_ci = math.exp(log_odds + ci_95 * standard_error)
+    lower_ci = math.exp(log_odds - ci_95 * standard_error)
+    
     ratios = {}
-    results = []
-    for known in [True, False]:
-        for cq in summary.consequence.unique():
-            table = summary[(summary.known == known) & (summary.consequence == cq)]
-            table = table[["tally", "total"]]
-            odds_ratio, p_value = fisher_exact(table)
-            
-            standard_error = math.sqrt((1/table).sum().sum())
-            log_odds = math.log(odds_ratio)
-            upper_ci = math.exp(log_odds + ci_95 * standard_error)
-            lower_ci = math.exp(log_odds - ci_95 * standard_error)
-            results.append([known, cq, p_value])
-            
-            if known == True and cq == "loss-of-function":
-                ratios["name"] = value
-                ratios["odds_ratio"] = odds_ratio
-                ratios["upper"] = upper_ci
-                ratios["lower"] = lower_ci
+    ratios["name"] = value
+    ratios["odds_ratio"] = odds_ratio
+    ratios["upper"] = upper_ci
+    ratios["lower"] = lower_ci
     
-    fig = seaborn.factorplot(x="consequence", y="ratio", hue=value, col="known", data=summary, kind="bar")
-    fig.set_ylabels("Frequency")
-    pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
-    fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
-    
-    matplotlib.pyplot.close()
+    # cohort_counts = pheno[value].value_counts()
+    # summary = get_categorical_summary(merged, cohort_counts, value)
+    #
+    # # test whether differences exist between the groups for the value column
+    # results = []
+    # for known in [True, False]:
+    #     for cq in summary.consequence.unique():
+    #         table = summary[(summary.known == known) & (summary.consequence == cq)]
+    #         table = table[["tally", "total"]]
+    #         odds_ratio, p_value = fisher_exact(table)
+    #
+    #         results.append([known, cq, p_value])
+    #
+    #
+    # fig = seaborn.factorplot(x="consequence", y="ratio", hue=value, col="known", data=summary, kind="bar")
+    # fig.set_ylabels("Frequency")
+    # pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
+    # fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
+    #
+    # matplotlib.pyplot.close()
     
     return ratios
 
-def plot_quantitative(counts, pheno, value, folder, y_label):
+def plot_quantitative(counts, pheno, value, folder, y_label, covariate=None):
     """ plot quantitative metric by functional category by known gene status
     
     Args:
@@ -175,41 +179,61 @@ def plot_quantitative(counts, pheno, value, folder, y_label):
         y_label: the y-axis label for the phenotype.
     """
     
-    merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
+    has_causal = counts.pivot_table(rows="person_stable_id", cols="known", values="value", aggfunc=sum)
+    
+    has_causal[has_causal > 0] = 1
+    has_causal[has_causal.isnull()] = 0
+    has_causal["person_stable_id"] = has_causal.index
+    
+    recode = dict(zip(has_causal["person_stable_id"], has_causal[True]))
+    
+    columns = ["person_stable_id", "gender", value]
+    if covariate is not None:
+        columns.append(covariate)
+    
+    data = pheno[columns].copy()
+    data["has_causal"] = data["person_stable_id"].map(recode)
+    data["has_causal"][data["has_causal"].isnull()] = 0
     
     ratios = {}
-    results = []
-    for known in [True, False]:
-        lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
-        func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
-        u, p_value = mannwhitneyu(lof, func)
-        results.append([known, p_value])
-        
-        if known:
-            data = merged[[value, "gender", "consequence"]][(merged["known"] == known) &
-                (merged["consequence"].isin(["functional", "loss-of-function"]))].copy()
-            recode = {"functional": 0, "loss-of-function": 1}
-            data["consequence"] = data["consequence"].map(recode)
-            
-            data = data.dropna()
-            data[value] = mstats.zscore(data[value])
-            
-            data["gender"] = data["gender"].map({"Female": 1, "Male": 0})
-            model = smf.glm(formula='consequence ~ {}:gender'.format(value),
-                data=data, family=Binomial())
-            result = model.fit()
-            
-            ratios["name"] = value
-            ratios["beta"] = result.params[1]
-            ratios["upper"] = result.conf_int()[1][1]
-            ratios["lower"] = result.conf_int()[0][1]
+    data = data.dropna()
+    data[value] = mstats.zscore(data[value])
     
-    fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
-    fig.set_ylabels(y_label)
-    pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
-    fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
+    formula = 'has_causal ~ {}*gender'.format(value)
+    if covariate is not None:
+        formula += ' + {}:gender'.format(covariate)
+        data[covariate] = mstats.zscore(data[covariate])
     
-    matplotlib.pyplot.close()
+    data["gender"] = data["gender"].map({"Female": False, "Male": True})
+    model = smf.glm(formula=formula, data=data, family=Binomial())
+    result = model.fit()
+    
+    ratios["name"] = value
+    ratios["beta"] = result.params[value]
+    ratios["upper"] = result.conf_int()[1][value]
+    ratios["lower"] = result.conf_int()[0][value]
+    
+    p_value = result.pvalues[value]
+    print(p_value, ratios)
+    
+    fig = seaborn.lmplot(x=value, y="has_causal", data=data, logistic=True,
+        y_jitter=0.05, x_jitter=0.01)
+    fig.savefig("{}.pdf".format(value), format="pdf")
+    
+    # merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
+    # results = []
+    # for known in [True, False]:
+    #     lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
+    #     func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
+    #     u, p_value = mannwhitneyu(lof, func)
+    #     results.append([known, p_value])
+    #
+    # fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
+    # fig.set_ylabels(y_label)
+    # pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
+    # fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
+    #
+    # matplotlib.pyplot.close()
     
     return ratios
 
@@ -276,7 +300,7 @@ def forest_plot(data):
     e = ax.set_yticklabels(data["name"])
     e = ax.set_xlabel(value)
     
-    fig.savefig("{}.pdf".format(value), format="pdf")
+    fig.savefig("{}.pdf".format(value), format="pdf", bbox_inches='tight', pad_inches=0)
 
 def main():
     args = get_options()
@@ -323,7 +347,8 @@ def main():
     betas.append(plot_quantitative(counts, pheno, "height_sd", args.output_folder, "Height (SD)"))
     # betas.append(plot_quantitative(counts, pheno, "weight_sd", args.output_folder, "weight (SD)"))
     betas.append(plot_quantitative(counts, pheno, "ofc_sd", args.output_folder, "OFC (SD)"))
-    betas.append(plot_quantitative(counts, pheno, "fathers_age", args.output_folder, "Father's age (years)"))
+    betas.append(plot_quantitative(counts, pheno, "fathers_age", args.output_folder, "Father's age (years)", covariate='mothers_age'))
+    betas.append(plot_quantitative(counts, pheno, "mothers_age", args.output_folder, "Mother's age (years)", covariate='fathers_age'))
     
     # and add in the values from the logistic regression of autozygosity length
     # vs having a dominant diagnostic de novo. These values are determined in
