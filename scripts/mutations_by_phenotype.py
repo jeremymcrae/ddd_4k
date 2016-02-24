@@ -128,9 +128,12 @@ def plot_categorical(counts, pheno, value, folder):
     
     ci_95 = norm.ppf(0.975)
     
-    merged = counts.merge(pheno[["person_stable_id", value]], on="person_stable_id")
+    # identify the probands with a pathogenic de novo
+    merged = pheno[["person_stable_id", value]].copy()
+    probands = counts["person_stable_id"][counts["known"]]
+    merged["has_causal"] = merged["person_stable_id"].isin(probands)
     
-    table = merged.pivot_table(rows="known", cols=value, values="person_stable_id", aggfunc=len)
+    table = merged.pivot_table(rows="has_causal", cols=value, values="person_stable_id", aggfunc=len)
     odds_ratio, p_value = fisher_exact(table)
     
     standard_error = math.sqrt((1/table).sum().sum())
@@ -143,6 +146,9 @@ def plot_categorical(counts, pheno, value, folder):
     ratios["odds_ratio"] = odds_ratio
     ratios["upper"] = upper_ci
     ratios["lower"] = lower_ci
+    ratios["p_value"] = p_value
+    
+    print(ratios)
     
     # cohort_counts = pheno[value].value_counts()
     # summary = get_categorical_summary(merged, cohort_counts, value)
@@ -167,7 +173,7 @@ def plot_categorical(counts, pheno, value, folder):
     
     return ratios
 
-def plot_quantitative(counts, pheno, value, folder, y_label, covariate=None):
+def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=False, covariate=None):
     """ plot quantitative metric by functional category by known gene status
     
     Args:
@@ -177,23 +183,26 @@ def plot_quantitative(counts, pheno, value, folder, y_label, covariate=None):
         value: the phenotypic value that we are grouping by.
         folder: the folder to save graphs into.
         y_label: the y-axis label for the phenotype.
+        delta_to_median: whether to adjust the data, so we test for the abolute
+            difference from the median value, which could be useful for
+            phenotypes where we expect genetic variants to spread affected
+            probands to the extremes of the distributions.
+        covariate: name of addiditional covariate to adjust for in the logistic
+            regression.
     """
-    
-    has_causal = counts.pivot_table(rows="person_stable_id", cols="known", values="value", aggfunc=sum)
-    
-    has_causal[has_causal > 0] = 1
-    has_causal[has_causal.isnull()] = 0
-    has_causal["person_stable_id"] = has_causal.index
-    
-    recode = dict(zip(has_causal["person_stable_id"], has_causal[True]))
     
     columns = ["person_stable_id", "gender", value]
     if covariate is not None:
         columns.append(covariate)
     
     data = pheno[columns].copy()
-    data["has_causal"] = data["person_stable_id"].map(recode)
-    data["has_causal"][data["has_causal"].isnull()] = 0
+    probands = counts["person_stable_id"][counts["known"]]
+    data["has_causal"] = data["person_stable_id"].isin(probands)
+    data["has_causal"] = data["has_causal"].map({True: 1, False: 0})
+    
+    if delta_to_median:
+        median = numpy.median(data[value])
+        data[value] = abs(data[value] - median)
     
     ratios = {}
     data = data.dropna()
@@ -212,28 +221,28 @@ def plot_quantitative(counts, pheno, value, folder, y_label, covariate=None):
     ratios["beta"] = result.params[value]
     ratios["upper"] = result.conf_int()[1][value]
     ratios["lower"] = result.conf_int()[0][value]
+    ratios["p_value"] = result.pvalues[value]
     
-    p_value = result.pvalues[value]
-    print(p_value, ratios)
+    print(ratios)
     
-    fig = seaborn.lmplot(x=value, y="has_causal", data=data, logistic=True,
-        y_jitter=0.05, x_jitter=0.01)
-    fig.savefig("{}.pdf".format(value), format="pdf")
+    # fig = seaborn.lmplot(x=value, y="has_causal", data=data, logistic=True,
+    #     y_jitter=0.05, x_jitter=0.01)
+    # fig.savefig("{}.pdf".format(value), format="pdf")
     
-    # merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
-    # results = []
-    # for known in [True, False]:
-    #     lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
-    #     func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
-    #     u, p_value = mannwhitneyu(lof, func)
-    #     results.append([known, p_value])
-    #
-    # fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
-    # fig.set_ylabels(y_label)
-    # pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
-    # fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
-    #
-    # matplotlib.pyplot.close()
+    merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
+    results = []
+    for known in [True, False]:
+        lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
+        func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
+        u, p_value = mannwhitneyu(lof, func)
+        results.append([known, p_value])
+    
+    fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
+    fig.set_ylabels(y_label)
+    pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
+    fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
+    
+    matplotlib.pyplot.close()
     
     return ratios
 
@@ -272,7 +281,8 @@ def forest_plot(data):
     ax = fig.gca()
     
     # sort by the value, to group variables by effects
-    data = data.sort(value)
+    # data = data.sort(value)
+    data = data.reindex(index=data.index[::-1])
     data["name"] = data["name"].str.replace("_", " ")
     
     data.index = range(len(data))
@@ -307,8 +317,8 @@ def main():
     
     de_novos = open_de_novos(args.de_novos, args.validations)
     known = open_known_genes(args.ddg2p)
-    monoallelic = known[known["mode"].isin(["Monoallelic", "X-linked dominant"])]
-    de_novos["known"] = de_novos["symbol"].isin(monoallelic["gencode_gene_name"])
+    monoallelic = set(known["gencode_gene_name"][known["mode"].isin(["Monoallelic"])])
+    de_novos["known"] = de_novos["hgnc"].isin(monoallelic)
     
     # For each proband, count the number of functional de novos (split by lof
     # and missense), in known developmental disorder genes (and other genes).
@@ -327,40 +337,40 @@ def main():
     
     ratios = []
     ratios.append(plot_categorical(counts, pheno, "gender", args.output_folder))
-    ratios.append(plot_categorical(counts, pheno, "scbu_nicu", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "feeding_problems", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "maternal_illness", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "bleeding", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "abnormal_scan", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "scbu_nicu", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "assisted_reproduction", args.output_folder))
     
     odds_ratios = pandas.DataFrame(ratios)
     forest_plot(odds_ratios)
     
+    betas = []
+    # plot distributions of time to achieve developmental milestones by
+    # the functional categories
+    betas.append(plot_achievement(counts, pheno, "first_words", args.output_folder))
+    betas.append(plot_achievement(counts, pheno, "walked_independently", args.output_folder))
+    betas.append(plot_achievement(counts, pheno, "sat_independently", args.output_folder))
+    betas.append(plot_achievement(counts, pheno, "social_smile", args.output_folder))
+    
     # birthweight (or birthweight corrected for duration of gestation, or
     # birthweight_percentile (if that corrects for duration of gestation))
-    betas = []
     betas.append(plot_quantitative(counts, pheno, "child_hpo_n", args.output_folder, "Number of proband HPO terms"))
-    betas.append(plot_quantitative(counts, pheno, "decimal_age_at_assessment", args.output_folder, "Age at assessment (years)"))
-    betas.append(plot_quantitative(counts, pheno, "birthweight_sd", args.output_folder, "Birthweight (SD)"))
-    betas.append(plot_quantitative(counts, pheno, "gestation", args.output_folder, "Gestation duration (weeks)"))
-    betas.append(plot_quantitative(counts, pheno, "height_sd", args.output_folder, "Height (SD)"))
+    betas.append(plot_quantitative(counts, pheno, "height_sd", args.output_folder, "Height (SD)", delta_to_median=True))
+    betas.append(plot_quantitative(counts, pheno, "birthweight_sd", args.output_folder, "Birthweight (SD)", delta_to_median=True))
+    betas.append(plot_quantitative(counts, pheno, "ofc_sd", args.output_folder, "OFC (SD)", delta_to_median=True))
     # betas.append(plot_quantitative(counts, pheno, "weight_sd", args.output_folder, "weight (SD)"))
-    betas.append(plot_quantitative(counts, pheno, "ofc_sd", args.output_folder, "OFC (SD)"))
-    betas.append(plot_quantitative(counts, pheno, "fathers_age", args.output_folder, "Father's age (years)", covariate='mothers_age'))
-    betas.append(plot_quantitative(counts, pheno, "mothers_age", args.output_folder, "Mother's age (years)", covariate='fathers_age'))
+    betas.append(plot_quantitative(counts, pheno, "decimal_age_at_assessment", args.output_folder, "Age at assessment (years)"))
+    betas.append(plot_quantitative(counts, pheno, "gestation", args.output_folder, "Gestation duration (weeks)"))
+    betas.append(plot_quantitative(counts, pheno, "fathers_age", args.output_folder, "Father's age (years)"))
+    betas.append(plot_quantitative(counts, pheno, "mothers_age", args.output_folder, "Mother's age (years)"))
     
     # and add in the values from the logistic regression of autozygosity length
     # vs having a dominant diagnostic de novo. These values are determined in
     # the autozygosity_vs_diagnosed.py script
     betas.append({'upper': -0.13772607320296332, 'beta': -0.25055052100431563, 'lower': -0.36337496880566794, 'name': 'autozygosity_length'})
-    
-    # plot distributions of time to achieve developmental milestones by
-    # the functional categories
-    betas.append(plot_achievement(counts, pheno, "social_smile", args.output_folder))
-    betas.append(plot_achievement(counts, pheno, "sat_independently", args.output_folder))
-    betas.append(plot_achievement(counts, pheno, "walked_independently", args.output_folder))
-    betas.append(plot_achievement(counts, pheno, "first_words", args.output_folder))
     
     betas = pandas.DataFrame(betas)
     forest_plot(betas)
