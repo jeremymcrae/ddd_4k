@@ -167,10 +167,11 @@ def plot_categorical(counts, pheno, value, folder):
     # fig = seaborn.factorplot(x="consequence", y="ratio", hue=value, col="known", data=summary, kind="bar")
     # fig.set_ylabels("Frequency")
     # pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
-    # fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
+    # fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf",
+    #     bbox_inches='tight', pad_inches=0, transparent=True)
     #
     # matplotlib.pyplot.close()
-    
+    #
     return ratios
 
 def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=False, covariate=None):
@@ -206,9 +207,9 @@ def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=Fal
     
     ratios = {}
     data = data.dropna()
-    data[value] = mstats.zscore(data[value])
+    data["z_score"] = mstats.zscore(data[value])
     
-    formula = 'has_causal ~ {}*gender'.format(value)
+    formula = 'has_causal ~ z_score*gender'
     if covariate is not None:
         formula += ' + {}:gender'.format(covariate)
         data[covariate] = mstats.zscore(data[covariate])
@@ -218,10 +219,10 @@ def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=Fal
     result = model.fit()
     
     ratios["name"] = value
-    ratios["beta"] = result.params[value]
-    ratios["upper"] = result.conf_int()[1][value]
-    ratios["lower"] = result.conf_int()[0][value]
-    ratios["p_value"] = result.pvalues[value]
+    ratios["beta"] = result.params["z_score"]
+    ratios["upper"] = result.conf_int()[1]["z_score"]
+    ratios["lower"] = result.conf_int()[0]["z_score"]
+    ratios["p_value"] = result.pvalues["z_score"]
     
     print(ratios)
     
@@ -229,18 +230,20 @@ def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=Fal
     #     y_jitter=0.05, x_jitter=0.01)
     # fig.savefig("{}.pdf".format(value), format="pdf")
     
-    merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
-    results = []
-    for known in [True, False]:
-        lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
-        func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
-        u, p_value = mannwhitneyu(lof, func)
-        results.append([known, p_value])
+    # merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
+    # results = []
+    # for known in [True, False]:
+    #     lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
+    #     func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
+    #     u, p_value = mannwhitneyu(lof, func)
+    #     results.append([known, p_value])
     
-    fig = seaborn.factorplot(x="known", y=value, hue="consequence", size=6, data=merged, kind="violin")
+    fig = seaborn.factorplot(x="has_causal", y=value, size=6, data=data,
+        aspect=0.6, kind="violin")
     fig.set_ylabels(y_label)
-    pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
-    fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf")
+    # pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
+    fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf",
+        bbox_inches='tight', pad_inches=0, transparent=True)
     
     matplotlib.pyplot.close()
     
@@ -288,6 +291,9 @@ def forest_plot(data):
     data.index = range(len(data))
     data["y"] = data.index
     
+    # format the p-values to 3 significant figures
+    data["p_value"] = [ "P = {0:.3g}".format(x) for x in data["p_value"] ]
+    
     ax.plot(data[value], data["y"], linestyle='None', marker="o", color="gray")
     for key, x in data.iterrows():
         ax.plot([x["lower"], x["upper"]], [x["y"]] * 2, color="gray")
@@ -310,7 +316,21 @@ def forest_plot(data):
     e = ax.set_yticklabels(data["name"])
     e = ax.set_xlabel(value)
     
-    fig.savefig("{}.pdf".format(value), format="pdf", bbox_inches='tight', pad_inches=0)
+    # and include the p-values on the opposing y-axis
+    new_ax = ax.twinx()
+    new_ax.set_ylim((min(data["y"]) - 0.5), max(data["y"]) + 0.5)
+    e = new_ax.spines['right'].set_visible(False)
+    e = new_ax.spines['top'].set_visible(False)
+    e = new_ax.spines['left'].set_visible(False)
+    
+    e = new_ax.yaxis.set_ticks_position('right')
+    e = new_ax.xaxis.set_ticks_position('bottom')
+    
+    e = new_ax.set_yticks(data["y"])
+    e = new_ax.set_yticklabels(data["p_value"])
+    
+    fig.savefig("{}.pdf".format(value), format="pdf", bbox_inches='tight',
+        pad_inches=0, transparent=True)
 
 def main():
     args = get_options()
@@ -370,7 +390,7 @@ def main():
     # and add in the values from the logistic regression of autozygosity length
     # vs having a dominant diagnostic de novo. These values are determined in
     # the autozygosity_vs_diagnosed.py script
-    betas.append({'upper': -0.13772607320296332, 'beta': -0.25055052100431563, 'lower': -0.36337496880566794, 'name': 'autozygosity_length'})
+    betas.append({'upper': -0.13772607320296332, 'beta': -0.25055052100431563, 'lower': -0.36337496880566794, 'name': 'autozygosity_length', "p_value": 1.3458522649038024e-05})
     
     betas = pandas.DataFrame(betas)
     forest_plot(betas)
