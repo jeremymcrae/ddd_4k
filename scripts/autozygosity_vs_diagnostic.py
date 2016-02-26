@@ -213,14 +213,18 @@ def logistic_regression(lengths):
     
     data = data[data["length"] > 0]
     data = data.dropna()
-    model = GLM(data["diagnosed"], mstats.zscore(data["length"]), family=Binomial())
+    # z-transform the data, so the beta and 95 CI can be compared to other phenotypes
+    data["length"] = mstats.zscore(data["length"])
+    
+    model = GLM(data["diagnosed"], data["length"], family=Binomial())
     result = model.fit()
     
     ratios = {}
     ratios["name"] = "autozygosity_length"
-    ratios["beta"] = result.params[0]
-    ratios["upper"] = result.conf_int()[1][0]
-    ratios["lower"] = result.conf_int()[0][0]
+    ratios["beta"] = result.params["length"]
+    ratios["upper"] = result.conf_int()[1]["length"]
+    ratios["lower"] = result.conf_int()[0]["length"]
+    ratios["p_value"] = result.pvalues["length"]
     
     print(ratios)
 
