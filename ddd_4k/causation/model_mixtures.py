@@ -64,12 +64,12 @@ def model_mixing(known, de_novos, expected, constraints):
     
     # identify which pLI quantile each gene falls into
     merged = include_constraints(merged, constraints)
-    merged["pLI_bin"] = get_constraint_bins(merged, bins=20)
+    merged["pLI_bin"] = get_constraint_bins(merged, bins=20, rate_correct=True)
     
     hi_merged = merged[merged["hgnc"].isin(mono["haploinsufficient"])]
     non_hi_merged = merged[merged["hgnc"].isin(mono["nonhaploinsufficient"])]
     
-    target = aggregate(merged, ["missense", "lof"])
+    target = aggregate(merged, ["missense"])
     hi_start = aggregate(hi_merged, ["lof", "missense"])
     non_hi_start = aggregate(non_hi_merged, ["missense"])
     
@@ -150,4 +150,5 @@ def plot_optimisation(mixtures, output):
     e = ax.xaxis.set_ticks_position('bottom')
     e = ax.yaxis.set_ticks_position('left')
     
-    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
+    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0,
+        transparent=True)

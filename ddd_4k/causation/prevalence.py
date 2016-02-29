@@ -94,10 +94,11 @@ def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages, mutations
     plot_ddd_age_distribution(ages_axes, phenotypes, diagnosed, low_age, high_age)
     plot_uk_age_distribution(ages_axes, uk_ages, low_age, high_age)
     
-    e = ages_axes.legend(fontsize="small")
+    e = ages_axes.legend(fontsize='medium')
     e = ages_axes.set_xlabel("Age")
     
-    fig.savefig("results/prevalence_by_age.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    fig.savefig("results/prevalence_by_age.pdf", format="pdf",
+        bbox_inches='tight', pad_inches=0, transparent=True)
     pyplot.close()
 
 def plot_birth_prevalences(ax, prevalence, phenotypes, yearly_mutations,

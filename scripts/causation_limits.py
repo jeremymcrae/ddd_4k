@@ -84,10 +84,12 @@ def main():
     constraints = pandas.read_table(args.constraints)
     uk_ages = open_uk_parent_ages(args.uk_ages)
     
-    # identiry the probands with diagnostic de novo variants
+    # identify the probands with diagnostic de novo variants
     diagnosed = pandas.read_table(args.diagnosed, sep="\t")
-    diagnosed = diagnosed[diagnosed["inheritance"] == "de_novo"]
+    diagnosed = diagnosed[(diagnosed["inheritance"] == "de_novo") &
+        diagnosed["type"].isin(["snv", "indel"]) & (diagnosed["chrom"] != "X")]
     diagnosed = diagnosed["person_id"].unique()
+    
     
     phenotypes = open_phenotypes(args.phenotypes, args.sanger_ids)
     trios = pandas.read_table(args.trios)

@@ -90,5 +90,6 @@ def plot_by_hi_bin(aggregated, diff_type, output=None, title=None, expected=None
     
     if output is not None:
         fig = ax.get_figure()
-        fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
+        fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0,
+            transparent=True)
         pyplot.close()
