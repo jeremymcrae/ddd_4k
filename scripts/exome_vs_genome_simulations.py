@@ -124,17 +124,23 @@ def check_haploinsufficiency_power(rates, threshold, population_n, disorder_freq
     
     combined = pandas.DataFrame(columns=["hgnc", "cohort_n", "probability"])
     for cohort_n in cohorts:
-        probabilities = get_gene_probabilities(rates["lof"], expected, threshold, cohort_n, population_n, disorder_freq)
+        probabilities = get_gene_probabilities(rates["lof"], expected,
+            threshold, cohort_n, population_n, disorder_freq)
         temp = pandas.DataFrame({"hgnc": list(rates["hgnc"]),
             "cohort_n": [cohort_n] * len(probabilities),
             "probability": list(probabilities)})
         
         combined = combined.append(temp, ignore_index=True)
     
+    probabilities = get_gene_probabilities(rates["lof"], expected,
+        threshold, 4295, population_n, disorder_freq)
+    print(median(probabilities))
+    
     combined["probability"] = combined["probability"].astype(float)
     fig = seaborn.factorplot(x="cohort_n", y="probability", data=combined, \
         kind="box", size=6, aspect=1.8, fliersize=0, color="gray")
-    fig.savefig(plot_path, format="pdf")
+    fig.savefig(plot_path, format="pdf", bbox_inches='tight', pad_inches=0,
+        transparent=True)
 
 def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
     """ compare power of exome and genome sequencing
@@ -183,7 +189,8 @@ def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
     
     fig = seaborn.factorplot(x="exome_cost", y="power", hue="sequence", \
         col="budget", data=power, size=8, aspect=0.4)
-    fig.savefig(plot_path, format="pdf")
+    fig.savefig(plot_path, format="pdf", bbox_inches='tight', pad_inches=0,
+        transparent=True)
 
 def main():
     
