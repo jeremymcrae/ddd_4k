@@ -84,7 +84,8 @@ def model_mixing(known, de_novos, expected, constraints):
     plot_by_hi_bin(hi_start, "delta", title="HI genes", ax=hi_ax)
     plot_by_hi_bin(non_hi_start, "delta", title="non-HI genes", ax=nonhi_ax)
     
-    fig.savefig("results/obs_to_exp_delta_by_hi_bin.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    fig.savefig("results/obs_to_exp_delta_by_hi_bin.pdf", format="pdf",
+        bbox_inches='tight', pad_inches=0, transparent=True)
     pyplot.close()
     
     return optimise_mixing(hi_start, non_hi_start, target, "results/hi_bin_mixing_optimisation.pdf")
