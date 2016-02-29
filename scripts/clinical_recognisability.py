@@ -183,7 +183,8 @@ def plot_concatenated_recognisability(neurodev, output):
     e = ax.set_xlabel("recognisability class")
     e = ax.set_ylabel("observed/expected")
     
-    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0)
+    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0,
+        transparent=True)
     pyplot.close()
 
 def plot_rate_by_p_value(neurodev, results):
@@ -197,7 +198,7 @@ def plot_rate_by_p_value(neurodev, results):
     
     # data = neurodev[["expected", "p_value", "Recognisable"]].copy()
     
-    colors = ["cornflowerblue", "blue", "mediumblue", "darkblue"]
+    colors = ["green", "blue", "red", "black"]
     groups = ["1+2", "3", "4", "5"]
     fig = pyplot.figure(figsize=(6, 6))
     ax = fig.gca()
@@ -218,7 +219,8 @@ def plot_rate_by_p_value(neurodev, results):
     e = ax.set_xlabel("Expected loss-of-function mutation rate")
     e = ax.set_ylabel("-log10(P)")
     
-    fig.savefig("results/rate_by_p_value.pdf", format="pdf", bbox_inches='tight', pad_inches=0)
+    fig.savefig("results/rate_by_p_value.pdf", format="pdf", bbox_inches='tight',
+        pad_inches=0, transparent=True)
     pyplot.close()
 
 def get_enrichment_factor(neurodev):
