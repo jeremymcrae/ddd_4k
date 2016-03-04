@@ -260,10 +260,15 @@ def plot_achievement(counts, pheno, achievement, folder):
             "social_smile", "first_words".
     """
     
+    
+    cap_ages = {'social_smile': 0.25, 'sat_independently': 0.75,
+        'walked_independently': 1.5, 'first_words': 2.0}
+    cap_age = cap_ages[achievement]
+    
     # Convert the achievement age to number of seconds since birth (rather than
     # having values like 5 weeks, 6 months etc), then log10 transform the
     # duration, so that the values are more normally distributed.
-    durations, unit = autoscale_durations(pheno[achievement].apply(get_duration))
+    durations, unit = autoscale_durations(pheno[[achievement, 'decimal_age']].apply(get_duration, axis=1, cap_age=cap_age))
     pheno[achievement] = numpy.log10(durations)
     ratios = plot_quantitative(counts, pheno, achievement, folder, "{} log10({}s)".format(achievement, unit))
     

@@ -23,7 +23,7 @@ from datetime import timedelta
 
 import pandas
 
-def get_duration(value):
+def get_duration(value_and_age, cap_age=20):
     """ standardises a duration string into number of seconds
     
     Many children have the time from birth until they achieved several
@@ -34,28 +34,43 @@ def get_duration(value):
     
     Args:
         value: the string value for the duration. These can indicate a number of
-        weeks, months, years etc. For example:
-            weeks: "1 week", 6 weeks, "52 weeks or more"
-            months: "7 months", "23 months"
-            years: "2-2.5 years", "3-4 years", "5 years and over"
-            missing values: "Unknown", "NA", "Not yet achieved"
+            weeks, months, years etc. For example:
+                weeks: "1 week", 6 weeks, "52 weeks or more"
+                months: "7 months", "23 months"
+                years: "2-2.5 years", "3-4 years", "5 years and over"
+                missing values: "Unknown", "NA", "Not yet achieved"
+        ages: decimal age of probands in years.
+        cap_age: some probands have not yet achieved the milestone. Rather than
+            losing them from the cohort, we give them their decimal age, so long
+            as they are older than the normal age at which a milestone would be
+            considered delayed. This age differs by phenotype, so the age for
+            delayed social smiling would be > 3 months, but the age for delayed
+            walking would be 18 months.
     
     Returns:
         the total number of seconds in the duration
     """
+    
+    value = value_and_age[0]
+    age = value_and_age[1]
     
     weeks_per_month = 4.33
     weeks_per_year = 52.18
     
     if pandas.isnull(value):
         return None
+    elif 'not yet achieved' in value.lower():
+        if age > cap_age:
+            value = "{} years".format(age)
+        else:
+            return None
     elif not any([ x in value for x in ["week", "month", "year"] ]):
         return None
     
     # get the numeric value from the string
     count = value.split(" ")[0]
     if "-" in value:
-        count = count.split("-")[1]
+        count = count.split("-")[0]
     count = float(count)
     
     if "week" in value:
