@@ -571,14 +571,14 @@ python ddd_4k/scripts/get_overlapping_cnvs.py \
     --output ${OVERLAPPING_CNVS}
 
 # look into the power of exome sequencing vs genome sequencing
-# runtime: < 10 hours, < 200 Mb of ram
-Rscript ddd_4k/scripts/exome_vs_genome.R \
+# runtime: < 1 hour, < 200 Mb of ram
+python ddd_4k/scripts/exome_vs_genome.py \
     --rates ${RATES_PATH} \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --validations ${VALIDATIONS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH}  \
-    --ddg2p ${DDG2P_PATH} \
+    --known ${DDG2P_PATH} \
     --iterations 1000 \
     --output "ddd_4k/results/exome_vs_genome.pdf"
 
@@ -590,3 +590,12 @@ python ddd_4k/scripts/get_genes_with_discrepant_mechanisms.py \
     --known-genes ${DDG2P_PATH} \
     --results ${WITH_DIAGNOSED_RESULTS} \
     --output ${GENES_WITH_DISCREPANT_MECHANISMS}
+
+python ddd_4k/scripts/clinical_recognisability.py \
+    
+
+python ddd_4k/scripts/causation_limits.py \
+
+python ddd_4k/scripts/compare_with_hpo_similarity.py \
+    --results ${WITHOUT_DIAGNOSED_RESULTS} \
+    --output "ddd_4k/results/phenotypic_similarity_comparison.pdf"
