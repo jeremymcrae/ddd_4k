@@ -1,3 +1,4 @@
+
 """
 Copyright (c) 2015 Genome Research Ltd.
 
@@ -20,6 +21,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
 from __future__ import division
+
+import itertools
 
 import pandas
 import numpy
@@ -66,7 +69,8 @@ def get_birth_prevalence(cohort_n, excess, cnv_yield=0.1, missing_variants=119,
     
     return (cohort_yield + missing_yield)/enrichment
 
-def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages, mutations_per_year=2.5):
+def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
+    dad_rate=1.53, mom_rate=0.86):
     """ plot the prevalence of developmental disorders from de novo mutations
     
     This function generates three plots in one figure. The first
@@ -80,29 +84,35 @@ def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages, mutations
             acquired due to older fathers, as additional mutations per year.
     """
     
-    fig = pyplot.figure(figsize=(6, 7))
-    gs = gridspec.GridSpec(2, 1 )
+    fig = pyplot.figure(figsize=(10, 10))
+    gs = gridspec.GridSpec(2, 2, width_ratios=[2, 1], height_ratios=[2, 1])
     
-    prevalence_axes = pyplot.subplot(gs[0])
-    ages_axes = pyplot.subplot(gs[1])
+    prevalence_axes = pyplot.subplot(gs[0, 0])
+    dad_axes = pyplot.subplot(gs[1, 0], sharex=prevalence_axes)
+    mom_axes = pyplot.subplot(gs[0, 1], sharey=prevalence_axes)
     
     low_age = 20
     high_age = 45
     
     plot_birth_prevalences(prevalence_axes, prevalence, phenotypes,
-        mutations_per_year, lower_age=low_age, upper_age=high_age)
-    plot_ddd_age_distribution(ages_axes, phenotypes, diagnosed, low_age, high_age)
-    plot_uk_age_distribution(ages_axes, uk_ages, low_age, high_age)
+        dad_rate, mom_rate, lower_age=low_age, upper_age=high_age)
+    plot_paternal_ages(dad_axes, phenotypes, uk_ages, low_age, high_age)
+    plot_maternal_ages(mom_axes, phenotypes, uk_ages, low_age, high_age)
     
-    e = ages_axes.legend(fontsize='medium')
-    e = ages_axes.set_xlabel("Age")
+    e = prevalence_axes.invert_yaxis()
+    # e = prevalence_axes.axis('image')
+    
+    e = dad_axes.legend(fontsize='medium')
+    e = dad_axes.invert_yaxis()
+    
+    e = mom_axes.legend(fontsize='medium')
     
     fig.savefig("results/prevalence_by_age.pdf", format="pdf",
         bbox_inches='tight', pad_inches=0, transparent=True)
     pyplot.close()
 
-def plot_birth_prevalences(ax, prevalence, phenotypes, yearly_mutations,
-    puberty_age=15, pre_puberty_n=30, lower_age=20, upper_age=40):
+def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
+    lower_age=20, upper_age=40):
     """plot the birth prevalence of developmental disorders from de novo mutations
     
     We plot a point estimate of birth prevalence of children with developmental
@@ -120,54 +130,45 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, yearly_mutations,
             disorders caused by de novo mutations
         phenotypes: pandas DataFrame of phenotypic data for probands within the
             trios in the cohort.
-        yearly_mutations: estimate for the number of additional mutations
-            acquired due to older fathers, as additional mutations per year.
-        puberty_age: age of puberty for males (the number of mutations
-            pre-puberty is roughly fixed in males, and increases lineraly
-            post-puberty)
-        pre_puberty_n: number of mutations expected from male fathers
-            pre-puberty. This is from two stages: prior to differentiation of
-            the primordial germ cells (pre-PGC) = ~10 mutations, and
-            post-PGC differentiation = ~20 mutations.
+        dad_rate: estimate for the number of additional mutations
+            acquired in older fathers per year.
+        mom_rate: estimate for the number of additional mutations
+            acquired in older mothers per year.
         lower_age: lower age limit to estimate birth prevalence at.
         upper_age: upper age limit to estimate birth prevalance at.
     """
     
-    median_age = numpy.median(phenotypes["fathers_age"])
+    median_dad_age = numpy.median(phenotypes["fathers_age"])
+    median_mom_age = numpy.median(phenotypes["mothers_age"])
     
-    # estimate the median number of mutations each child obtains given the
-    # median paternal age
-    median_mutations = pre_puberty_n + (median_age - puberty_age) * yearly_mutations
+    # estimate the median number of mutations each child obtains at the
+    # median paternal and maternal ages.
+    median_mutations = median_dad_age * dad_rate + median_mom_age * mom_rate
     
-    # estimate the rate of mutations which are disease causing
-    causative_per_mutation = prevalence/median_mutations
+    ages = range(lower_age, upper_age)
+    prevalences = []
+    for dad_age, mom_age in itertools.product(ages, repeat=2):
+        mutations = dad_age * dad_rate + mom_age * mom_rate
+        aged_prevalence = mutations/median_mutations * prevalence * 100
+        prevalences.append(aged_prevalence)
     
-    # estimate the number of mutations from fathers at the upper and lower bounds
-    lower_mutations = pre_puberty_n + (lower_age - puberty_age) * yearly_mutations
-    upper_mutations = pre_puberty_n + (upper_age - puberty_age) * yearly_mutations
+    # reshape the list to a n x n array, then insert into a dataframe
+    prevalences = numpy.reshape(prevalences, (len(ages), len(ages)))
     
-    lower_prevalence = lower_mutations/median_mutations * prevalence
-    upper_prevalence = upper_mutations/median_mutations * prevalence
-    
-    ages = [lower_age, median_age, upper_age]
-    prevalences = [lower_prevalence, prevalence, upper_prevalence]
-    prevalences = [ x * 100 for x in prevalences ]
-    
-    e = ax.plot(ages, prevalences, color="gray", linestyle='dashed',
-        marker='.', markersize=10)
-    e = ax.plot(median_age, prevalence * 100, color="black", linestyle='None',
-        marker='.', markersize=10)
+    e = ax.pcolormesh(numpy.array(ages), numpy.array(ages), prevalences)
+    e = ax.colorbar()
     
     e = ax.set_xlim((lower_age - 2, upper_age + 2))
+    e = ax.spines['bottom'].set_visible(False)
     e = ax.spines['right'].set_visible(False)
-    e = ax.spines['top'].set_visible(False)
     
-    e = ax.xaxis.set_ticks_position('bottom')
+    e = ax.xaxis.set_ticks_position('top')
     e = ax.yaxis.set_ticks_position('left')
     
-    e = ax.set_ylabel("Prevalence (%)")
+    e = ax.set_xlabel("Maternal age (years)")
+    e = ax.set_ylabel("Paternal age (years)")
 
-def plot_ddd_age_distribution(ax, phenotypes, diagnosed, lower_age=20, upper_age=40):
+def plot_paternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
     """ plot the age distribution for fathers in the DDD cohort, along with
     the proportion with a child with a diagnostic de novo across age bins.
     
@@ -186,46 +187,51 @@ def plot_ddd_age_distribution(ax, phenotypes, diagnosed, lower_age=20, upper_age
     x = numpy.arange(lower_age, upper_age, 0.1)
     e = ax.plot(x, density(x), label="DDD")
     
-    e = ax.set_xlim((lower_age - 2, upper_age + 2))
     e = ax.spines['right'].set_visible(False)
     e = ax.spines['top'].set_visible(False)
+    e = ax.spines['bottom'].set_visible(False)
     
-    e = ax.xaxis.set_ticks_position('bottom')
     e = ax.yaxis.set_ticks_position('left')
-    
     e = ax.set_ylabel("Density")
     
-    # calculate the proportion of probands in each paternal age bracket with
-    # diagnoses.
-    phenotypes["diagnosed"] = phenotypes["person_stable_id"].isin(diagnosed)
-    
-    bins = 5
-    quantiles = [ x/float(bins) for x in range(bins + 1) ]
-    
-    ages = phenotypes["fathers_age"]
-    bins = pandas.qcut(ages, q=quantiles, labels=quantiles[:-1])
-    table = pandas.DataFrame({"age": ages, "bin": bins})
-    medians = table.pivot_table(rows="bin", values="age", aggfunc=numpy.median)
-    phenotypes["age_bin"] = pandas.Series(bins).map(dict(zip(bins.levels, medians)))
-    
-    proportions = phenotypes.pivot_table(rows="age_bin", values="diagnosed", aggfunc=[sum, len])
-    proportions["age"] = proportions.index
-    proportions["ratio"] = (proportions["sum"]/proportions["len"]) * 100
-    
-    new_ax = ax.twinx()
-    e = new_ax.plot(proportions["age"], proportions["ratio"], color="black",
-        linestyle='dashed', marker='.', markersize=10)
-    e = new_ax.set_ylabel("Diagnosed (%)")
-    e = new_ax.set_xlim((lower_age - 2, upper_age + 2))
-    e = new_ax.spines['top'].set_visible(False)
+    plot_uk_age_distribution(ax, uk_ages, 'fathers_count', lower_age, upper_age)
 
-def plot_uk_age_distribution(ax, uk_ages, lower_age=20, upper_age=40):
+def plot_maternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
+    """ plot the age distribution for fathers in the DDD cohort, along with
+    the proportion with a child with a diagnostic de novo across age bins.
+    
+    Args:
+        ax: matplotlib pyplot axes object for the plot.
+        phenotypes: pandas DataFrame of phenotypic data for probands within the
+            trios in the cohort, including a column for "fathers_age".
+        lower_age: lower age limit to estimate birth prevalence at.
+        upper_age: upper age limit to estimate birth prevalance at.
+    """
+    
+    ages = phenotypes["mothers_age"]
+    ages = ages[~ages.isnull()]
+    
+    density = gaussian_kde(ages)
+    x = numpy.arange(lower_age, upper_age, 0.1)
+    e = ax.plot(density(x), x, label="DDD")
+    
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['bottom'].set_visible(False)
+    e = ax.spines['left'].set_visible(False)
+    
+    e = ax.xaxis.set_ticks_position('top')
+    e = ax.set_xlabel("Density")
+    
+    plot_uk_age_distribution(ax, uk_ages, 'mothers_count', lower_age, upper_age)
+
+def plot_uk_age_distribution(ax, uk_ages, column, lower_age=20, upper_age=40):
     """ plot the age distribution of fathers in the UK, to compare to our cohort
     
     Args:
         ax: matplotlib pyplot axes object for the plot.
         uk_ages: pandas DataFrame of ages and numbers of parents at each age for
             mothers and fathers.
+        column: string for 'fathers_age' or 'mothers_age'
         lower_age: lower age limit to estimate birth prevalence at.
         upper_age: upper age limit to estimate birth prevalance at.
     """
@@ -241,17 +247,22 @@ def plot_uk_age_distribution(ax, uk_ages, lower_age=20, upper_age=40):
     #    # gaussian_kde.covariance_factor = lambda x: 0.095
     male_ages = []
     for k, x in uk_ages.iterrows():
-        male_ages += list(x["age"] + numpy.random.uniform(size=x["fathers_count"]))
+        male_ages += list(x["age"] + numpy.random.uniform(size=x[column]))
     
     density = gaussian_kde(male_ages)
     x = numpy.arange(lower_age, upper_age, 0.1)
-    e = ax.plot(x, density(x), color="gray", label="UK")
+    y = density(x)
     
-    e = ax.set_xlim((lower_age - 2, upper_age + 2))
+    # swap axes for maternal age distribution
+    if column == 'mothers_count':
+        y, x = x, y
+    
+    e = ax.plot(x, y, color="gray", label="UK")
+    
     e = ax.spines['right'].set_visible(False)
     e = ax.spines['top'].set_visible(False)
+    e = ax.spines['bottom'].set_visible(False)
+    e = ax.spines['left'].set_visible(False)
     
-    e = ax.xaxis.set_ticks_position('bottom')
-    e = ax.yaxis.set_ticks_position('left')
-    
-    e = ax.set_ylabel("Density")
+    # e = ax.yaxis.set_ticks_position('left')
+    # e = ax.set_ylabel("Density")

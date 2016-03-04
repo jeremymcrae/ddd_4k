@@ -112,12 +112,11 @@ def main():
     excess_de_novos_from_pLI(filtered, expected, constraints)
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
     
+    
     prevalence = get_birth_prevalence(male + female, excess,
         cnv_yield=0.1, missing_variants=119.9, enrichment=118.8)
-    
     plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
-        mutations_per_year=2.5)
-        
+        dad_rate=1.53, mom_rate=0.86)
     prevalance_from_rates = check_prevalence_from_baseline_lof(rates, known,
         mis_to_lof=2.0, missing=0.5)
     
