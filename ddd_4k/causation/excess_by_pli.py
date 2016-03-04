@@ -64,12 +64,12 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     
     # identify which pLI quantile each gene falls into
     merged = include_constraints(merged, constraints)
-    merged["pLI_bin"] = get_constraint_bins(merged, bins=20)
+    merged["pLI_bin"] = get_constraint_bins(merged, bins=20, rate_correct=True)
     
     # get the ratio of observed to expected within the pLI bins for different
     # consequence types
-    missense_by_hi = aggregate(merged, consequences=["missense"], normalise=False)
     lof_by_hi = aggregate(merged, consequences=["lof"], normalise=False)
+    missense_by_hi = aggregate(merged, consequences=["missense"], normalise=False)
     synonymous_by_hi = aggregate(merged, consequences=["synonymous"], normalise=False)
     
     fig = pyplot.figure(figsize=(12, 8))
@@ -80,8 +80,8 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     syn_ax = pyplot.subplot(gs[2])
     
     # plot the differences in observed vs expected for the different pLI bins
-    plot_by_hi_bin(missense_by_hi, "ratio", title="missense", expected=1, count_halves=True, ax=mis_ax)
     plot_by_hi_bin(lof_by_hi, "ratio", title="loss-of-function", expected=1, count_halves=True, ax=lof_ax)
+    plot_by_hi_bin(missense_by_hi, "ratio", title="missense", expected=1, count_halves=True, ax=mis_ax)
     plot_by_hi_bin(synonymous_by_hi, "ratio", title="synonymous", expected=1, count_halves=True, ax=syn_ax)
     
     fig.savefig("results/excess_consequence_by_pli.pdf", format="pdf",
