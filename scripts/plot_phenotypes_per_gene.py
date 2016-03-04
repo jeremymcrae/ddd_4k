@@ -104,7 +104,7 @@ def plot_genes_by_phenotype(variants, phenotypes, names, output_dir):
     clinical = clinical.append(pheno, ignore_index=True)
     
     # exclude extreme outliers, since these are less likely to be correct values
-    clinical[abs(clinical["value"]) > 20] = numpy.nan
+    clinical[abs(clinical["value"]) > 10] = numpy.nan
     clinical = clinical.dropna()
     
     # the full DDD points span a much wider range than any other set. Since we
