@@ -166,7 +166,7 @@ def plot_gene(graph, probands, proband_hpo, hgnc, trios, table, output_dir, \
     fig = ax.get_figure()
     fig.set_size_inches(width, height)
     fig.savefig(os.path.join(output_dir, "{}_terms.pdf").format(hgnc),
-        format="pdf", bbox_inches='tight', pad_inches=0)
+        format="pdf", bbox_inches='tight', pad_inches=0, transparent=True)
     pyplot.close()
 
 def main():
