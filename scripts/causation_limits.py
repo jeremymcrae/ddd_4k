@@ -19,7 +19,7 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, division
 
 import argparse
 
@@ -77,15 +77,19 @@ def count_known_excess(filtered, known, excess):
     """ count the numbers of excess vde novos which are in known dominant geenes, to quantify the humber as loss-of-function or missense
     """
     
-    dominant = known['gencode_gene_name'][known['mode'].isin(['Monoallelic", "X-linked dominant'])]
-    filtered["dominant"] = filtered["symbol"].isin(dominant)
-    lof_in_dominant = sum((filtered['category'] == 'loss-of-function') & filtered['dominant'])
-    missense_in_dominant = sum((filtered['category'] == 'functional') & filtered['dominant'])
+    dominant = known['gencode_gene_name'][known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
+    dominant = filtered["symbol"].isin(dominant)
+    lof_in_dominant = sum((filtered['category'] == 'loss-of-function') & dominant)
+    mis_in_dominant = sum((filtered['category'] == 'functional') & dominant)
     
-    print(lof_in_dominant/excess['loss-of-function']['excess'])
-    print(missense_in_dominant/excess['missense']['excess'])
+    lof_excess = excess['loss-of-function']['excess']
+    mis_excess = excess['missense']['excess']
     
-    print((lof_in_dominant + missense_in_dominant)/(excess['loss-of-function']['excess'] + excess['missense']['excess']))
+    print('excess lof in known: {:.0f}%'.format(100 * lof_in_dominant/lof_excess))
+    print('excess mis in known: {:.0f}%'.format(100 * mis_in_dominant/mis_excess))
+    
+    print('excess func in known: {:.0f}%'.format(
+        100 * (lof_in_dominant + mis_in_dominant)/(lof_excess + mis_excess)))
 
 def main():
     
