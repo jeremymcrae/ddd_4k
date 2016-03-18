@@ -85,7 +85,7 @@ def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
     """
     
     fig = pyplot.figure(figsize=(10, 10))
-    gs = gridspec.GridSpec(2, 2, width_ratios=[2, 1], height_ratios=[2, 1])
+    gs = gridspec.GridSpec(2, 2, width_ratios=[4, 1], height_ratios=[4, 1])
     
     prevalence_axes = pyplot.subplot(gs[0, 0])
     dad_axes = pyplot.subplot(gs[1, 0], sharex=prevalence_axes)
@@ -107,7 +107,7 @@ def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
     
     e = mom_axes.legend(fontsize='medium')
     
-    fig.savefig("results/prevalence_by_age.pdf", format="pdf",
+    fig.savefig("results/prevalence_by_age.smaller_increment.pdf", format="pdf",
         bbox_inches='tight', pad_inches=0, transparent=True)
     pyplot.close()
 
@@ -145,18 +145,27 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
     # median paternal and maternal ages.
     median_mutations = median_dad_age * dad_rate + median_mom_age * mom_rate
     
-    ages = range(lower_age, upper_age)
+    increment = 3.0
+    ages = range(lower_age, upper_age + int(increment), int(increment))
+    ages = [ x + increment/2 for x in ages ]
     prevalences = []
-    for dad_age, mom_age in itertools.product(ages, repeat=2):
+    for mom_age, dad_age in itertools.product(ages, repeat=2):
         mutations = dad_age * dad_rate + mom_age * mom_rate
         aged_prevalence = mutations/median_mutations * prevalence * 100
         prevalences.append(aged_prevalence)
     
     # reshape the list to a n x n array, then insert into a dataframe
     prevalences = numpy.reshape(prevalences, (len(ages), len(ages)))
+    ages = [ x - increment/2 for x in ages ]
     
-    e = ax.pcolormesh(numpy.array(ages), numpy.array(ages), prevalences)
-    e = ax.colorbar()
+    green_blue1 = get_colormap()
+    mesh = ax.pcolormesh(numpy.array(ages), numpy.array(ages), prevalences,
+        cmap=green_blue1)
+    annotate_heatmap(ax, mesh, ages, increment)
+    e = pyplot.colorbar(mesh, ticks=[0.30, 0.35, 0.40, 0.45, 0.50, 0.55])
+    
+    # scale_heatmap_by_parental_proportion(ax, prevalence, phenotypes, dad_rate,
+    #     mom_rate, lower_age=20, upper_age=40)
     
     e = ax.set_xlim((lower_age - 2, upper_age + 2))
     e = ax.spines['bottom'].set_visible(False)
@@ -165,8 +174,121 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
     e = ax.xaxis.set_ticks_position('top')
     e = ax.yaxis.set_ticks_position('left')
     
-    e = ax.set_xlabel("Maternal age (years)")
-    e = ax.set_ylabel("Paternal age (years)")
+    e = ax.set_xlabel("Paternal age (years)")
+    e = ax.set_ylabel("Maternal age (years)")
+    e = ax.xaxis.set_label_position('top')
+
+def get_colormap():
+    """ define a custom colormap for shading the prevalence plot
+    
+    This colormap goes green -> yellow -> red. The yellow is at the midpoint.
+    
+    Returns:
+        matplotlib linear colormap.
+    """
+    
+    cdict = {'red':   ((0.0,  0.118, 0.118),
+                       (0.5,  0.902, 0.902),
+                       (1.0,  0.902, 0.902)),
+
+             'green': ((0.0, 0.588, 0.588),
+                       (0.5, 0.902, 0.902),
+                       (1.0, 0.118, 0.118)),
+
+             'blue':  ((0.0, 0.392, 0.392),
+                       (0.5, 0.235, 0.235),
+                       (1.0, 0.118, 0.118))}
+
+    return matplotlib.colors.LinearSegmentedColormap('GreenBlue1', cdict)
+
+def relative_luminance(color):
+    """Calculate the relative luminance of a color according to W3C standards
+    Parameters
+    ----------
+    color : matplotlib color or sequence of matplotlib colors
+        Hex code, rgb-tuple, or html color name.
+    Returns
+    -------
+    luminance : float(s) between 0 and 1
+    """
+    rgb = matplotlib.colors.colorConverter.to_rgba_array(color)[:, :3]
+    rgb = numpy.where(rgb <= .03928, rgb / 12.92, ((rgb + .055) / 1.055) ** 2.4)
+    lum = rgb.dot([.2126, .7152, .0722])
+    try:
+        return lum.item()
+    except ValueError:
+        return lum
+
+def annotate_heatmap(ax, mesh, ages, increment):
+    """Add textual labels with the value in each cell."""
+    
+    ages = [ x + increment/2 for x in ages[:-1] ]
+    mesh.update_scalarmappable()
+    xpos, ypos = numpy.meshgrid(ages, ages)
+    for x, y, val, color in zip(xpos.flat, ypos.flat,
+                                mesh.get_array(), mesh.get_facecolors()):
+        if val is not numpy.ma.masked:
+            l = relative_luminance(color)
+            text_color = ".0" if l > .408 else "w"
+            val = "{:.3f}".format(val)
+            text_kwargs = dict(color=text_color, ha="center", va="center")
+            ax.text(x, y, val, **text_kwargs)
+
+def scale_heatmap_by_parental_proportion(ax, prevalence, phenotypes, dad_rate, mom_rate,
+        lower_age=20, upper_age=40):
+    """ heatmap of parental age by birth prevalence of developmental disorders
+    from de novo mutations, where the heatmap points size is scaled by the
+    proportion of the population within each age bracket. This is an alternate
+    to the standard heatmap.
+    
+    Args:
+        ax: matplotlib pyplot axes object for the plot.
+        prevalence: estimated birth prevalence for children with developmental
+            disorders caused by de novo mutations
+        phenotypes: pandas DataFrame of phenotypic data for probands within the
+            trios in the cohort.
+        dad_rate: estimate for the number of additional mutations
+            acquired in older fathers per year.
+        mom_rate: estimate for the number of additional mutations
+            acquired in older mothers per year.
+        lower_age: lower age limit to estimate birth prevalence at.
+        upper_age: upper age limit to estimate birth prevalance at.
+    """
+    
+    median_dad_age = numpy.median(phenotypes["fathers_age"])
+    median_mom_age = numpy.median(phenotypes["mothers_age"])
+    
+    # estimate the median number of mutations each child obtains at the
+    # median paternal and maternal ages.
+    median_mutations = median_dad_age * dad_rate + median_mom_age * mom_rate
+    
+    increment = 5.0
+    ages = range(lower_age, upper_age + int(increment), int(increment))
+    ages = [ x + increment/2 for x in ages ]
+    data = pandas.DataFrame(columns=["dad_age", 'mom_age', 'prevalence', 'freq'])
+    for mom_age, dad_age in itertools.product(ages, repeat=2):
+        mutations = dad_age * dad_rate + mom_age * mom_rate
+        aged_prevalence = mutations/median_mutations * prevalence * 100
+        
+        half = increment/2
+        in_range = ((dad_age - half < phenotypes["fathers_age"]) &
+                        (phenotypes["fathers_age"] < dad_age + half)) & \
+            ((mom_age - half < phenotypes["mothers_age"]) &
+                (phenotypes["mothers_age"] < mom_age + half))
+        freq = sum(in_range)/len(phenotypes)
+        data = data.append({'mom_age': mom_age, 'dad_age': dad_age,
+            'prevalence': aged_prevalence, 'freq': freq}, ignore_index=True)
+    
+    data['freq'] = 200.0 + 1000 * \
+        (data['freq'] - min(data['freq']))/(max(data['freq']) - min(data['freq']))
+    data['prevalence'] = 0.9 - 0.9 * \
+        (data['prevalence'] - min(data['prevalence']))/(max(data['prevalence']) - min(data['prevalence']))
+    
+    data['freq'] = data['freq'].astype(numpy.float64)
+    data['prevalence'] = data['prevalence'].astype(str)
+    
+    e = ax.scatter(data['dad_age'], data['mom_age'], s=data['freq'],
+        c=data['prevalence'])
 
 def plot_paternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
     """ plot the age distribution for fathers in the DDD cohort, along with
@@ -180,12 +302,15 @@ def plot_paternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
         upper_age: upper age limit to estimate birth prevalance at.
     """
     
+    plot_uk_age_distribution(ax, uk_ages, 'fathers_count', lower_age, upper_age)
+    
     ages = phenotypes["fathers_age"]
     ages = ages[~ages.isnull()]
     
     density = gaussian_kde(ages)
     x = numpy.arange(lower_age, upper_age, 0.1)
     e = ax.plot(x, density(x), label="DDD")
+    e = ax.fill_between(x, density(x), alpha=0.5)
     
     e = ax.spines['right'].set_visible(False)
     e = ax.spines['top'].set_visible(False)
@@ -193,8 +318,7 @@ def plot_paternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
     
     e = ax.yaxis.set_ticks_position('left')
     e = ax.set_ylabel("Density")
-    
-    plot_uk_age_distribution(ax, uk_ages, 'fathers_count', lower_age, upper_age)
+    e = ax.xaxis.set_ticks_position('none')
 
 def plot_maternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
     """ plot the age distribution for fathers in the DDD cohort, along with
@@ -208,21 +332,24 @@ def plot_maternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
         upper_age: upper age limit to estimate birth prevalance at.
     """
     
+    plot_uk_age_distribution(ax, uk_ages, 'mothers_count', lower_age, upper_age)
+    
     ages = phenotypes["mothers_age"]
     ages = ages[~ages.isnull()]
     
     density = gaussian_kde(ages)
     x = numpy.arange(lower_age, upper_age, 0.1)
     e = ax.plot(density(x), x, label="DDD")
+    e = ax.fill_between(density(x), x, alpha=0.5)
     
     e = ax.spines['right'].set_visible(False)
     e = ax.spines['bottom'].set_visible(False)
     e = ax.spines['left'].set_visible(False)
     
     e = ax.xaxis.set_ticks_position('top')
+    e = ax.yaxis.set_ticks_position('none')
     e = ax.set_xlabel("Density")
-    
-    plot_uk_age_distribution(ax, uk_ages, 'mothers_count', lower_age, upper_age)
+    e = ax.xaxis.set_label_position('top')
 
 def plot_uk_age_distribution(ax, uk_ages, column, lower_age=20, upper_age=40):
     """ plot the age distribution of fathers in the UK, to compare to our cohort
@@ -258,11 +385,5 @@ def plot_uk_age_distribution(ax, uk_ages, column, lower_age=20, upper_age=40):
         y, x = x, y
     
     e = ax.plot(x, y, color="gray", label="UK")
+    e = ax.fill_between(x, y, color='gray', alpha=0.5)
     
-    e = ax.spines['right'].set_visible(False)
-    e = ax.spines['top'].set_visible(False)
-    e = ax.spines['bottom'].set_visible(False)
-    e = ax.spines['left'].set_visible(False)
-    
-    # e = ax.yaxis.set_ticks_position('left')
-    # e = ax.set_ylabel("Density")
