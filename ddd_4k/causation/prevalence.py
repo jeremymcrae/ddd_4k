@@ -99,8 +99,8 @@ def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
     plot_paternal_ages(dad_axes, phenotypes, uk_ages, low_age, high_age)
     plot_maternal_ages(mom_axes, phenotypes, uk_ages, low_age, high_age)
     
-    e = prevalence_axes.set_xlim((lower_age - 2, upper_age + 2))
-    e = prevalence_axes.set_ylim((lower_age - 2, upper_age + 2))
+    e = prevalence_axes.set_xlim((low_age - 2, high_age + 2))
+    e = prevalence_axes.set_ylim((low_age - 2, high_age + 2))
     e = prevalence_axes.invert_yaxis()
     
     e = dad_axes.legend(fontsize='medium')
