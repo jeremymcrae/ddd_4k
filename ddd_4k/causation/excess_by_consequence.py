@@ -59,8 +59,8 @@ def get_consequence_excess(expected, de_novos):
     missense_count = sum(merged["missense_observed"])
     
     synonymous_excess = synonymous_count * ((synonymous_ratio - 1)/synonymous_ratio)
-    missense_excess = missense_count * ((missense_ratio - 1)/missense_ratio)
-    lof_excess = lof_count * ((lof_ratio - 1)/lof_ratio)
+    missense_excess = missense_count - sum(merged["missense_expected"])
+    lof_excess = lof_count - sum(merged["lof_expected"])
     
     values = {
         "synonymous":
