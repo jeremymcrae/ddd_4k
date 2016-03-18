@@ -73,6 +73,20 @@ def get_options():
     
     return args
 
+def count_known_excess(filtered, known, excess):
+    """ count the numbers of excess vde novos which are in known dominant geenes, to quantify the humber as loss-of-function or missense
+    """
+    
+    dominant = known['gencode_gene_name'][known['mode'].isin(['Monoallelic", "X-linked dominant'])]
+    filtered["dominant"] = filtered["symbol"].isin(dominant)
+    lof_in_dominant = sum((filtered['category'] == 'loss-of-function') & filtered['dominant'])
+    missense_in_dominant = sum((filtered['category'] == 'functional') & filtered['dominant'])
+    
+    print(lof_in_dominant/excess['loss-of-function']['excess'])
+    print(missense_in_dominant/excess['missense']['excess'])
+    
+    print((lof_in_dominant + missense_in_dominant)/(excess['loss-of-function']['excess'] + excess['missense']['excess']))
+
 def main():
     
     args = get_options()
@@ -90,7 +104,6 @@ def main():
         diagnosed["type"].isin(["snv", "indel"]) & (diagnosed["chrom"] != "X")]
     diagnosed = diagnosed["person_id"].unique()
     
-    
     phenotypes = open_phenotypes(args.phenotypes, args.sanger_ids)
     trios = pandas.read_table(args.trios)
     phenotypes = phenotypes[phenotypes["patient_id"].isin(trios["decipher_id"])]
@@ -106,12 +119,13 @@ def main():
     excess = get_consequence_excess(expected, filtered)
     plot_consequence_excess(excess, "results/excess_by_consequence.pdf")
     
+    count_known_excess(filtered, known, excess)
+    
     proportions = model_mixing(known, filtered, expected, constraints)
     print(proportions)
     
     excess_de_novos_from_pLI(filtered, expected, constraints)
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
-    
     
     prevalence = get_birth_prevalence(male + female, excess,
         cnv_yield=0.1, missing_variants=119.9, enrichment=118.8)
@@ -120,6 +134,7 @@ def main():
     prevalance_from_rates = check_prevalence_from_baseline_lof(rates, known,
         mis_to_lof=2.0, missing=0.5)
     
+    print(prevalence)
     print(prevalance_from_rates)
     
 
