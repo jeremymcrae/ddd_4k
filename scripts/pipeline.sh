@@ -31,6 +31,8 @@ VALIDATIONS_PATH=${USER_DIR}/"de_novos.validation_results.${DATE}.txt"
 RATES_PATH=${USER_DIR}/"de_novos.ddd_4k.mutation_rates.${DATE}.txt"
 DIAGNOSED_PATH=${USER_DIR}/"ddd_4k.diagnosed.${DATE}.txt"
 PHENOTYPES_JSON=${USER_DIR}/"de_novos.ddd_4k.phenotypes_by_proband.json"
+UPDATED_PHENOTYPES_PATH=${DATA_DIR}/"patient_phenotype_and_info_4k_trios_20160303.txt"
+UPDATED_PHENOTYPES_JSON=${USER_DIR}/"de_novos.ddd_4k.phenotypes_by_proband.updated.json"
 MULTISAMPLE_BCF=${USER_DIR}/"ddd_4k.bcftools.bcf"
 
 # define directories for temporary and intermediate files
@@ -469,6 +471,19 @@ python ddd_4k/scripts/prepare_prior_evidence.py \
     --output "gene_reports/prior_evidence.txt"
 
 ################################################################################
+# prepare a different phenotypes JSON file
+################################################################################
+
+# also prepare a different phenotypes JSON file, which includes HPO terms from
+# after the probands in novel genes have been updated. We can't use this dataset
+# for discovery of novel genes.
+python hpo_similarity/scripts/prepare_ddd_files.py \
+    --phenotypes ${UPDATED_PHENOTYPES_PATH} \
+    --sample-ids ${SAMPLE_IDS_PATH} \
+    --trios ${TRIOS_PATH} \
+    --out ${UPDATED_PHENOTYPES_JSON}
+
+################################################################################
 # identify variants in candidate novel genes, and prepare reports
 ################################################################################
 
@@ -477,7 +492,8 @@ python ddd_4k/scripts/get_variants_in_novel_genes.py \
     --validations ${VALIDATIONS_PATH} \
     --sanger-ids ${SAMPLE_IDS_PATH} \
     --results ${WITHOUT_DIAGNOSED_RESULTS} \
-    --output ${NOVEL_GENE_VARIANTS}
+    --output ${NOVEL_GENE_VARIANTS} \
+    --output-association-table "association_table.novel_genes.tsv"
 
 # this step requires access to the DDD database
 python ddd_4k/scripts/prepare_gene_reports.py \
@@ -498,22 +514,36 @@ python ddd_4k/scripts/plot_de_novos_in_gene.py \
 # this step requires access to the DDD database
 python ddd_4k/scripts/plot_phenotypes_per_gene.py \
     --de-novos ${NOVEL_GENE_VARIANTS} \
-    --phenotypes ${PHENOTYPES_PATH} \
+    --phenotypes ${UPDATED_PHENOTYPES_PATH} \
     --sanger-ids ${SAMPLE_IDS_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
     --output-dir "ddd_4k/results"
 
 python ddd_4k/scripts/get_informative_terms_for_genes.py \
     --de-novos ${NOVEL_GENE_VARIANTS} \
-    --phenotypes ${PHENOTYPES_JSON} \
+    --phenotypes ${UPDATED_PHENOTYPES_JSON} \
     --trios ${TRIOS_PATH} \
     --diagnosed ${DIAGNOSED_PATH} \
     --output-dir "gene_reports"
 
 python ddd_4k/scripts/get_proportion_with_external_disorders.py \
-    --phenotypes ${PHENOTYPES_PATH} \
+    --phenotypes ${UPDATED_PHENOTYPES_PATH} \
     --trios ${TRIOS_PATH} \
     --output "ddd_4k/results/ddd_proportion_with_external_disorders.tsv"
+
+python ddd_4k/scripts/get_variants_in_novel_genes.py \
+    --de-novos ${FILTERED_DE_NOVOS_PATH} \
+    --validations ${VALIDATIONS_PATH} \
+    --sanger-ids ${SAMPLE_IDS_PATH} \
+    --results ${WITH_DIAGNOSED_RESULTS} \
+    --output "genomewide_variants.txt" \
+    --output-association-table "association_table.all_genomewide.tsv"
+
+python ddd_4k/scripts/get_informative_terms_for_genes.py \
+    --de-novos "genomewide_variants.txt"  \
+    --phenotypes ${UPDATED_PHENOTYPES_JSON} \
+    --trios ${TRIOS_PATH} \
+    --output-dir "gene_reports"
 
 ################################################################################
 # analyse autozygosity against probability of having a diagnosis
@@ -551,7 +581,7 @@ python ddd_4k/scripts/autozygosity_vs_diagnostic.py \
 python ddd_4k/scripts/mutations_by_phenotype.py \
     --de-novos ${FILTERED_DE_NOVOS_PATH} \
     --ddg2p ${DDG2P_PATH} \
-    --phenotypes ${PHENOTYPES_PATH} \
+    --phenotypes ${UPDATED_PHENOTYPES_PATH} \
     --sanger-ids ${SAMPLE_IDS_PATH} \
     --families ${FAMILIES_PATH} \
     --trios ${TRIOS_PATH} \
