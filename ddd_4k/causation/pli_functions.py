@@ -50,7 +50,7 @@ def get_constraint_bins(table, bins=20, rate_correct=False):
     
     Args:
         table: pandas DataFrame, with one gene per row.
-        bins: number of quantiles to divide into.
+        bins: number of quantiles to divide into, or list of quantiles.
         rate_correct: whether to adjust the bins to account for different
             mutation rates of genes depending on the pLI score. If used, each
             bin will expect equal numbers of synonymous mutations.
@@ -59,8 +59,11 @@ def get_constraint_bins(table, bins=20, rate_correct=False):
         pandas Series, indicating the bin each gene falls into.
     """
     
-    # identify which pLI quantile each gene falls into
-    quantiles = [ x/float(bins) for x in range(bins + 1) ]
+    if type(bins) == list:
+        quantiles = bins
+    else:
+        # identify which pLI quantile each gene falls into
+        quantiles = [ x/float(bins) for x in range(bins + 1) ]
     
     if not rate_correct:
         pLI_bin, bins = pandas.qcut(table["pLI"], q=quantiles,
@@ -69,16 +72,15 @@ def get_constraint_bins(table, bins=20, rate_correct=False):
         summed_synonymous = sum(table["synonymous_expected"])
         
         pLI_bin = []
-        current_bin = 0
+        pos = 0
         current_sum = 0
         pli_sorted = table.sort("pLI")
         for key, row in pli_sorted.iterrows():
-            if current_sum > summed_synonymous/float(bins):
-                current_bin += 1
-                current_sum = 0
+            if current_sum/summed_synonymous > quantiles[pos + 1]:
+                pos += 1
             
             current_sum += row["synonymous_expected"]
-            pLI_bin.append(quantiles[current_bin])
+            pLI_bin.append(quantiles[pos])
         
         pli_sorted["pLI_bin"] = pLI_bin
         pli_sorted = pli_sorted.sort_index()
