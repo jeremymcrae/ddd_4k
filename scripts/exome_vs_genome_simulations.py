@@ -159,10 +159,10 @@ def exome_vs_genome(rates, threshold, population_n, disorder_freq, plot_path):
     expected = [ x * population_n for x in rates["lof"] ]
     
     # define a range of amounts of money for sequencing
-    budgets = [1e6, 2e6, 5e6]
+    budgets = [1e6, 2e6, 3e6]
     genome_cost = 1000 * 3
-    exome_relative_cost = [ x/5 for x in range(1, 6) ]
-    genome_sensitivity = [1.0, 1.05, 1.1, 1.15, 1.2]
+    exome_relative_cost = [ (x+1)/10.0 for x in range(10) ]
+    genome_sensitivity = [ (x/20.0)+1 for x in range(5) ]
     
     power = pandas.DataFrame(columns=["budget", "exome_cost", "sensitivity", "sequence", "power"])
     for budget in budgets:

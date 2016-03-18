@@ -257,9 +257,9 @@ def simulate_power(probands, de_novos, rates, threshold, dominant, genomewide,
         of genes reaching genomewide significance from genome and exome
         sequencing.
     """
-    budgets = [1e6, 2e6, 5e6]
+    budgets = [1e6, 2e6, 3e6]
     genome_cost = 1000
-    exome_relative_cost = [ (x+1)/5.0 for x in range(5) ]
+    exome_relative_cost = [ (x+1)/10.0 for x in range(10) ]
     genome_sensitivity = [ (x/20.0)+1 for x in range(5) ]
     
     for budget in budgets:
