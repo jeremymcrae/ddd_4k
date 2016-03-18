@@ -230,7 +230,7 @@ def annotate_heatmap(ax, mesh, ages, increment):
         if val is not numpy.ma.masked:
             l = relative_luminance(color)
             text_color = ".0" if l > .408 else "w"
-            val = "{:.3f}".format(val)
+            val = "{:.2f}".format(val)
             text_kwargs = dict(color=text_color, ha="center", va="center")
             ax.text(x, y, val, **text_kwargs)
 
