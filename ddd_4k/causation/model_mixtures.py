@@ -64,7 +64,9 @@ def model_mixing(known, de_novos, expected, constraints):
     
     # identify which pLI quantile each gene falls into
     merged = include_constraints(merged, constraints)
-    merged["pLI_bin"] = get_constraint_bins(merged, bins=20, rate_correct=True)
+    merged["pLI_bin"] = get_constraint_bins(merged, bins=[0.0, 0.2, 0.4, 0.6,
+        0.7, 0.8, 0.9, 1.0], rate_correct=True)
+    # merged["pLI_bin"] = get_constraint_bins(merged, bins=10, rate_correct=True)
     
     hi_merged = merged[merged["hgnc"].isin(mono["haploinsufficient"])]
     non_hi_merged = merged[merged["hgnc"].isin(mono["nonhaploinsufficient"])]
