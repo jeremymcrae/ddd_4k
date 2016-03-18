@@ -99,8 +99,9 @@ def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
     plot_paternal_ages(dad_axes, phenotypes, uk_ages, low_age, high_age)
     plot_maternal_ages(mom_axes, phenotypes, uk_ages, low_age, high_age)
     
+    e = prevalence_axes.set_xlim((lower_age - 2, upper_age + 2))
+    e = prevalence_axes.set_ylim((lower_age - 2, upper_age + 2))
     e = prevalence_axes.invert_yaxis()
-    # e = prevalence_axes.axis('image')
     
     e = dad_axes.legend(fontsize='medium')
     e = dad_axes.invert_yaxis()
@@ -167,7 +168,6 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
     # scale_heatmap_by_parental_proportion(ax, prevalence, phenotypes, dad_rate,
     #     mom_rate, lower_age=20, upper_age=40)
     
-    e = ax.set_xlim((lower_age - 2, upper_age + 2))
     e = ax.spines['bottom'].set_visible(False)
     e = ax.spines['right'].set_visible(False)
     
@@ -340,7 +340,7 @@ def plot_maternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
     density = gaussian_kde(ages)
     x = numpy.arange(lower_age, upper_age, 0.1)
     e = ax.plot(density(x), x, label="DDD")
-    e = ax.fill_between(density(x), x, alpha=0.5)
+    e = ax.fill_betweenx(x, density(x), alpha=0.5)
     
     e = ax.spines['right'].set_visible(False)
     e = ax.spines['bottom'].set_visible(False)
@@ -372,11 +372,11 @@ def plot_uk_age_distribution(ax, uk_ages, column, lower_age=20, upper_age=40):
     # Another way to get around the lumpiness would be to adjust the kernel
     # density covariance factor, such as:
     #    # gaussian_kde.covariance_factor = lambda x: 0.095
-    male_ages = []
+    ages = []
     for k, x in uk_ages.iterrows():
-        male_ages += list(x["age"] + numpy.random.uniform(size=x[column]))
+        ages += list(x["age"] + numpy.random.uniform(size=x[column]))
     
-    density = gaussian_kde(male_ages)
+    density = gaussian_kde(ages)
     x = numpy.arange(lower_age, upper_age, 0.1)
     y = density(x)
     
@@ -385,5 +385,9 @@ def plot_uk_age_distribution(ax, uk_ages, column, lower_age=20, upper_age=40):
         y, x = x, y
     
     e = ax.plot(x, y, color="gray", label="UK")
-    e = ax.fill_between(x, y, color='gray', alpha=0.5)
+    
+    if column == 'mothers_count':
+        e = ax.fill_betweenx(y, x, color='gray', alpha=0.5)
+    else:
+        e = ax.fill_between(x, y, color='gray', alpha=0.5)
     
