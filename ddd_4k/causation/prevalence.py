@@ -69,8 +69,7 @@ def get_birth_prevalence(cohort_n, excess, cnv_yield=0.1, missing_variants=119,
     
     return (cohort_yield + missing_yield)/enrichment
 
-def plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
-    dad_rate=1.53, mom_rate=0.86):
+def plot_prevalence_by_age(prevalence, phenotypes, uk_ages, dad_rate=1.53, mom_rate=0.86):
     """ plot the prevalence of developmental disorders from de novo mutations
     
     This function generates three plots in one figure. The first
@@ -117,12 +116,12 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
     """plot the birth prevalence of developmental disorders from de novo mutations
     
     We plot a point estimate of birth prevalence of children with developmental
-    disorders caused by de novo mutations, at the median age of our cohort. We
+    disorders caused by de novo mutations, at the mean age of our cohort. We
     extrapolate the birth prevalence at lower and higher ages from the number of
     additional mutations acquired from fathers at older ages (per year). This
     requires knowning how many mutations on average a father would have at the
-    median age, and how many of those would cause a developmental disorder. We
-    can estimate this from the birth prevalence divided by the median number of
+    mean age, and how many of those would cause a developmental disorder. We
+    can estimate this from the birth prevalence divided by the mean number of
     mutations.
          
     Args:
@@ -139,12 +138,12 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
         upper_age: upper age limit to estimate birth prevalance at.
     """
     
-    median_dad_age = numpy.median(phenotypes["fathers_age"])
-    median_mom_age = numpy.median(phenotypes["mothers_age"])
+    mean_dad_age = numpy.mean(phenotypes["fathers_age"])
+    mean_mom_age = numpy.mean(phenotypes["mothers_age"])
     
-    # estimate the median number of mutations each child obtains at the
-    # median paternal and maternal ages.
-    median_mutations = median_dad_age * dad_rate + median_mom_age * mom_rate
+    # estimate the mean number of mutations each child obtains at the
+    # mean paternal and maternal ages.
+    mean_mutations = mean_dad_age * dad_rate + mean_mom_age * mom_rate
     
     increment = 3.0
     ages = range(lower_age, upper_age + int(increment), int(increment))
@@ -152,8 +151,16 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
     prevalences = []
     for mom_age, dad_age in itertools.product(ages, repeat=2):
         mutations = dad_age * dad_rate + mom_age * mom_rate
-        aged_prevalence = mutations/median_mutations * prevalence * 100
+        aged_prevalence = mutations/mean_mutations * prevalence * 100
         prevalences.append(aged_prevalence)
+    
+    for age in [lower_age, upper_age]:
+        dad_age = age
+        mom_age = age
+        mutations = dad_age * dad_rate + mom_age * mom_rate
+        aged_prevalence = mutations/mean_mutations * prevalence * 100
+        
+        print('prevalence at {}: {}'.format(age, aged_prevalence))
     
     # reshape the list to a n x n array, then insert into a dataframe
     prevalences = numpy.reshape(prevalences, (len(ages), len(ages)))
@@ -163,7 +170,7 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
     mesh = ax.pcolormesh(numpy.array(ages), numpy.array(ages), prevalences,
         cmap=green_blue1)
     annotate_heatmap(ax, mesh, ages, increment)
-    e = pyplot.colorbar(mesh, ticks=[0.30, 0.35, 0.40, 0.45, 0.50, 0.55])
+    e = pyplot.colorbar(mesh, ticks=[0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60])
     
     # scale_heatmap_by_parental_proportion(ax, prevalence, phenotypes, dad_rate,
     #     mom_rate, lower_age=20, upper_age=40)
@@ -255,12 +262,12 @@ def scale_heatmap_by_parental_proportion(ax, prevalence, phenotypes, dad_rate, m
         upper_age: upper age limit to estimate birth prevalance at.
     """
     
-    median_dad_age = numpy.median(phenotypes["fathers_age"])
-    median_mom_age = numpy.median(phenotypes["mothers_age"])
+    mean_dad_age = numpy.mean(phenotypes["fathers_age"])
+    mean_mom_age = numpy.mean(phenotypes["mothers_age"])
     
-    # estimate the median number of mutations each child obtains at the
-    # median paternal and maternal ages.
-    median_mutations = median_dad_age * dad_rate + median_mom_age * mom_rate
+    # estimate the mean number of mutations each child obtains at the
+    # mean paternal and maternal ages.
+    mean_mutations = mean_dad_age * dad_rate + mean_mom_age * mom_rate
     
     increment = 5.0
     ages = range(lower_age, upper_age + int(increment), int(increment))
@@ -268,7 +275,7 @@ def scale_heatmap_by_parental_proportion(ax, prevalence, phenotypes, dad_rate, m
     data = pandas.DataFrame(columns=["dad_age", 'mom_age', 'prevalence', 'freq'])
     for mom_age, dad_age in itertools.product(ages, repeat=2):
         mutations = dad_age * dad_rate + mom_age * mom_rate
-        aged_prevalence = mutations/median_mutations * prevalence * 100
+        aged_prevalence = mutations/mean_mutations * prevalence * 100
         
         half = increment/2
         in_range = ((dad_age - half < phenotypes["fathers_age"]) &

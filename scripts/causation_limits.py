@@ -30,6 +30,7 @@ from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS, \
     CONSTRAINTS_URL, PHENOTYPES, TRIOS, SANGER_IDS, DIAGNOSED
 from ddd_4k.causation.excess_by_consequence import get_consequence_excess, \
     plot_consequence_excess
+from ddd_4k.causation.excess_by_pp_dnm_threshold import plot_excess_by_pp_dnm_threshold
 from ddd_4k.causation.model_mixtures import model_mixing
 from ddd_4k.causation.prevalence import get_birth_prevalence, plot_prevalence_by_age
 from ddd_4k.causation.de_novo_threshold import get_pp_dnm_threshold
@@ -73,15 +74,32 @@ def get_options():
     
     return args
 
-def count_known_excess(filtered, known, excess):
-    """ count the numbers of excess vde novos which are in known dominant geenes, to quantify the humber as loss-of-function or missense
+def count_known_excess(filtered, known):
+    """ count the filtered de novos in DD-associated dominant genes.
+    
+    Protein altering de novos in DD-associated dominant genes are likely
+    pathogenicand so must be part of the excess of de novo burden within the
+    cohort.
+    
+    Args:
+        filtered: pandas DataFrame of de novo variants.
+        known: pandas DataFrame of DD-associated genes.
+    
+    Returns:
+        dictionary of counts for loss-of-function and 'missense' de novos.
     """
     
     dominant = known['gencode_gene_name'][known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
-    dominant = filtered["symbol"].isin(dominant)
-    lof_in_dominant = sum((filtered['category'] == 'loss-of-function') & dominant)
-    mis_in_dominant = sum((filtered['category'] == 'functional') & dominant)
+    variants = filtered[filtered["symbol"].isin(dominant)].copy()
     
+    counts = variants['category'].value_counts()
+    counts['missense'] = counts['functional']
+    
+    return dict(counts)
+
+def print_known_in_excess(in_dominant, excess):
+    lof_in_dominant = in_dominant['loss-of-function']
+    mis_in_dominant = in_dominant['missense']
     lof_excess = excess['loss-of-function']['excess']
     mis_excess = excess['missense']['excess']
     
@@ -90,6 +108,44 @@ def count_known_excess(filtered, known, excess):
     
     print('excess func in known: {:.0f}%'.format(
         100 * (lof_in_dominant + mis_in_dominant)/(lof_excess + mis_excess)))
+
+def proportion_in_dominant_hi_genes(filtered, known):
+    """ count the consequence types in dominant haploinsufficient DD genes
+    
+    Within the set of dominant haploinsufficient DD-associated genes, examine
+    the breakdown of loss-of-function and missense consequences.
+    
+    Returns:
+        dictionary of counts for loss-of-function and 'missense' de novos
+    """
+    
+    dominant = known[known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
+    dominant_haploinsufficient = dominant['gencode_gene_name'][dominant['mech'] == 'Loss of function']
+    dominant_haploinsufficient = filtered["symbol"].isin(dominant_haploinsufficient)
+    
+    variants = filtered[dominant_haploinsufficient].copy()
+    
+    counts = variants['category'].value_counts()
+    counts['missense'] = counts['functional']
+    
+    return dict(counts)
+
+def print_proportions_from_dominant_hi(dominant_hi, excess):
+    ''' show the proportions of loss-of-function/gain of function
+    
+    These estimates use the split of
+    '''
+    
+    lof_as_mis = dominant_hi['missense']/(dominant_hi['missense'] + dominant_hi['loss-of-function'])
+    
+    lof_excess = excess['loss-of-function']['excess']/ \
+        (excess['missense']['excess'] + excess['loss-of-function']['excess'])
+    
+    lof_proportion = lof_excess + lof_excess * lof_as_mis
+    gof_proportion = 1 - lof_proportion
+    
+    print('LoF: {:.0f}%'.format(lof_proportion * 100))
+    print('GoF: {:.0f}%'.format(gof_proportion * 100))
 
 def main():
     
@@ -105,15 +161,14 @@ def main():
     # identify the probands with diagnostic de novo variants
     diagnosed = pandas.read_table(args.diagnosed, sep="\t")
     diagnosed = diagnosed[(diagnosed["inheritance"] == "de_novo") &
-        diagnosed["type"].isin(["snv", "indel"]) & (diagnosed["chrom"] != "X")]
-    diagnosed = diagnosed["person_id"].unique()
+        diagnosed["type"].isin(["snv", "indel"])]
     
     phenotypes = open_phenotypes(args.phenotypes, args.sanger_ids)
     trios = pandas.read_table(args.trios)
     phenotypes = phenotypes[phenotypes["patient_id"].isin(trios["decipher_id"])]
     
     male = 2407
-    female = 1887
+    female = 1886
     rates = get_default_rates()
     expected = get_expected_mutations(rates, male, female)
     
@@ -122,22 +177,28 @@ def main():
     
     excess = get_consequence_excess(expected, filtered)
     plot_consequence_excess(excess, "results/excess_by_consequence.pdf")
+    plot_excess_by_pp_dnm_threshold(de_novos, expected, increments=100)
     
-    count_known_excess(filtered, known, excess)
+    dominant_hi = proportion_in_dominant_hi_genes(filtered, known)
+    print_proportions_from_dominant_hi(dominant_hi, excess)
+    
+    in_dominant = count_known_excess(filtered, known)
+    print_known_in_excess(in_dominant, excess)
     
     proportions = model_mixing(known, filtered, expected, constraints)
-    print(proportions)
+    print('lof proportion'.format(proportions))
     
     excess_de_novos_from_pLI(filtered, expected, constraints)
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
     
     prevalence = get_birth_prevalence(male + female, excess,
         cnv_yield=0.1, missing_variants=119.9, enrichment=118.8)
-    plot_prevalence_by_age(prevalence, phenotypes, diagnosed, uk_ages,
-        dad_rate=1.53, mom_rate=0.86)
-    prevalance_from_rates = check_prevalence_from_baseline_lof(rates, known,
-        mis_to_lof=2.0, missing=0.5)
     
+    excess_to_lof = (excess['loss-of-function']['excess'] + excess['missense']['excess'])/in_dominant['loss-of-function']
+    print(excess_to_lof)
+    prevalance_from_rates = check_prevalence_from_baseline_lof(rates, known, excess_to_lof)
+    
+    plot_prevalence_by_age(prevalance_from_rates, phenotypes, uk_ages, dad_rate=1.53, mom_rate=0.86)
     print(prevalence)
     print(prevalance_from_rates)
     
