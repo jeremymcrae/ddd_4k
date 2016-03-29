@@ -37,7 +37,7 @@ from ddd_4k.causation.de_novo_threshold import get_pp_dnm_threshold
 from ddd_4k.causation.excess_by_pli import excess_de_novos_from_pLI
 from ddd_4k.causation.proportion_known_by_pli import plot_proportion_known_by_pLI
 from ddd_4k.causation.open_uk_ages import open_uk_parent_ages
-from ddd_4k.causation.prevalence_from_baseline import check_prevalence_from_baseline_lof
+from ddd_4k.causation.prevalence_estimates import check_prevalence_from_baseline_lof
 
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
 
