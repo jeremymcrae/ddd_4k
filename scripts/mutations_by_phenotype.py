@@ -395,7 +395,7 @@ def main():
     # and add in the values from the logistic regression of autozygosity length
     # vs having a dominant diagnostic de novo. These values are determined in
     # the autozygosity_vs_diagnosed.py script
-    betas.append({'upper': -0.13772607320296332, 'beta': -0.25055052100431563, 'lower': -0.36337496880566794, 'name': 'autozygosity_length', "p_value": 1.3458522649038024e-05})
+    betas.append({'upper': -0.1154436448891767, 'beta': -0.1845241470915473, 'lower': -0.25360464929391791, 'name': 'autozygosity_length', 'p_value': 1.646715410585663e-07})
     
     betas = pandas.DataFrame(betas)
     forest_plot(betas)
