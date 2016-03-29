@@ -36,7 +36,7 @@ import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def get_birth_prevalence(cohort_n, excess, cnv_yield=0.1, missing_variants=119,
+def get_prevalence_from_cohort_excess(cohort_n, excess, cnv_yield=0.1, missing_variants=119,
     enrichment=120.0):
     """ calculate the prevalence of live births with developmental disorders
     caused by de novo mutations.
