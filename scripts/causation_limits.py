@@ -32,12 +32,13 @@ from ddd_4k.causation.excess_by_consequence import get_consequence_excess, \
     plot_consequence_excess
 from ddd_4k.causation.excess_by_pp_dnm_threshold import plot_excess_by_pp_dnm_threshold
 from ddd_4k.causation.model_mixtures import model_mixing
-from ddd_4k.causation.prevalence import get_prevalence_from_cohort_excess, plot_prevalence_by_age
+from ddd_4k.causation.prevalence import plot_prevalence_by_age
 from ddd_4k.causation.de_novo_threshold import get_pp_dnm_threshold
 from ddd_4k.causation.excess_by_pli import excess_de_novos_from_pLI
 from ddd_4k.causation.proportion_known_by_pli import plot_proportion_known_by_pLI
 from ddd_4k.causation.open_uk_ages import open_uk_parent_ages
-from ddd_4k.causation.prevalence_estimates import check_prevalence_from_baseline_lof
+from ddd_4k.causation.prevalence_estimates import prevalence_from_cohort_excess, \
+    prevalence_from_baseline_lof
 
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
 
@@ -191,12 +192,12 @@ def main():
     excess_de_novos_from_pLI(filtered, expected, constraints)
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
     
-    prevalence = get_prevalence_from_cohort_excess(male + female, excess,
+    prevalence = prevalence_from_cohort_excess(male + female, excess,
         cnv_yield=0.1, missing_variants=119.9, enrichment=118.8)
     
     excess_to_lof = (excess['loss-of-function']['excess'] + excess['missense']['excess'])/in_dominant['loss-of-function']
     print(excess_to_lof)
-    prevalance_from_rates = check_prevalence_from_baseline_lof(rates, known, excess_to_lof)
+    prevalance_from_rates = prevalence_from_baseline_lof(rates, known, excess_to_lof)
     
     plot_prevalence_by_age(prevalance_from_rates, phenotypes, uk_ages, dad_rate=1.53, mom_rate=0.86)
     print(prevalence)

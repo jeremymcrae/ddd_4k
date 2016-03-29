@@ -36,39 +36,6 @@ import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def get_prevalence_from_cohort_excess(cohort_n, excess, cnv_yield=0.1, missing_variants=119,
-    enrichment=120.0):
-    """ calculate the prevalence of live births with developmental disorders
-    caused by de novo mutations.
-    
-    Args:
-        cohort_n: size of the studied cohort
-        excess: dictionary with numbers of excess mutations for each of
-            synonymous, missense and loss-of-function mutations
-        cnv_yield: estimated diagnostic yield from de novo CNVs in probands with
-            developmental disorders, obtained from published estimates
-            (doi:10.1038/ng.909, doi:10.1097/GIM.0b013e318194ee8f and
-            doi:10.1016/j.ajhg.2010.04.006)
-        missing_variants: number of variants missing from the cohort due to ease
-             of clinical recognisability.
-        enrichment: factor by whcih the cohort is enriched for loss-of-function
-            de novo mutations in known haploinsufficient genes with low clinical
-            recognisability.
-    
-    Returns:
-        estimate of the prevalence of live births with developmental disorders
-        caused by de novo mutations
-    """
-    
-    cohort_yield = (excess["loss-of-function"]["excess"] + excess["missense"]["excess"])/cohort_n
-    missing_yield = missing_variants/cohort_n + cnv_yield
-    
-    # adjust the yield in the DDD for the proportions that exist outside the
-    # DDD, since these expand the DDD cohort size.
-    cohort_yield = cohort_yield/(1 + missing_yield)
-    
-    return (cohort_yield + missing_yield)/enrichment
-
 def plot_prevalence_by_age(prevalence, phenotypes, uk_ages, dad_rate=1.53, mom_rate=0.86):
     """ plot the prevalence of developmental disorders from de novo mutations
     
