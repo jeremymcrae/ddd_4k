@@ -25,8 +25,8 @@ from scipy.stats import poisson
 
 from ddd_4k.causation.classify_known_genes import classify_monoallelic_genes
 
-def check_prevalence_from_baseline_lof(rates, known, mis_to_lof=2.0,
-        missing=0.5, cnv_adjust=1.2105):
+def check_prevalence_from_baseline_lof(rates, known, excess_to_lof=3.0,
+        cnv_adjust=1.2105):
     """ estimate the prevalence of developmental disorders caused by de novo
     mutations from known mutation rates for the genes.
     
@@ -35,10 +35,8 @@ def check_prevalence_from_baseline_lof(rates, known, mis_to_lof=2.0,
             genome (or near all).
         known: pandas DataFrame of genes known to be involved in developmental
             disorders, including the mode of inheritance and mechanism of action.
-        mis_to_lof: ratio of  the number of missense mutations to
-            loss-of-function mutations.
-        missing: proportion of genes yet to be discovered (relative to the
-            currently known genes).
+        excess_to_lof: ratio of excess de novos to loss-of-function de novos in
+            DD-associated genes.
         cnv_adjust: the ratio of predicted diagnostic yield of DDD probands with
             any dominant de novo to the predicted yield without CNV de novos.
     
@@ -59,17 +57,12 @@ def check_prevalence_from_baseline_lof(rates, known, mis_to_lof=2.0,
     
     # get the proportion of the population with a loss-of-function mutation in a
     # known dominant gene.
-    lof_proportion = poisson.sf(0, lof_mu, loc=0)
+    lof_prevalence = poisson.sf(0, lof_mu, loc=0)
     
-    # get the corresponding proportion of the population with a missense
-    # mutation in a known dominant gene.
-    mis_proportion = lof_proportion * mis_to_lof
+    # scale up by the ratio of excess de novos to loss-of-function de novos in
+    # DD-associated genes.
+    prevalence_baseline = lof_prevalence * excess_to_lof
     
-    # get the baseline proportion of the population with a mutation in a known
-    # dominant gene
-    prevalence_baseline = lof_proportion + mis_proportion
-    
-    # adjust the prevalance for the proportion of genes yet to be discovered.
-    prevalence_adjusted = prevalence_baseline * (1.0 + missing) * cnv_adjust
+    prevalence_adjusted = prevalence_baseline * cnv_adjust
     
     return prevalence_adjusted
