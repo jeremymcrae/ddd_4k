@@ -48,11 +48,11 @@ def get_options():
     """
     
     parser = argparse.ArgumentParser(description="")
-    parser.add_argument("--de-novos", \
+    parser.add_argument("--de-novos", required=True,
         help="Path to table of variants in novel genes.")
     parser.add_argument("--phenotypes", \
         default="/lustre/scratch113/projects/ddd/users/jm33/" \
-            "de_novos.ddd_4k.phenotypes_by_proband.json", \
+            "de_novos.ddd_4k.phenotypes_by_proband.updated.json", \
         help="JSON file of HPO terms per proband.")
     parser.add_argument("--trios", default=TRIOS, \
         help="Path to table of alternate IDs for participants.")
