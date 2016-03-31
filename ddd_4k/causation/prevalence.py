@@ -36,7 +36,7 @@ import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def plot_prevalence_by_age(prevalence, phenotypes, uk_ages, dad_rate=1.53, mom_rate=0.86):
+def plot_prevalence_by_age(prevalence, phenotypes, uk_ages, reference, dad_rate=1.53, mom_rate=0.86):
     """ plot the prevalence of developmental disorders from de novo mutations
     
     This function generates three plots in one figure. The first
@@ -46,6 +46,9 @@ def plot_prevalence_by_age(prevalence, phenotypes, uk_ages, dad_rate=1.53, mom_r
             disorders caused by de novo mutations
         phenotypes: pandas DataFrame of phenotypic data for probands within the
             trios in the cohort.
+        reference: dictionary of {'dad_age': XX, 'mom_age': XX, 'mutations': XX}
+            to deifne the reference number of mutations in a child, at a given
+            maternal and paternal age.
         mutations_per_year: estimate for the number of additional mutations
             acquired due to older fathers, as additional mutations per year.
     """
@@ -60,7 +63,7 @@ def plot_prevalence_by_age(prevalence, phenotypes, uk_ages, dad_rate=1.53, mom_r
     low_age = 20
     high_age = 45
     
-    plot_birth_prevalences(prevalence_axes, prevalence, phenotypes,
+    plot_birth_prevalences(prevalence_axes, prevalence, phenotypes, reference,
         dad_rate, mom_rate, lower_age=low_age, upper_age=high_age)
     plot_paternal_ages(dad_axes, phenotypes, uk_ages, low_age, high_age)
     plot_maternal_ages(mom_axes, phenotypes, uk_ages, low_age, high_age)
@@ -78,8 +81,8 @@ def plot_prevalence_by_age(prevalence, phenotypes, uk_ages, dad_rate=1.53, mom_r
         bbox_inches='tight', pad_inches=0, transparent=True)
     pyplot.close()
 
-def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
-    lower_age=20, upper_age=40):
+def plot_birth_prevalences(ax, prevalence, phenotypes, reference, dad_rate,
+    mom_rate, lower_age=20, upper_age=40):
     """plot the birth prevalence of developmental disorders from de novo mutations
     
     We plot a point estimate of birth prevalence of children with developmental
@@ -97,6 +100,9 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
             disorders caused by de novo mutations
         phenotypes: pandas DataFrame of phenotypic data for probands within the
             trios in the cohort.
+        reference: dictionary of {'dad_age': XX, 'mom_age': XX, 'mutations': XX}
+            to deifne the reference number of mutations in a child, at a given
+            maternal and paternal age.
         dad_rate: estimate for the number of additional mutations
             acquired in older fathers per year.
         mom_rate: estimate for the number of additional mutations
@@ -110,21 +116,24 @@ def plot_birth_prevalences(ax, prevalence, phenotypes, dad_rate, mom_rate,
     
     # estimate the mean number of mutations each child obtains at the
     # mean paternal and maternal ages.
-    mean_mutations = mean_dad_age * dad_rate + mean_mom_age * mom_rate
+    mean_mutations = reference['mutations'] + dad_rate * (mean_dad_age - reference['dad_age']) + \
+        mom_rate * (mean_mom_age - reference['mom_age'])
     
     increment = 3.0
     ages = range(lower_age, upper_age + int(increment), int(increment))
     ages = [ x + increment/2 for x in ages ]
     prevalences = []
     for mom_age, dad_age in itertools.product(ages, repeat=2):
-        mutations = dad_age * dad_rate + mom_age * mom_rate
+        mutations = reference['mutations'] + dad_rate * (dad_age - reference['dad_age']) + \
+            mom_rate * (mom_age - reference['mom_age'])
         aged_prevalence = mutations/mean_mutations * prevalence * 100
         prevalences.append(aged_prevalence)
     
     for age in [lower_age, upper_age]:
         dad_age = age
         mom_age = age
-        mutations = dad_age * dad_rate + mom_age * mom_rate
+        mutations = reference['mutations'] + dad_rate * (dad_age - reference['dad_age']) + \
+            mom_rate * (mom_age - reference['mom_age'])
         aged_prevalence = mutations/mean_mutations * prevalence * 100
         
         print('prevalence at {}: {}'.format(age, aged_prevalence))

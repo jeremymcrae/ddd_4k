@@ -199,7 +199,9 @@ def main():
     print(excess_to_lof)
     prevalance_from_rates = prevalence_from_baseline_lof(rates, known, excess_to_lof)
     
-    plot_prevalence_by_age(prevalance_from_rates, phenotypes, uk_ages, dad_rate=1.53, mom_rate=0.86)
+    reference_mutations = {'dad_age': 29.53, 'mom_age': 29.87, 'mutations': 77}
+    plot_prevalence_by_age(prevalance_from_rates, phenotypes, uk_ages,
+        reference_mutations, dad_rate=1.53, mom_rate=0.86)
     print(prevalence)
     print(prevalance_from_rates)
     
