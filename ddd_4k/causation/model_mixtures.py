@@ -51,6 +51,8 @@ def model_mixing(known, de_novos, expected, constraints):
         de_novos: pandas DataFrame of candidate de novos within the cohort.
         expected: counts of de novos expected per gene given our cohort size,
             across different functional categories, for all genes in the genome.
+        constraints: pandas DataFrame of constraint scores for all genes in
+            the genome with columns for 'gene' and 'pLI'.
     
     Returns:
         proportion of de novos as haploinsufficient that best approximates the
@@ -71,39 +73,31 @@ def model_mixing(known, de_novos, expected, constraints):
     hi_merged = merged[merged["hgnc"].isin(mono["haploinsufficient"])]
     non_hi_merged = merged[merged["hgnc"].isin(mono["nonhaploinsufficient"])]
     
-    target = aggregate(merged, ["missense"])
-    hi_start = aggregate(hi_merged, ["lof", "missense"])
-    non_hi_start = aggregate(non_hi_merged, ["missense"])
+    missense_excess = aggregate(merged, ["missense"])
+    lof_excess = aggregate(hi_merged, ["lof", "missense"])
+    gof_excess = aggregate(non_hi_merged, ["missense"])
     
-    fig = pyplot.figure(figsize=(12, 8))
-    gs = gridspec.GridSpec(3, 1)
+    plot_default_distributions(missense_excess, lof_excess, gof_excess,
+        output="results/obs_to_exp_delta_by_hi_bin.pdf")
     
-    all_ax = pyplot.subplot(gs[0])
-    hi_ax = pyplot.subplot(gs[1])
-    nonhi_ax = pyplot.subplot(gs[2])
+    fits = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
+    plot_optimisation(fits, output="results/hi_bin_mixing_optimisation.pdf")
     
-    plot_by_hi_bin(target, "delta", title="all genes", ax=all_ax)
-    plot_by_hi_bin(hi_start, "delta", title="HI genes", ax=hi_ax)
-    plot_by_hi_bin(non_hi_start, "delta", title="non-HI genes", ax=nonhi_ax)
+    optimal = list(fits["proportion"])[numpy.argmin(fits["goodness_of_fit"])]
     
-    fig.savefig("results/obs_to_exp_delta_by_hi_bin.pdf", format="pdf",
-        bbox_inches='tight', pad_inches=0, transparent=True)
-    pyplot.close()
-    
-    return optimise_mixing(hi_start, non_hi_start, target, "results/hi_bin_mixing_optimisation.pdf")
+    return optimal
 
-def optimise_mixing(hi_start, non_hi_start, target, output):
+def get_goodness_of_fit(missense_excess, lof_excess, gof_excess):
     """ identify optimal mixing proportion of HI and non-HI genes to reproduce
     observed frequencies across the pLI bins.
     
     Args:
-        hi_start: pandas DataFrame of observed to expected differences across
-            the pLI bins, for the known dominant haploinsufficient genes.
-        non_hi_start: pandas DataFrame of observed to expected differences across
-            the pLI bins, for the known dominant nonhaploinsufficient genes.
-        target: pandas DataFrame of observed to expected differences across
+        missense_excess: pandas DataFrame of observed to expected differences across
             the pLI bins, for all genes with observed candidate de novos.
-        output: path to save pdf plot to
+        lof_excess: pandas DataFrame of observed to expected differences across
+            the pLI bins, for LoF DNMs in dominant haploinsufficient genes.
+        gof_excess: pandas DataFrame of observed to expected differences across
+            the pLI bins, for missense DNMs in dominant nonhaploinsufficient genes
     
     Returns:
         proportion of loss-of-function variants required to best capture the
@@ -116,15 +110,41 @@ def optimise_mixing(hi_start, non_hi_start, target, output):
     for lof_frequency in lof_freqs:
         mis_frequency = 1 - lof_frequency
         
-        mixed = hi_start["delta"] * lof_frequency + \
-            non_hi_start["delta"] * mis_frequency
+        mixed = lof_excess["delta"] * lof_frequency + \
+            gof_excess["delta"] * mis_frequency
         
-        difference.append(sum((mixed - target["delta"])**2))
+        difference.append(sum((mixed - missense_excess["delta"])**2))
     
-    mixtures = pandas.DataFrame({"HI_frequency": lof_freqs, "goodness_of_fit": difference})
-    plot_optimisation(mixtures, output)
+    return pandas.DataFrame({"proportion": lof_freqs, "goodness_of_fit": difference})
+
+def plot_default_distributions(missense_excess, lof_excess, gof_excess, output):
+    """ plot the unmodified distributions of excess variants by constraint
+    quantile for missense DNMs in all genes, DNMs with loss-of-function
+    mechanisms, and DNMs with gain-of-function mechanisms.
     
-    return list(mixtures["HI_frequency"])[numpy.argmin(mixtures["goodness_of_fit"])]
+    Args:
+        missense_excess: pandas DataFrame of observed to expected differences across
+            the pLI bins, for all genes with observed candidate de novos.
+        lof_excess: pandas DataFrame of observed to expected differences across
+            the pLI bins, for LoF DNMs in dominant haploinsufficient genes.
+        gof_excess: pandas DataFrame of observed to expected differences across
+            the pLI bins, for missense DNMs in dominant nonhaploinsufficient genes
+    """
+    
+    fig = pyplot.figure(figsize=(12, 8))
+    gs = gridspec.GridSpec(3, 1)
+    
+    all_ax = pyplot.subplot(gs[0])
+    hi_ax = pyplot.subplot(gs[1])
+    nonhi_ax = pyplot.subplot(gs[2])
+    
+    plot_by_hi_bin(missense_excess, "delta", title="all genes", ax=all_ax)
+    plot_by_hi_bin(lof_excess, "delta", title="HI genes", ax=hi_ax)
+    plot_by_hi_bin(gof_excess, "delta", title="non-HI genes", ax=nonhi_ax)
+    
+    fig.savefig("results/obs_to_exp_delta_by_hi_bin.pdf", format="pdf",
+        bbox_inches='tight', pad_inches=0, transparent=True)
+    pyplot.close()
 
 def plot_optimisation(mixtures, output):
     """ plot the goodness of fit for the differences between the observed
@@ -140,8 +160,7 @@ def plot_optimisation(mixtures, output):
     fig = pyplot.figure(figsize=(6, 6))
     ax = fig.gca()
     
-    e = ax.plot(mixtures["HI_frequency"], mixtures["goodness_of_fit"],
-        marker="None")
+    e = ax.plot(mixtures["proportion"], mixtures["goodness_of_fit"], marker="None")
     
     e = ax.set_xlabel("proportion HI")
     e = ax.set_ylabel("sum of squares (observed - simulated)")
