@@ -29,6 +29,7 @@ import seaborn
 
 from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
 from ddd_4k.constants import DENOVO_PATH, VALIDATIONS
+from ddd_4k.causation.excess_by_consequence import get_consequence_excess
 
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
