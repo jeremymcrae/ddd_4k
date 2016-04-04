@@ -27,14 +27,26 @@ matplotlib.use('Agg')
 from matplotlib import pyplot
 import seaborn
 
-from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
-from ddd_4k.constants import DENOVO_PATH, VALIDATIONS
-from ddd_4k.causation.excess_by_consequence import get_consequence_excess
-
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 PREVIOUS_COHORT = '/nfs/ddd0/Data/datafreeze/1133trios_20131218/DNG_Validation_1133trios_20140130.tsv'
+
+def get_options():
+    """ parse the command line arguments
+    """
+    
+    parser = argparse.ArgumentParser(description="script to probe the limits " \
+        "of de novo causation in children with developmental disorders.")
+    parser.add_argument("--validations", default=PREVIOUS_COHORT,
+        help="Path to table of candidate de novo mutations.")
+    parser.add_argument("--increments", default=100,
+        help="Path to table of validation data.")
+    parser.add_argument("--output",  help="Path to write pdf plot to.")
+    
+    args = parser.parse_args()
+    
+    return args
 
 def get_pp_dnms(increments):
     """ make a list of pp_dnms to check ROC curves at.
@@ -65,7 +77,8 @@ def get_pp_dnms(increments):
     
     return pp_dnms
 
-def plot_curve(false_positives, true_positives, pp_dnms, threshold=0.006345):
+def plot_curve(false_positives, true_positives, pp_dnms, threshold=0.006345,
+        output='de_novo_roc_curve.pdf'):
     ''' plot a ROC curve from validation data
     
     Args:
@@ -101,8 +114,7 @@ def plot_curve(false_positives, true_positives, pp_dnms, threshold=0.006345):
     e = ax.set_xlabel('false positive rate')
     e = ax.set_ylabel('true positive rate')
     
-    fig.savefig('de_novo_roc_curve.pdf', format='pdf',
-        bbox_inches='tight', pad_inches=0, transparent=True)
+    fig.savefig(output, format='pdf', bbox_inches='tight', pad_inches=0, transparent=True)
 
 def get_roc_rates(de_novos, thresholds):
     ''' get true and false positive de novo validation rates by pp_dnm threshold
@@ -139,18 +151,15 @@ def get_roc_rates(de_novos, thresholds):
     
     return true_positive_rate, false_positive_rate
 
-def plot_roc_curve_for_validations(path=PREVIOUS_COHORT, increments=100):
+def main():
     """ plot a ROC curve with varying pp_dnm from de novo validation data
     
     run for all de novos attempted for validation in the 1133 trios.
-    
-    Args:
-        path: path to de novo validation data.
-        increments: number of increments to spanb across the pp_dnm range (plus
-            extra at extremes).
     """
     
-    de_novos = pandas.read_table(path)
+    args = get_options()
+    
+    de_novos = pandas.read_table(args.validations)
     
     # recode the 'status' column, which indicates whether a variant validated
     # as a de novo or not. Remove variants where this status is unknown.
@@ -159,7 +168,10 @@ def plot_roc_curve_for_validations(path=PREVIOUS_COHORT, increments=100):
     de_novos = de_novos[~de_novos['status'].isnull()]
     de_novos['status'] = de_novos['status'].astype(bool)
     
-    pp_dnms = get_pp_dnms(increments)
+    pp_dnms = get_pp_dnms(args.increments)
     
     true_pr, false_pr = get_roc_rates(de_novos, thresholds)
-    plot_curve(true_pr, false_pr, pp_dnms)
+    plot_curve(true_pr, false_pr, pp_dnms, args.output)
+
+if __name__ == '__main__':
+    main()
