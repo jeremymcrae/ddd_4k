@@ -36,44 +36,6 @@ seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 PREVIOUS_COHORT = '/nfs/ddd0/Data/datafreeze/1133trios_20131218/DNG_Validation_1133trios_20140130.tsv'
 
-def plot_excess_by_pp_dnm_threshold(de_novos, expected, increments=100):
-    ''' show the impact of changing the pp_dnm threshold on the excess DNMs
-    
-    Args:
-        de_novos: pandas DataFrame of candidate de novo variants.
-        expected: pandas DataFrame of expected mutation rates for genes.
-        increments: number of increments to divide the pp_dnm range into
-    '''
-    
-    pp_dnms = [ x/float(increments) for x in range(increments) ]
-
-    burdens = []
-    for threshold in pp_dnms:
-        variants = de_novos[(~de_novos["pp_dnm"].isnull() & (de_novos["pp_dnm"] > threshold)) ]
-        excess = get_consequence_excess(expected, variants)
-        
-        burden = excess['missense']['excess'] + excess['loss-of-function']['excess']
-        burdens.append(burden)
-    
-    fig = pyplot.figure(figsize=(6, 6))
-    ax = fig.gca()
-    
-    e = ax.plot(pp_dnms, burdens, marker='.', markersize=10)
-    
-    e = ax.set_ylim(0, max(burdens) * 1.05)
-    
-    e = ax.spines['top'].set_visible(False)
-    e = ax.spines['right'].set_visible(False)
-    
-    e = ax.xaxis.set_ticks_position('bottom')
-    e = ax.yaxis.set_ticks_position('left')
-    
-    e = ax.set_xlabel('PP_DNM threshold')
-    e = ax.set_ylabel('Excess de novo mutations')
-    
-    fig.savefig('excess_by_pp_dnm_threshold.pdf', format='pdf',
-        bbox_inches='tight', pad_inches=0, transparent=True)
-
 def get_pp_dnms(increments):
     """ make a list of pp_dnms to check ROC curves at.
     
