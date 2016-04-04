@@ -186,7 +186,7 @@ def main():
     pp_dnms = get_pp_dnms(args.increments)
     
     ppv, npv, true_pr, false_pr = get_roc_rates(de_novos,  pp_dnms)
-    plot_curve( false_pr, true_pr, pp_dnms, threshold=0.006345,
+    plot_curve(ppv, true_pr, pp_dnms, threshold=0.0078125,
         output=args.output, xlabel='false positive rate', ylabel='true positive rate')
 
 if __name__ == '__main__':
