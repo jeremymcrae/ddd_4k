@@ -217,62 +217,6 @@ def annotate_heatmap(ax, mesh, ages, increment):
             text_kwargs = dict(color=text_color, ha="center", va="center")
             ax.text(x, y, val, **text_kwargs)
 
-def scale_heatmap_by_parental_proportion(ax, prevalence, phenotypes, dad_rate, mom_rate,
-        lower_age=20, upper_age=40):
-    """ heatmap of parental age by birth prevalence of developmental disorders
-    from de novo mutations, where the heatmap points size is scaled by the
-    proportion of the population within each age bracket. This is an alternate
-    to the standard heatmap.
-    
-    Args:
-        ax: matplotlib pyplot axes object for the plot.
-        prevalence: estimated birth prevalence for children with developmental
-            disorders caused by de novo mutations
-        phenotypes: pandas DataFrame of phenotypic data for probands within the
-            trios in the cohort.
-        dad_rate: estimate for the number of additional mutations
-            acquired in older fathers per year.
-        mom_rate: estimate for the number of additional mutations
-            acquired in older mothers per year.
-        lower_age: lower age limit to estimate birth prevalence at.
-        upper_age: upper age limit to estimate birth prevalance at.
-    """
-    
-    mean_dad_age = numpy.mean(phenotypes["fathers_age"])
-    mean_mom_age = numpy.mean(phenotypes["mothers_age"])
-    
-    # estimate the mean number of mutations each child obtains at the
-    # mean paternal and maternal ages.
-    mean_mutations = mean_dad_age * dad_rate + mean_mom_age * mom_rate
-    
-    increment = 5.0
-    ages = range(lower_age, upper_age + int(increment), int(increment))
-    ages = [ x + increment/2 for x in ages ]
-    data = pandas.DataFrame(columns=["dad_age", 'mom_age', 'prevalence', 'freq'])
-    for mom_age, dad_age in itertools.product(ages, repeat=2):
-        mutations = dad_age * dad_rate + mom_age * mom_rate
-        aged_prevalence = mutations/mean_mutations * prevalence * 100
-        
-        half = increment/2
-        in_range = ((dad_age - half < phenotypes["fathers_age"]) &
-                        (phenotypes["fathers_age"] < dad_age + half)) & \
-            ((mom_age - half < phenotypes["mothers_age"]) &
-                (phenotypes["mothers_age"] < mom_age + half))
-        freq = sum(in_range)/len(phenotypes)
-        data = data.append({'mom_age': mom_age, 'dad_age': dad_age,
-            'prevalence': aged_prevalence, 'freq': freq}, ignore_index=True)
-    
-    data['freq'] = 200.0 + 1000 * \
-        (data['freq'] - min(data['freq']))/(max(data['freq']) - min(data['freq']))
-    data['prevalence'] = 0.9 - 0.9 * \
-        (data['prevalence'] - min(data['prevalence']))/(max(data['prevalence']) - min(data['prevalence']))
-    
-    data['freq'] = data['freq'].astype(numpy.float64)
-    data['prevalence'] = data['prevalence'].astype(str)
-    
-    e = ax.scatter(data['dad_age'], data['mom_age'], s=data['freq'],
-        c=data['prevalence'])
-
 def plot_paternal_ages(ax, phenotypes, uk_ages, lower_age=20, upper_age=40):
     """ plot the age distribution for fathers in the DDD cohort, along with
     the proportion with a child with a diagnostic de novo across age bins.
