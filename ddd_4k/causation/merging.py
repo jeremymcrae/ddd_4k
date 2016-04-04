@@ -40,25 +40,16 @@ def merge_observed_and_expected(de_novos, expected):
     observed["lof_observed"] = observed[["lof_snv", "lof_indel"]].sum(axis=1)
     observed["missense_observed"] = observed[["missense_snv", "missense_indel"]].sum(axis=1)
     
-    # restrict the observed counts to the columns for merging.
-    observed = observed[["hgnc", "lof_observed", "missense_observed"]]
+    # sum the expected loss-of-function, missense and synonymous mutations per gene
+    expected = expected.copy()
+    expected["lof_expected"] = expected[["lof_snv", "lof_indel"]].sum(axis=1)
+    expected["missense_expected"] = expected[["missense_snv", "missense_indel"]].sum(axis=1)
+    expected['synonymous_expected'] = expected['synonymous_snv']
     
     # merge the observed counts with the expected counts, for genes without
     # counts to merge, replace NA values with 0.
-    expected = expected[["hgnc", "lof_indel", "lof_snv", "missense_indel",
-        "missense_snv", "synonymous_snv"]].copy()
     merged = expected.merge(observed, how="left", on="hgnc")
     merged["lof_observed"][merged["lof_observed"].isnull()] = 0
     merged["missense_observed"][merged["missense_observed"].isnull()] = 0
-    
-    # get the numbers of expected loss-of-function, missense and
-    # synonymous mutations.
-    merged["lof_expected"] = merged[["lof_snv", "lof_indel"]].sum(axis=1)
-    merged["missense_expected"] = merged[["missense_snv", "missense_indel"]].sum(axis=1)
-    merged = merged.rename(columns={'synonymous_snv': 'synonymous_expected'})
-    
-    # restrict the table to the minimum required columns
-    merged = merged[["hgnc", "lof_observed", "missense_observed",
-        "lof_expected", "missense_expected", "synonymous_expected"]].copy()
     
     return merged

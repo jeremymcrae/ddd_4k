@@ -22,23 +22,25 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import division, print_function
 
 import numpy
-import pandas
 
 import matplotlib
 matplotlib.use('Agg')
 from matplotlib import pyplot, gridspec
-import seaborn
 
 from ddd_4k.causation.classify_known_genes import classify_monoallelic_genes
 from ddd_4k.causation.pli_functions import include_constraints, get_constraint_bins
 from ddd_4k.causation.plot_pli_bins import plot_by_hi_bin
 from ddd_4k.causation.merging import merge_observed_and_expected
 from ddd_4k.causation.aggregate_pli_bins import aggregate
+from ddd_4k.causation.goodness_of_fit import get_goodness_of_fit
+from ddd_4k.causation.model_permutation import permute_fits
+from ddd_4k.causation.mixture_optimum_variance import variance_around_optimum
 
+import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def model_mixing(known, de_novos, expected, constraints):
+def model_mixing(known, de_novos, expected, constraints, check_variance=False):
     """ identify the optimal mixing proportion of haploinsufficient and
     nonhaploinsufficient across to match the observed mixture.
     
@@ -53,6 +55,8 @@ def model_mixing(known, de_novos, expected, constraints):
             across different functional categories, for all genes in the genome.
         constraints: pandas DataFrame of constraint scores for all genes in
             the genome with columns for 'gene' and 'pLI'.
+        check_variance: whether to check the variance around the optimal mixing
+            proportion by resampling variants according to the optimal ratio.
     
     Returns:
         proportion of de novos as haploinsufficient that best approximates the
@@ -62,20 +66,21 @@ def model_mixing(known, de_novos, expected, constraints):
     # classify known dominant genes
     mono = classify_monoallelic_genes(known)
     
-    merged = merge_observed_and_expected(de_novos, expected)
-    
     # identify which pLI quantile each gene falls into
-    merged = include_constraints(merged, constraints)
-    merged["pLI_bin"] = get_constraint_bins(merged, bins=[0.0, 0.2, 0.4, 0.6,
+    expected['synonymous_expected'] = expected['synonymous_snv']
+    expected = include_constraints(expected, constraints)
+    expected["pLI_bin"] = get_constraint_bins(expected, bins=[0.0, 0.2, 0.4, 0.6,
         0.7, 0.8, 0.9, 1.0], rate_correct=True)
-    # merged["pLI_bin"] = get_constraint_bins(merged, bins=10, rate_correct=True)
+    # expected["pLI_bin"] = get_constraint_bins(expected, bins=10, rate_correct=True)
+    
+    merged = merge_observed_and_expected(de_novos, expected)
     
     hi_merged = merged[merged["hgnc"].isin(mono["haploinsufficient"])]
     non_hi_merged = merged[merged["hgnc"].isin(mono["nonhaploinsufficient"])]
     
-    missense_excess = aggregate(merged, ["missense"])
-    lof_excess = aggregate(hi_merged, ["lof", "missense"])
-    gof_excess = aggregate(non_hi_merged, ["missense"])
+    missense_excess = aggregate(merged, ["missense"], normalise=True)
+    lof_excess = aggregate(hi_merged, ["lof", "missense"], normalise=True)
+    gof_excess = aggregate(non_hi_merged, ["missense"], normalise=True)
     
     plot_default_distributions(missense_excess, lof_excess, gof_excess,
         output="results/obs_to_exp_delta_by_hi_bin.pdf")
@@ -85,37 +90,14 @@ def model_mixing(known, de_novos, expected, constraints):
     
     optimal = list(fits["proportion"])[numpy.argmin(fits["goodness_of_fit"])]
     
+    # # uncomment the line below if you want to check how a permuted dataset will
+    # # behave.
+    # permute_fits(merged, hi_merged, non_hi_merged, fits)
+    
+    if check_variance:
+        variance_around_optimum(de_novos, expected, mono, optimum, iterations=10)
+    
     return optimal
-
-def get_goodness_of_fit(missense_excess, lof_excess, gof_excess):
-    """ identify optimal mixing proportion of HI and non-HI genes to reproduce
-    observed frequencies across the pLI bins.
-    
-    Args:
-        missense_excess: pandas DataFrame of observed to expected differences across
-            the pLI bins, for all genes with observed candidate de novos.
-        lof_excess: pandas DataFrame of observed to expected differences across
-            the pLI bins, for LoF DNMs in dominant haploinsufficient genes.
-        gof_excess: pandas DataFrame of observed to expected differences across
-            the pLI bins, for missense DNMs in dominant nonhaploinsufficient genes
-    
-    Returns:
-        proportion of loss-of-function variants required to best capture the
-        observed frequencies at pLI bins.
-    """
-    
-    increments = 200.0
-    lof_freqs = [ x/increments for x in range(int(increments) + 1) ]
-    difference = []
-    for lof_frequency in lof_freqs:
-        mis_frequency = 1 - lof_frequency
-        
-        mixed = lof_excess["delta"] * lof_frequency + \
-            gof_excess["delta"] * mis_frequency
-        
-        difference.append(sum((mixed - missense_excess["delta"])**2))
-    
-    return pandas.DataFrame({"proportion": lof_freqs, "goodness_of_fit": difference})
 
 def plot_default_distributions(missense_excess, lof_excess, gof_excess, output):
     """ plot the unmodified distributions of excess variants by constraint
