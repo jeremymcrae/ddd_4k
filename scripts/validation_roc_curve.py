@@ -21,6 +21,8 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import division
 
+import argparse
+
 import pandas
 import matplotlib
 matplotlib.use('Agg')
@@ -42,7 +44,8 @@ def get_options():
         help="Path to table of candidate de novo mutations.")
     parser.add_argument("--increments", default=100,
         help="Path to table of validation data.")
-    parser.add_argument("--output",  help="Path to write pdf plot to.")
+    parser.add_argument("--output", default='de_novo_roc_curve.pdf',
+        help="Path to write pdf plot to.")
     
     args = parser.parse_args()
     
@@ -77,8 +80,8 @@ def get_pp_dnms(increments):
     
     return pp_dnms
 
-def plot_curve(false_positives, true_positives, pp_dnms, threshold=0.006345,
-        output='de_novo_roc_curve.pdf'):
+def plot_curve(x_values, y_values, pp_dnms, threshold=0.006345,
+        output=None, xlabel='', ylabel=''):
     ''' plot a ROC curve from validation data
     
     Args:
@@ -93,15 +96,15 @@ def plot_curve(false_positives, true_positives, pp_dnms, threshold=0.006345,
     # highlight this point on the plot
     delta = [ abs(x - threshold) for x in pp_dnms ]
     pos = delta.index(min(delta))
-    x_val = false_positives[pos]
-    y_val = true_positives[pos]
+    x_val = x_values[pos]
+    y_val = y_values[pos]
     
     fig = pyplot.figure(figsize=(6, 6))
     ax = fig.gca()
     
-    e = ax.plot(false_positives, true_positives, marker='.', markersize=10)
+    e = ax.plot(x_values, y_values, marker='.', markersize=10)
     
-    e = ax.plot(ax.get_xlim(), ax.get_ylim(), linestyle="dashed", color="gray")
+    # e = ax.plot(ax.get_xlim(), ax.get_ylim(), linestyle="dashed", color="gray")
     e = ax.axhline(y_val, color='red', linestyle='dashed')
     e = ax.axvline(x_val, color='red', linestyle='dashed')
     
@@ -111,8 +114,8 @@ def plot_curve(false_positives, true_positives, pp_dnms, threshold=0.006345,
     e = ax.xaxis.set_ticks_position('bottom')
     e = ax.yaxis.set_ticks_position('left')
     
-    e = ax.set_xlabel('false positive rate')
-    e = ax.set_ylabel('true positive rate')
+    e = ax.set_xlabel(xlabel)
+    e = ax.set_ylabel(ylabel)
     
     fig.savefig(output, format='pdf', bbox_inches='tight', pad_inches=0, transparent=True)
 
@@ -134,22 +137,34 @@ def get_roc_rates(de_novos, thresholds):
     
     true_positive_rate = []
     false_positive_rate = []
+    ppv = []
+    npv = []
     for threshold in thresholds:
         variants = de_novos[de_novos['pp_dnm'] > threshold]
         
         true_positive = 0
         false_positive = 0
+        false_negative = 0
+        true_negative = 0
         
         if any(~variants['status']):
             false_positive = sum(~variants['status'])
+            true_negative = condition_negative_sum - false_positive
     
         if any(variants['status']):
             true_positive = sum(variants['status'])
+            false_negative = condition_positive_sum - true_positive
         
         true_positive_rate.append(true_positive/condition_positive_sum)
         false_positive_rate.append(false_positive/condition_negative_sum)
+        try:
+            ppv.append(true_positive/(true_positive + false_positive))
+            npv.append(true_negative/(false_negative + true_negative))
+        except ZeroDivisionError:
+            ppv.append(None)
+            npv.append(None)
     
-    return true_positive_rate, false_positive_rate
+    return ppv, npv, true_positive_rate, false_positive_rate
 
 def main():
     """ plot a ROC curve with varying pp_dnm from de novo validation data
@@ -170,8 +185,9 @@ def main():
     
     pp_dnms = get_pp_dnms(args.increments)
     
-    true_pr, false_pr = get_roc_rates(de_novos, thresholds)
-    plot_curve(true_pr, false_pr, pp_dnms, args.output)
+    ppv, npv, true_pr, false_pr = get_roc_rates(de_novos,  pp_dnms)
+    plot_curve( false_pr, true_pr, pp_dnms, threshold=0.006345,
+        output=args.output, xlabel='false positive rate', ylabel='true positive rate')
 
 if __name__ == '__main__':
     main()
