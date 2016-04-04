@@ -30,7 +30,6 @@ from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS, \
     CONSTRAINTS_URL, PHENOTYPES, TRIOS, SANGER_IDS, DIAGNOSED
 from ddd_4k.causation.excess_by_consequence import get_consequence_excess, \
     plot_consequence_excess
-from ddd_4k.causation.excess_by_pp_dnm_threshold import plot_excess_by_pp_dnm_threshold
 from ddd_4k.causation.model_mixtures import model_mixing
 from ddd_4k.causation.prevalence import plot_prevalence_by_age
 from ddd_4k.causation.de_novo_threshold import get_pp_dnm_threshold
@@ -181,7 +180,6 @@ def main():
     snv_yield = functional_excess / (male + female)
     
     plot_consequence_excess(excess, "results/excess_by_consequence.pdf")
-    plot_excess_by_pp_dnm_threshold(de_novos, expected, increments=100)
     
     dominant_hi = proportion_in_dominant_hi_genes(filtered, known)
     print_proportions_from_dominant_hi(dominant_hi, excess)
@@ -201,6 +199,9 @@ def main():
     # Miller et al, ASHG 86:749-764, doi:10.1016/j.ajhg.2010.04.006
     unobserved_cnvs = {'cohort_n': 2159, 'diagnosed': 204}
     
+    # define the number of SNVs that would be in genes with high clinical
+    # recognisability, but which have not made it to our cohort. This is
+    # estimated within scripts/clinical_recognisability.py
     unobserved_snvs = 119
     
     excess_to_lof = {'excess': functional_excess, 'dominant_lof': in_dominant['loss-of-function']}
@@ -208,8 +209,11 @@ def main():
         excess_to_lof, snv_yield=snv_yield, unobserved_snvs=unobserved_snvs,
         unobserved_cnvs=unobserved_cnvs, ci=0.95)
     
-    # define the number of de novo mutations per child from parents
+    # define the number of de novo mutations per child from parents. Numbers
+    # provided by Raheleh Rahbari, based on Rahbari et al, Nature Genetics 2016
+    # 48: 126–133 doi:10.1038/ng.3469
     reference_mutations = {'dad_age': 29.53, 'mom_age': 29.87, 'mutations': 77}
+    
     plot_prevalence_by_age(prevalance_from_rates, phenotypes, uk_ages,
         reference_mutations, dad_rate=1.53, mom_rate=0.86)
     print(prevalance_from_rates)
