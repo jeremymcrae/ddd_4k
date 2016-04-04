@@ -177,6 +177,9 @@ def main():
     filtered = de_novos[(~de_novos["pp_dnm"].isnull() & (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
     
     excess = get_consequence_excess(expected, filtered)
+    functional_excess = excess['loss-of-function']['excess'] + excess['missense']['excess']
+    snv_yield = functional_excess / (male + female)
+    
     plot_consequence_excess(excess, "results/excess_by_consequence.pdf")
     plot_excess_by_pp_dnm_threshold(de_novos, expected, increments=100)
     
@@ -187,22 +190,28 @@ def main():
     print_known_in_excess(in_dominant, excess)
     
     proportions = model_mixing(known, filtered, expected, constraints)
-    print('lof proportion'.format(proportions))
+    print('lof proportion: {}'.format(proportions))
     
     excess_de_novos_from_pLI(filtered, expected, constraints)
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
     
-    prevalence = prevalence_from_cohort_excess(male + female, excess,
-        cnv_yield=0.1, missing_variants=119.9, enrichment=118.8)
+    # define the number of individuals with developmental disorders caused by
+    # a de novo CNV. We do not observe these individuals in the DDD cohort.
+    # These totals are for the whole genome-only cohorts listed in Table 2 of
+    # Miller et al, ASHG 86:749-764, doi:10.1016/j.ajhg.2010.04.006
+    unobserved_cnvs = {'cohort_n': 2159, 'diagnosed': 204}
     
-    excess_to_lof = (excess['loss-of-function']['excess'] + excess['missense']['excess'])/in_dominant['loss-of-function']
-    print(excess_to_lof)
-    prevalance_from_rates = prevalence_from_baseline_lof(rates, known, excess_to_lof)
+    unobserved_snvs = 119
     
+    excess_to_lof = {'excess': functional_excess, 'dominant_lof': in_dominant['loss-of-function']}
+    prevalance_from_rates, ci = prevalence_from_baseline_lof(rates, known,
+        excess_to_lof, snv_yield=snv_yield, unobserved_snvs=unobserved_snvs,
+        unobserved_cnvs=unobserved_cnvs, ci=0.95)
+    
+    # define the number of de novo mutations per child from parents
     reference_mutations = {'dad_age': 29.53, 'mom_age': 29.87, 'mutations': 77}
     plot_prevalence_by_age(prevalance_from_rates, phenotypes, uk_ages,
         reference_mutations, dad_rate=1.53, mom_rate=0.86)
-    print(prevalence)
     print(prevalance_from_rates)
     
 
