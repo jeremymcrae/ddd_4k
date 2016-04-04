@@ -188,7 +188,7 @@ def main():
     print_known_in_excess(in_dominant, excess)
     
     proportions = model_mixing(known, filtered, expected, constraints)
-    print('lof proportion: {}'.format(proportions))
+    print('missense proportion as LoF: {}'.format(proportions))
     
     excess_de_novos_from_pLI(filtered, expected, constraints)
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
