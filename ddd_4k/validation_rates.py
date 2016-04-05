@@ -23,7 +23,7 @@ from __future__ import division
 
 import pandas
 
-def open_previous_validations(path):
+def open_previous_validations(path, current=None):
     ''' open the validation data from the previous datafreeze.
     
     Args:
@@ -43,6 +43,12 @@ def open_previous_validations(path):
     de_novos['status'] = de_novos['validation_result'].map(recode)
     de_novos = de_novos[~de_novos['status'].isnull()]
     de_novos['status'] = de_novos['status'].astype(bool)
+    
+    if current is not None:
+        keys = current['person_stable_id'] + current['chrom'] + current['pos'].astype(str)
+        de_novos['key'] = de_novos['person_stable_id'] + de_novos['chr'] + de_novos['pos'].astype(str)
+        
+        de_novos = de_novos[de_novos['key'].isin(set(keys))]
     
     return de_novos
 

@@ -28,8 +28,9 @@ matplotlib.use('Agg')
 from matplotlib import pyplot
 import seaborn
 
+from ddd_4k.load_files import open_de_novos
 from ddd_4k.validation_rates import open_previous_validations, get_rates
-from ddd_4k.constants import PREVIOUS_VALIDATIONS
+from ddd_4k.constants import DENOVO_PATH, PREVIOUS_VALIDATIONS
 
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
@@ -40,6 +41,8 @@ def get_options():
     
     parser = argparse.ArgumentParser(description="script to probe the limits " \
         "of de novo causation in children with developmental disorders.")
+    parser.add_argument("--current-de-novos", default=DENOVO_PATH,
+        help="Path to table of candidate de novo mutations.")
     parser.add_argument("--validations", default=PREVIOUS_VALIDATIONS,
         help="Path to table of candidate de novo mutations.")
     parser.add_argument("--increments", default=100,
@@ -155,7 +158,8 @@ def main():
     
     args = get_options()
     
-    de_novos = open_previous_validations(args.validations)
+    current = open_de_novos(args.current_de_novos, exclude_synonymous=False)
+    de_novos = open_previous_validations(args.validations, current)
     
     pp_dnms = get_pp_dnms(args.increments)
     
