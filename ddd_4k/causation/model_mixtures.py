@@ -69,8 +69,8 @@ def model_mixing(known, de_novos, expected, constraints, check_variance=False):
     # identify which pLI quantile each gene falls into
     expected['synonymous_expected'] = expected['synonymous_snv']
     expected = include_constraints(expected, constraints)
-    expected["pLI_bin"] = get_constraint_bins(expected, bins=[0.0, 0.2, 0.4, 0.6,
-        0.7, 0.8, 0.9, 1.0], rate_correct=True)
+    bins = [0.0, 0.2, 0.4, 0.6, 0.7, 0.8, 0.9, 1.0]
+    expected["pLI_bin"] = get_constraint_bins(expected, bins=bins, rate_correct=True)
     # expected["pLI_bin"] = get_constraint_bins(expected, bins=10, rate_correct=True)
     
     merged = merge_observed_and_expected(de_novos, expected)
@@ -78,9 +78,9 @@ def model_mixing(known, de_novos, expected, constraints, check_variance=False):
     hi_merged = merged[merged["hgnc"].isin(mono["haploinsufficient"])]
     non_hi_merged = merged[merged["hgnc"].isin(mono["nonhaploinsufficient"])]
     
-    missense_excess = aggregate(merged, ["missense"], normalise=True)
-    lof_excess = aggregate(hi_merged, ["lof", "missense"], normalise=True)
-    gof_excess = aggregate(non_hi_merged, ["missense"], normalise=True)
+    missense_excess = aggregate(merged, ["missense"], normalise=True, bins=bins)
+    lof_excess = aggregate(hi_merged, ["lof", "missense"], normalise=True, bins=bins)
+    gof_excess = aggregate(non_hi_merged, ["missense"], normalise=True, bins=bins)
     
     plot_default_distributions(missense_excess, lof_excess, gof_excess,
         output="results/obs_to_exp_delta_by_hi_bin.pdf")

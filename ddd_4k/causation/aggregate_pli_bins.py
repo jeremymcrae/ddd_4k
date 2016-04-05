@@ -26,7 +26,7 @@ import itertools
 import pandas
 import numpy
 
-def aggregate(merged, consequences=None, normalise=True):
+def aggregate(merged, consequences=None, normalise=True, bins=None):
     """ get the difference between observed and expected counts across pLI bins.
     
     This returns the difference in the number of observed de novo mutations to
@@ -69,21 +69,42 @@ def aggregate(merged, consequences=None, normalise=True):
         aggregated["delta"] = aggregated["delta"]/sum(aggregated["delta"])
         aggregated["ratio"] = aggregated["ratio"]/sum(aggregated["ratio"])
     
-    # figure out the number of bins
-    combos = itertools.permutations(aggregated["pLI_bin"], 2)
-    n_bins = 1/min([ abs(x[0] - x[1]) for x in combos ])
-    
-    # make sure we have all the quantile bins, even for tables that might lack
-    # genes in a given pLI bin
-    for x in [ x/float(n_bins) for x in range(int(n_bins)) ]:
-        if not any([ almost_equal(x, y) for y in aggregated["pLI_bin"] ]):
-            row = pandas.DataFrame({"pLI_bin": [x], "delta": [0], "ratio": [0]})
-            aggregated = aggregated.append(row, ignore_index=True)
+    aggregated = include_missing_bins(aggregated, bins)
     
     aggregated = aggregated[["pLI_bin", "observed", "expected", "delta",
         "ratio"]].copy()
     aggregated = aggregated.sort("pLI_bin")
     aggregated.index = range(len(aggregated))
+    
+    return aggregated
+
+def include_missing_bins(aggregated, bins=None):
+    ''' ensure the dataframe comtains all relevant bins.
+    
+    Args:
+        aggregated: Dataframe of observed and expected mutations by pLI bin
+        bins: list of quantile points to make sure all are included, or None if
+            inferred from the table.
+    
+    Returns:
+        pandas DataFrame, with missing bins included
+    '''
+    
+    # figure out the bins if a list wasn't provided.
+    if bins is None:
+        combos = itertools.permutations(aggregated["pLI_bin"], 2)
+        n_bins = 1/min([ abs(x[0] - x[1]) for x in combos ])
+        bins = [ x/float(n_bins) for x in range(int(n_bins)) ]
+    
+    # remove bins at 1.0, since that is the upper limit.
+    bins = [ x for x in bins if x != 1.0 ]
+    
+    # make sure we have all the quantile bins, even for tables that might lack
+    # genes in a given pLI bin
+    for x in bins:
+        if not any([ almost_equal(x, y) for y in aggregated["pLI_bin"] ]):
+            row = pandas.DataFrame({"pLI_bin": [x], "delta": [0], "ratio": [0]})
+            aggregated = aggregated.append(row, ignore_index=True)
     
     return aggregated
 
