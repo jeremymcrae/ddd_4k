@@ -33,6 +33,7 @@ SANGER_IDS = "{}/person_sanger_decipher.txt".format(datafreeze)
 FAMILIES = "{}/family_relationships.txt".format(datafreeze)
 TRIOS = "{}/trios.txt".format(datafreeze)
 DATATYPES = "{}/person_datatypes.txt".format(datafreeze)
+PREVIOUS_VALIDATIONS = '/nfs/ddd0/Data/datafreeze/1133trios_20131218/DNG_Validation_1133trios_20140130.tsv'
 
 # define parameters for the multiple-testing corrected p-value threshold.
 ALPHA = 0.01
