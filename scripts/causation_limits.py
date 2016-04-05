@@ -27,17 +27,17 @@ import pandas
 
 from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS, \
-    CONSTRAINTS_URL, PHENOTYPES, TRIOS, SANGER_IDS, DIAGNOSED
+    CONSTRAINTS_URL, PHENOTYPES, TRIOS, SANGER_IDS, PREVIOUS_VALIDATIONS
 from ddd_4k.causation.excess_by_consequence import get_consequence_excess, \
     plot_consequence_excess
 from ddd_4k.causation.model_mixtures import model_mixing
 from ddd_4k.causation.prevalence import plot_prevalence_by_age
 from ddd_4k.causation.de_novo_threshold import get_pp_dnm_threshold
+from ddd_4k.validation_rates import open_previous_validations, get_rates
 from ddd_4k.causation.excess_by_pli import excess_de_novos_from_pLI
 from ddd_4k.causation.proportion_known_by_pli import plot_proportion_known_by_pLI
 from ddd_4k.causation.open_uk_ages import open_uk_parent_ages
-from ddd_4k.causation.prevalence_estimates import prevalence_from_cohort_excess, \
-    prevalence_from_baseline_lof
+from ddd_4k.causation.prevalence_estimates import prevalence_from_baseline_lof
 
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
 
@@ -61,7 +61,7 @@ def get_options():
         help="Path to table of phenotypic data for probands.")
     parser.add_argument("--known-genes", default=KNOWN_GENES,
         help="Path to table of known developmental disorder genes.")
-    parser.add_argument("--diagnosed", default=DIAGNOSED,
+    parser.add_argument("--previous-validations", default=PREVIOUS_VALIDATIONS,
         help="Path to table of probands with known diagnostic variants.")
     parser.add_argument("--constraints", default=CONSTRAINTS_URL,
         help="Path or URL to table of constraint scores (pLI-based) for all" \
@@ -158,11 +158,6 @@ def main():
     constraints = pandas.read_table(args.constraints)
     uk_ages = open_uk_parent_ages(args.uk_ages)
     
-    # identify the probands with diagnostic de novo variants
-    diagnosed = pandas.read_table(args.diagnosed, sep="\t")
-    diagnosed = diagnosed[(diagnosed["inheritance"] == "de_novo") &
-        diagnosed["type"].isin(["snv", "indel"])]
-    
     phenotypes = open_phenotypes(args.phenotypes, args.sanger_ids)
     trios = pandas.read_table(args.trios)
     phenotypes = phenotypes[phenotypes["patient_id"].isin(trios["decipher_id"])]
@@ -175,7 +170,10 @@ def main():
     pp_dnm_threshold = get_pp_dnm_threshold(de_novos, expected)
     filtered = de_novos[(~de_novos["pp_dnm"].isnull() & (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
     
-    excess = get_consequence_excess(expected, filtered)
+    validations = open_previous_validations(args.previous_validations)
+    validation_rates = get_rates(validations, pp_dnm_threshold)
+    
+    excess = get_consequence_excess(expected, filtered, validation_rates.ppv, validation_rates.tpr)
     functional_excess = excess['loss-of-function']['excess'] + excess['missense']['excess']
     snv_yield = functional_excess / (male + female)
     

@@ -33,7 +33,7 @@ seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 from ddd_4k.causation.merging import merge_observed_and_expected
 
-def get_consequence_excess(expected, de_novos):
+def get_consequence_excess(expected, de_novos, ppv, sensitivity):
     """ determine the ratio of observed to expected for synonymous, missense
     and loss-of-function canddiate de novos
     
@@ -42,25 +42,36 @@ def get_consequence_excess(expected, de_novos):
             all genes (or nearly all) in the genome.
         de_novos: pandas DataFrame of candidate de novo mutations observed in
             the cohort.
+        ppv: positive predictive value at a given de novo quality threshold.
+        sensitivity: sensitivity to true positives at a given de novo quality
+            threshold.
     
     Returns:
         dictionary of counts and ratios for synonymous, missense and
         loss-of-function consequences.
     """
     
+    # adjust the numbers of excess mutations by our sensitivity and specificity,
+    # which are derived from validation data in an earlier dataset. The ppv
+    # indicates the proportion of candidates which are true positive at a given
+    # quality threshold, and the sensitivity indicates the sensitivity to true
+    # positives at the same threshold. We also need to account for exome sequencing
+    # not being 100% sensitive, as estimates are that it is around 95% sensitive. 
+    scale_factor = ppv * (1.0/0.95/sensitivity)
+    
     merged = merge_observed_and_expected(de_novos, expected)
     
-    synonymous_ratio = 1.0
-    missense_ratio = sum(merged["missense_observed"])/sum(merged["missense_expected"])
-    lof_ratio = sum(merged["lof_observed"])/sum(merged["lof_expected"])
+    synonymous_ratio = 1.0 * scale_factor
+    missense_ratio = sum(merged["missense_observed"])/sum(merged["missense_expected"]) * scale_factor
+    lof_ratio = sum(merged["lof_observed"])/sum(merged["lof_expected"]) * scale_factor
     
-    synonymous_count = len(de_novos[de_novos["consequence"] == "synonymous_variant"])
-    lof_count = sum(merged["lof_observed"])
-    missense_count = sum(merged["missense_observed"])
+    synonymous_count = len(de_novos[de_novos["consequence"] == "synonymous_variant"]) * scale_factor
+    lof_count = sum(merged["lof_observed"]) * scale_factor
+    missense_count = sum(merged["missense_observed"]) * scale_factor
     
     synonymous_excess = synonymous_count * ((synonymous_ratio - 1)/synonymous_ratio)
-    missense_excess = missense_count - sum(merged["missense_expected"])
-    lof_excess = lof_count - sum(merged["lof_expected"])
+    missense_excess = missense_count - sum(merged["missense_expected"]) * scale_factor
+    lof_excess = lof_count - sum(merged["lof_expected"]) * scale_factor
     
     values = {
         "synonymous":
