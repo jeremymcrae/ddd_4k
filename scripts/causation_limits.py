@@ -33,7 +33,7 @@ from ddd_4k.causation.excess_by_consequence import get_consequence_excess, \
 from ddd_4k.causation.model_mixtures import model_mixing
 from ddd_4k.causation.prevalence import plot_prevalence_by_age
 from ddd_4k.causation.de_novo_threshold import get_pp_dnm_threshold
-from ddd_4k.validation_rates import open_previous_validations, get_rates
+from ddd_4k.validation_rates import open_previous_validations, get_rates, plot_excess_by_pp_dnm_threshold
 from ddd_4k.causation.excess_by_pli import excess_de_novos_from_pLI
 from ddd_4k.causation.proportion_known_by_pli import plot_proportion_known_by_pLI
 from ddd_4k.causation.open_uk_ages import open_uk_parent_ages
@@ -170,7 +170,8 @@ def main():
     pp_dnm_threshold = get_pp_dnm_threshold(de_novos, expected)
     filtered = de_novos[(~de_novos["pp_dnm"].isnull() & (de_novos["pp_dnm"] > pp_dnm_threshold)) ]
     
-    validations = open_previous_validations(args.previous_validations)
+    complete = open_de_novos(args.de_novos, exclude_synonymous=False)
+    validations = open_previous_validations(args.previous_validations, complete)
     validation_rates = get_rates(validations, pp_dnm_threshold)
     
     excess = get_consequence_excess(expected, filtered, validation_rates.ppv, validation_rates.tpr)
@@ -178,6 +179,7 @@ def main():
     snv_yield = functional_excess / (male + female)
     
     plot_consequence_excess(excess, "results/excess_by_consequence.pdf")
+    plot_excess_by_pp_dnm_threshold(de_novos, expected, validations, increments=100)
     
     dominant_hi = proportion_in_dominant_hi_genes(filtered, known)
     print_proportions_from_dominant_hi(dominant_hi, excess)
@@ -209,12 +211,15 @@ def main():
     
     # define the number of de novo mutations per child from parents. Numbers
     # provided by Raheleh Rahbari, based on Rahbari et al, Nature Genetics 2016
-    # 48: 126–133 doi:10.1038/ng.3469
+    # 48: 126-133 doi:10.1038/ng.3469
     reference_mutations = {'dad_age': 29.53, 'mom_age': 29.87, 'mutations': 77}
     
     plot_prevalence_by_age(prevalance_from_rates, phenotypes, uk_ages,
         reference_mutations, dad_rate=1.53, mom_rate=0.86)
-    print(prevalance_from_rates)
+    print("prevalence: {}".format(prevalance_from_rates))
+    print("prevalence 95% CI: {}".format(ci))
+    
+    print('SNV yield: {}'.format(snv_yield))
     
 
 if __name__ == '__main__':
