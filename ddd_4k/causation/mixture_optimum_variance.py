@@ -21,69 +21,83 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import division, print_function
 
-import random
-
 import numpy
 import pandas
+from scipy.stats import gaussian_kde
+
+import matplotlib
+matplotlib.use('Agg')
+from matplotlib import pyplot
 
 from mupit.constants import LOF_CQ, MISSENSE_CQ
 
 from ddd_4k.causation.merging import merge_observed_and_expected
 from ddd_4k.causation.aggregate_pli_bins import aggregate
-from ddd_4k.causation.model_mixtures import get_goodness_of_fit
+from ddd_4k.causation.goodness_of_fit import get_goodness_of_fit
+from ddd_4k.causation.sample_excess import sample_excess
 
-def variance_around_optimum(de_novos, expected, mono, optimum, iterations=1000):
+import seaborn
+seaborn.set_context("notebook", font_scale=2)
+seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
+
+def variance_around_optimum(de_novos, expected, mono, optimum, bins, iterations=1000):
+    '''
+    
+    Args:
+        mono: dictionary of haploinsufficient and nonhaploinsufficent dominant
+            DD-associated genes
+    '''
     
     merged = merge_observed_and_expected(de_novos, expected)
-    missense_excess = aggregate(merged, ["missense"], normalise=True)
+    missense_excess = aggregate(merged, ["missense"], normalise=True, bins=bins)
     
     # define the variants to sample from
     hi_lof_variants = de_novos[de_novos['hgnc'].isin(mono['haploinsufficient']) &
         de_novos['consequence'].isin(LOF_CQ | MISSENSE_CQ)]
-    nonhi_missense_variants = de_novos[de_novos['hgnc'].isin(mono['nonhaploinsufficient']) &
+    non_hi_missense_variants = de_novos[de_novos['hgnc'].isin(mono['nonhaploinsufficient']) &
         de_novos['consequence'].isin(MISSENSE_CQ)]
     
-    # count the number of missense across all genes, then calculate how many
-    # of each type to sample.
+    # # count the number of missense across all genes, then calculate how many
+    # # of each type to sample.
     excess_target = (missense_excess['observed'] - missense_excess['expected']).sum()
-    hi_excess_target = int(excess_target * optimum)
-    non_hi_excess_target = int(excess_target * (1 - optimum))
+    lof_target = int(excess_target * optimum)
+    gof_target = int(excess_target * (1 - optimum))
     
     optimums = []
     for x in range(iterations):
         print(x)
         
-        lof_excess = get_excess(hi_lof_variants, expected, ['lof', 'missense'],  hi_excess_target, mono)
-        gof_excess = get_excess(non_hi_lof_variants, expected, ['missense'], non_hi_excess_target, mono)
+        lof_excess = sample_excess(hi_lof_variants, expected, ['lof', 'missense'],  lof_target, mono, bins)
+        gof_excess = sample_excess(non_hi_missense_variants, expected, ['missense'], gof_target, mono, bins)
         
         fits = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
         
         optimal = list(fits["proportion"])[numpy.argmin(fits["goodness_of_fit"])]
         optimums.append(optimal)
+    
+    plot_uncertainty(optimums)
+    
+    return numpy.median(optimums)
 
-def get_excess(variants, expected, consequences, target, mono):
+def plot_uncertainty(optimums, optimal):
     '''
     '''
     
-    idx = [ random.choice(variants.index) for x in range(target) ]
-    sampled = variants.ix[idx, ]
+    fig = pyplot.figure(figsize=(6,6))
+    ax = fig.gca()
     
-    merged = merge_observed_and_expected(sampled, expected)
+    e = ax.hist(optimums, bins=10)
     
-    excess = aggregate(merged, consequences, normalise=True)
+    e = ax.axvline(optimal, linestyle='dashed', color='red')
     
-    current = (excess['observed'] - excess['expected']).sum()
+    e = ax.spines['top'].set_visible(False)
+    e = ax.spines['right'].set_visible(False)
     
-    if abs(current - target) < 5:
-        return excess
-    elif current - target < 0:
-        # up the number of sampled variants
-        diff = (target - current)/2.0
-        idx = [ random.choice(variants.index) for x in range(diff) ]
-        temp = sampled = variants.ix[idx, ]
-        
-        return 'low'
-    else:
-        # lower thenumber of sampled variants
-        return 'high'
+    e = ax.xaxis.set_ticks_position('bottom')
+    e = ax.yaxis.set_ticks_position('left')
+    
+    e = ax.set_xlabel('Proportion of missense as loss-of-function')
+    e = ax.set_ylabel('Frequency')
+    
+    fig.savefig('results/proportion_uncertainty.pdf', format='pdf', bbox_inches='tight', pad_inches=0, transparent=True)
     
