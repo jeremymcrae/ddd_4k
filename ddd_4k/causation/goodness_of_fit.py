@@ -23,7 +23,7 @@ from __future__ import division, print_function
 
 import pandas
 
-def get_goodness_of_fit(missense_excess, lof_excess, gof_excess):
+def get_goodness_of_fit(missense_excess, lof_excess, gof_excess, increments=200):
     """ identify optimal mixing proportion of HI and non-HI genes to reproduce
     observed frequencies across the pLI bins.
     
@@ -34,13 +34,13 @@ def get_goodness_of_fit(missense_excess, lof_excess, gof_excess):
             the pLI bins, for LoF DNMs in dominant haploinsufficient genes.
         gof_excess: pandas DataFrame of observed to expected differences across
             the pLI bins, for missense DNMs in dominant nonhaploinsufficient genes
+        increments: number of increments to split the proportion range into.
     
     Returns:
         proportion of loss-of-function variants required to best capture the
         observed frequencies at pLI bins.
     """
     
-    increments = 200.0
     lof_freqs = [ x/increments for x in range(int(increments) + 1) ]
     difference = []
     for lof_frequency in lof_freqs:
