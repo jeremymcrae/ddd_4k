@@ -25,7 +25,6 @@ import random
 
 import numpy
 import pandas
-from scipy.stats import gaussian_kde
 
 import matplotlib
 matplotlib.use('Agg')
@@ -39,69 +38,81 @@ seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 
-def permute_fits(merged, hi_merged, non_hi_merged, true_fit, draws=5000):
+def permute_fits(merged, increments=200):
     ''' create permuted fits for the optimal mixing proportions.
     
     Args:
         merged: pandas DataFrame of genes with observed and expected counts for
             Lof and missense de novo mutations. This is for all genes in the genome.
-        hi_merged: pandas DataFrame of genes with observed and expected counts
-            for Lof and missense de novo mutations. This is for dominant
-            haploinsufficient DD-associated genes.
-        non_hi_merged: pandas DataFrame of genes with observed and expected
-            counts for Lof and missense de novo mutations. This is for dominant
-            nonhaploinsufficient DD-associated genes.
-        true_fit: pandas Dataframe of goodness of fit for true data
-        draws: number of permutations to run.
+        increments: number of increments to sample across the proprotion range.
     '''
     
-    permuted_fits = None
-    for x in range(draws):
-        print(x)
-        
-        hi_temp = merged.ix[random.sample(merged.index, len(hi_merged)), ]
-        non_hi_temp = merged.ix[random.sample(merged.index, len(non_hi_merged)), ]
-        lof_excess = aggregate(hi_temp, ["lof", "missense"], normalise=True)
-        gof_excess = aggregate(non_hi_temp, ["missense"], normalise=True)
-        
-        temp_fits = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
-        
-        col_name = 'sample_{0:04d}'.format(x)
-        temp_fits = temp_fits.rename(columns={'goodness_of_fit': col_name})
-        
-        if permuted_fits is None:
-            permuted_fits = temp_fits
-        else:
-            permuted_fits[col_name] = temp_fits[col_name]
+    hi_genes = merged[merged['hgnc'].isin(mono['haploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
+    non_hi_genes = merged[merged['hgnc'].isin(mono['nonhaploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
     
-    plot_permuted_fits(permuted_fits, true_fit, output='permuted_fits.pdf')
-    plot_permuted_optimum_densities(fits, output='permuted_densities.pdf')
+    excess_target = (missense_excess['observed'] - missense_excess['expected']).sum()
+    increments = 200
+    proportions = [ x/float(increments) for x in range(increments + 1) ]
+    fits = pandas.DataFrame({'proportion': [], 'optimal': []})
+    for freq in proportions:
+        lof_target = int(excess_target * freq)
+        gof_target = int(excess_target * (1 - freq))
+        
+        print(freq)
+        
+        if freq == 0 or freq == 1.0:
+            continue
+        
+        values = []
+        for x in range(20):
+            
+            lof = [ random.choice(hi_genes.index) for x in range(lof_target) ]
+            gof = [ random.choice(non_hi_genes.index) for x in range(gof_target) ]
+            
+            lof = hi_genes['pLI_bin'].ix[lof].value_counts()
+            gof = non_hi_genes['pLI_bin'].ix[gof].value_counts()
+            
+            missing = set(bins[:-1]) - set(lof.index)
+            missing = pandas.Series([0] * len(missing), index=missing)
+            lof = lof.append(missing)
+            
+            missing = set(bins[:-1]) - set(gof.index)
+            missing = pandas.Series([0] * len(missing), index=missing)
+            gof = gof.append(missing)
+            
+            lof_excess = pandas.DataFrame({'delta': lof, 'pLI_bin': lof.index}).sort('pLI_bin').reset_index()
+            gof_excess = pandas.DataFrame({'delta': gof, 'pLI_bin': gof.index}).sort('pLI_bin').reset_index()
+            
+            lof_excess['delta'] = lof_excess['delta']/sum(lof_excess['delta'])
+            gof_excess['delta'] = gof_excess['delta']/sum(gof_excess['delta'])
+            
+            temp = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
+            value = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
+            
+            values.append(value)
+        
+        estimate = sum(values)/float(len(values))
+        fits = fits.append({'proportion': freq, 'optimal': estimate}, ignore_index=True)
+    
+    plot_permuted_fits(fits, output='set_proportion_vs_estimated_ptoportion.pdf')
 
-def plot_permuted_fits(permuted_fits, true_fit, output='permuted_fits.pdf'):
+def plot_permuted_fits(permuted_fits, output='permuted_fits.pdf'):
     ''' plot the permuted fits across the proportion range, to show where
     randomly sampled sits appear.
     
     Args:
-        permuted_fits: pandas DataFrame of fits, for samples 1 to n (5000ish)
-        true_fit: pandas Dataframe of goodness of fit for true data
+        permuted_fits: pandas DataFrame
         output: path to save output pdf to.
     '''
     
     fig = pyplot.figure(figsize=(6, 6))
     ax = fig.gca()
     
-    # only plot the first 100 fits, otherwise the plot gets excessively overlaid.
-    for x in range(100):
-        col_name = 'sample_{0:04d}'.format(x)
-        rescaled = numpy.log10(permuted_fits[col_name])
-        e = ax.plot(permuted_fits['proportion'], rescaled, color='gray', alpha=0.5, marker="None")
-    
     # also mark the position of the fit we have for our true data.
-    e = ax.plot(true_fit['proportion'], numpy.log10(true_fit['goodness_of_fit']),
-        color='red', marker="None")
+    e = ax.plot(permuted_fits['proportion'], permuted_fits['optimal']), marker='.', linestyle='none')
     
     e = ax.set_xlabel("proportion HI")
-    e = ax.set_ylabel("log10(goodness of fit)")
+    e = ax.set_ylabel("estimated proportion HI")
     
     # fix the axis limits and ticks
     e = ax.spines['right'].set_visible(False)
@@ -111,39 +122,4 @@ def plot_permuted_fits(permuted_fits, true_fit, output='permuted_fits.pdf'):
     e = ax.yaxis.set_ticks_position('left')
     
     fig.savefig(output, format='pdf', bbox_inches='tight', pad_inches=0,
-        transparent=True)
-
-def plot_permuted_optimum_densities(fits, output='permuted_densities.pdf'):
-    ''' plot the distribution of optimal mixing proportions from permuted data
-    
-    Args:
-        fits: pandas DataFrame of fits, for samples 1 to n (5000ish)
-        output: path to save output pdf to.
-    '''
-    
-    optims = []
-    for x in range(draws):
-        col_name = 'sample_{0:04d}'.format(x)
-        optimal = list(fits["proportion"])[numpy.argmin(fits[col_name])]
-        optims.append(optimal)
-    
-    density = gaussian_kde(optims)
-    x = numpy.arange(0.0, 1.0, 0.002)
-    y = density(x)
-    
-    fig = pyplot.figure(figsize=(6, 6))
-    ax = fig.gca()
-    e = ax.plot(x, y)
-    
-    e = ax.set_xlabel("proportion HI")
-    e = ax.set_ylabel("Density")
-    
-    # fix the axis limits and ticks
-    e = ax.spines['right'].set_visible(False)
-    e = ax.spines['top'].set_visible(False)
-    
-    e = ax.xaxis.set_ticks_position('bottom')
-    e = ax.yaxis.set_ticks_position('left')
-    
-    fig.savefig(output, format="pdf", bbox_inches='tight', pad_inches=0,
         transparent=True)

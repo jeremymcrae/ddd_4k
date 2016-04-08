@@ -51,31 +51,37 @@ def variance_around_optimum(de_novos, expected, mono, optimum, bins, iterations=
     merged = merge_observed_and_expected(de_novos, expected)
     missense_excess = aggregate(merged, ["missense"], normalise=True, bins=bins)
     
-    # define the variants to sample from
-    hi_lof_variants = de_novos[de_novos['hgnc'].isin(mono['haploinsufficient']) &
-        de_novos['consequence'].isin(LOF_CQ | MISSENSE_CQ)]
-    non_hi_missense_variants = de_novos[de_novos['hgnc'].isin(mono['nonhaploinsufficient']) &
-        de_novos['consequence'].isin(MISSENSE_CQ)]
-    
     # # count the number of missense across all genes, then calculate how many
     # # of each type to sample.
     excess_target = (missense_excess['observed'] - missense_excess['expected']).sum()
     lof_target = int(excess_target * optimum)
     gof_target = int(excess_target * (1 - optimum))
     
+    hi_genes = merged[merged['hgnc'].isin(mono['haploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
+    non_hi_genes = merged[merged['hgnc'].isin(mono['nonhaploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
+    
     optimums = []
     for x in range(iterations):
         print(x)
         
-        lof_excess = sample_excess(hi_lof_variants, expected, ['lof', 'missense'],  lof_target, mono, bins)
-        gof_excess = sample_excess(non_hi_missense_variants, expected, ['missense'], gof_target, mono, bins)
+        lof = [ random.choice(hi_genes.index) for x in range(lof_target) ]
+        gof = [ random.choice(non_hi_genes.index) for x in range(gof_target) ]
+        
+        lof = hi_genes['pLI_bin'].ix[lof].value_counts()
+        gof = non_hi_genes['pLI_bin'].ix[gof].value_counts()
+        
+        lof_excess = pandas.DataFrame({'delta': lof, 'pLI_bin': lof.index}).sort('pLI_bin').reset_index()
+        gof_excess = pandas.DataFrame({'delta': gof, 'pLI_bin': gof.index}).sort('pLI_bin').reset_index()
+        
+        lof_excess['delta'] = lof_excess['delta']/sum(lof_excess['delta'])
+        gof_excess['delta'] = gof_excess['delta']/sum(gof_excess['delta'])
         
         fits = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
-        
         optimal = list(fits["proportion"])[numpy.argmin(fits["goodness_of_fit"])]
+        
         optimums.append(optimal)
     
-    plot_uncertainty(optimums)
+    # plot_uncertainty(optimums, optimum)
     
     return numpy.median(optimums)
 
