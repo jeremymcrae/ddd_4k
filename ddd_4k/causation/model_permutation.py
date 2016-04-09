@@ -38,7 +38,7 @@ seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 
-def permute_fits(de_novos, expected, mono, missense_excess, lof_excess, gof_excess, increments=100, permutations=20):
+def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, gof_excess, increments=100, permutations=20):
     ''' create permuted fits for the optimal mixing proportions.
     
     Args:
