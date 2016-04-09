@@ -31,14 +31,14 @@ matplotlib.use('Agg')
 from matplotlib import pyplot
 import seaborn
 
-from ddd_4k.causation.aggregate_pli_bins import aggregate
+from ddd_4k.causation.sample_excess import sample_excess
 from ddd_4k.causation.goodness_of_fit import get_goodness_of_fit
 
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 
-def permute_fits(merged, increments=200):
+def permute_fits(de_novos, expected, mono, missense_excess, lof_excess, gof_excess, increments=100, permutations=20):
     ''' create permuted fits for the optimal mixing proportions.
     
     Args:
@@ -47,52 +47,38 @@ def permute_fits(merged, increments=200):
         increments: number of increments to sample across the proprotion range.
     '''
     
-    hi_genes = merged[merged['hgnc'].isin(mono['haploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
-    non_hi_genes = merged[merged['hgnc'].isin(mono['nonhaploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
+    hi_variants = de_novos[de_novos['hgnc'].isin(mono['haploinsufficient'])]
+    non_hi_variants = de_novos[de_novos['hgnc'].isin(mono['nonhaploinsufficient'])]
     
     excess_target = (missense_excess['observed'] - missense_excess['expected']).sum()
-    increments = 200
     proportions = [ x/float(increments) for x in range(increments + 1) ]
-    fits = pandas.DataFrame({'proportion': [], 'optimal': []})
+    fits = pandas.DataFrame({'proportion': [], 'optimal': [], 'goodness_of_fit': []})
     for freq in proportions:
         lof_target = int(excess_target * freq)
         gof_target = int(excess_target * (1 - freq))
         
-        print(freq)
+        print('checking frequency: {}'.format(freq))
         
         if freq == 0 or freq == 1.0:
             continue
         
-        values = []
-        for x in range(20):
+        optimums = []
+        for x in range(permutations):
             
-            lof = [ random.choice(hi_genes.index) for x in range(lof_target) ]
-            gof = [ random.choice(non_hi_genes.index) for x in range(gof_target) ]
+            lof = sample_excess(hi_variants, expected, ['lof', 'missense'], lof_target, mono, bins)
+            gof = sample_excess(non_hi_variants, expected, ['missense'], gof_target, mono, bins)
             
-            lof = hi_genes['pLI_bin'].ix[lof].value_counts()
-            gof = non_hi_genes['pLI_bin'].ix[gof].value_counts()
+            mis = lof + gof
+            mis['delta'] = mis['observed'] - mis['expected']
+            mis['delta'] = mis['delta']/sum(mis['delta'])
             
-            missing = set(bins[:-1]) - set(lof.index)
-            missing = pandas.Series([0] * len(missing), index=missing)
-            lof = lof.append(missing)
+            temp = get_goodness_of_fit(mis, lof_excess, gof_excess)
             
-            missing = set(bins[:-1]) - set(gof.index)
-            missing = pandas.Series([0] * len(missing), index=missing)
-            gof = gof.append(missing)
-            
-            lof_excess = pandas.DataFrame({'delta': lof, 'pLI_bin': lof.index}).sort('pLI_bin').reset_index()
-            gof_excess = pandas.DataFrame({'delta': gof, 'pLI_bin': gof.index}).sort('pLI_bin').reset_index()
-            
-            lof_excess['delta'] = lof_excess['delta']/sum(lof_excess['delta'])
-            gof_excess['delta'] = gof_excess['delta']/sum(gof_excess['delta'])
-            
-            temp = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
-            value = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
-            
-            values.append(value)
+            optimal = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
+            optimums.append(optimal)
         
-        estimate = sum(values)/float(len(values))
-        fits = fits.append({'proportion': freq, 'optimal': estimate}, ignore_index=True)
+        optimum = sum(optimums)/float(len(optimums))
+        fits = fits.append({'proportion': freq, 'optimal': optimum}, ignore_index=True)
     
     plot_permuted_fits(fits, output='set_proportion_vs_estimated_ptoportion.pdf')
 
@@ -109,7 +95,7 @@ def plot_permuted_fits(permuted_fits, output='permuted_fits.pdf'):
     ax = fig.gca()
     
     # also mark the position of the fit we have for our true data.
-    e = ax.plot(permuted_fits['proportion'], permuted_fits['optimal']), marker='.', linestyle='none')
+    e = ax.plot(permuted_fits['proportion'], permuted_fits['optimal'], marker='.', linestyle='none')
     
     e = ax.set_xlabel("proportion HI")
     e = ax.set_ylabel("estimated proportion HI")

@@ -21,7 +21,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from __future__ import division, print_function
 
+import pandas
 import numpy
+from scipy.interpolate import UnivariateSpline
 
 import matplotlib
 matplotlib.use('Agg')
@@ -35,12 +37,15 @@ from ddd_4k.causation.aggregate_pli_bins import aggregate
 from ddd_4k.causation.goodness_of_fit import get_goodness_of_fit
 from ddd_4k.causation.model_permutation import permute_fits
 from ddd_4k.causation.mixture_optimum_variance import variance_around_optimum
+from ddd_4k.causation.sample_excess import sample_excess
+
+from mupit.constants import LOF_CQ, MISSENSE_CQ
 
 import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def model_mixing(known, de_novos, expected, constraints, check_variance=False):
+def model_mixing(known, de_novos, expected, constraints, check_modelling=False, check_variance=False):
     """ identify the optimal mixing proportion of haploinsufficient and
     nonhaploinsufficient across to match the observed mixture.
     
@@ -55,6 +60,8 @@ def model_mixing(known, de_novos, expected, constraints, check_variance=False):
             across different functional categories, for all genes in the genome.
         constraints: pandas DataFrame of constraint scores for all genes in
             the genome with columns for 'gene' and 'pLI'.
+        check_modelling: whether to check how well the method can identify
+            the correct optimal proportion.
         check_variance: whether to check the variance around the optimal mixing
             proportion by resampling variants according to the optimal ratio.
     
@@ -62,6 +69,8 @@ def model_mixing(known, de_novos, expected, constraints, check_variance=False):
         proportion of de novos as haploinsufficient that best approximates the
         difference in observed to expected counts across the pLI bins.
     """
+    
+    de_novos['person_id'] = de_novos['person_stable_id']
     
     # classify known dominant genes
     mono = classify_monoallelic_genes(known)
@@ -85,17 +94,19 @@ def model_mixing(known, de_novos, expected, constraints, check_variance=False):
     plot_default_distributions(missense_excess, lof_excess, gof_excess,
         output="results/obs_to_exp_delta_by_hi_bin.pdf")
     
-    fits = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
+    fits = get_goodness_of_fit(missense_excess, lof_excess, gof_excess, increments=200)
     plot_optimisation(fits, output="results/hi_bin_mixing_optimisation.pdf")
     
     optimal = list(fits["proportion"])[numpy.argmin(fits["goodness_of_fit"])]
+    plot_optimisation(fits, output="results/hi_bin_mixing_optimisation.pdf")
     
     # # uncomment the line below if you want to check how a permuted dataset will
     # # behave.
-    # permute_fits(merged, hi_merged, non_hi_merged, fits)
+    if check_modelling:
+        permute_fits(de_novos, expected, mono, missense_excess, lof_excess, gof_excess, increments=100, permutations=20)
     
     if check_variance:
-        variance_around_optimum(de_novos, expected, mono, optimum, iterations=10)
+        variance_around_optimum(de_novos, expected, mono, optimal, bins, permutations=1000)
     
     return optimal
 
@@ -142,7 +153,8 @@ def plot_optimisation(mixtures, output):
     fig = pyplot.figure(figsize=(6, 6))
     ax = fig.gca()
     
-    e = ax.plot(mixtures["proportion"], mixtures["goodness_of_fit"], marker="None")
+    e = ax.plot(mixtures["proportion"], mixtures["goodness_of_fit"], marker=".",
+        linestyle='none')
     
     e = ax.set_xlabel("proportion HI")
     e = ax.set_ylabel("sum of squares (observed - simulated)")

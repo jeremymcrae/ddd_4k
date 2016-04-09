@@ -40,7 +40,7 @@ import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def variance_around_optimum(de_novos, expected, mono, optimum, bins, iterations=1000):
+def variance_around_optimum(de_novos, expected, mono, optimum, bins, permutations=1000):
     '''
     
     Args:
@@ -51,37 +51,40 @@ def variance_around_optimum(de_novos, expected, mono, optimum, bins, iterations=
     merged = merge_observed_and_expected(de_novos, expected)
     missense_excess = aggregate(merged, ["missense"], normalise=True, bins=bins)
     
-    # # count the number of missense across all genes, then calculate how many
-    # # of each type to sample.
+    hi_merged = merged[merged["hgnc"].isin(mono["haploinsufficient"])]
+    non_hi_merged = merged[merged["hgnc"].isin(mono["nonhaploinsufficient"])]
+    
+    lof_excess = aggregate(hi_merged, ["lof", "missense"], normalise=True, bins=bins)
+    gof_excess = aggregate(non_hi_merged, ["missense"], normalise=True, bins=bins)
+    
+    # count the number of missense across all genes, then calculate how many
+    # of each type to sample.
     excess_target = (missense_excess['observed'] - missense_excess['expected']).sum()
     lof_target = int(excess_target * optimum)
     gof_target = int(excess_target * (1 - optimum))
     
-    hi_genes = merged[merged['hgnc'].isin(mono['haploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
-    non_hi_genes = merged[merged['hgnc'].isin(mono['nonhaploinsufficient']) & ((merged['lof_observed'] > 0) | (merged['missense_observed'] > 0))]
+    hi_variants = de_novos[de_novos['hgnc'].isin(mono['haploinsufficient'])]
+    non_hi_variants = de_novos[mede_novosrged['hgnc'].isin(mono['nonhaploinsufficient'])]
     
     optimums = []
-    for x in range(iterations):
+    for x in range(permutations):
         print(x)
         
-        lof = [ random.choice(hi_genes.index) for x in range(lof_target) ]
-        gof = [ random.choice(non_hi_genes.index) for x in range(gof_target) ]
+        lof = sample_excess(hi_variants, expected, ['lof', 'missense'], lof_target, mono, bins)
+        gof = sample_excess(non_hi_variants, expected, ['missense'], gof_target, mono, bins)
         
-        lof = hi_genes['pLI_bin'].ix[lof].value_counts()
-        gof = non_hi_genes['pLI_bin'].ix[gof].value_counts()
+        mis = lof + gof
+        mis['delta'] = mis['observed'] - mis['expected']
+        mis['delta'] = mis['delta']/sum(mis['delta'])
         
-        lof_excess = pandas.DataFrame({'delta': lof, 'pLI_bin': lof.index}).sort('pLI_bin').reset_index()
-        gof_excess = pandas.DataFrame({'delta': gof, 'pLI_bin': gof.index}).sort('pLI_bin').reset_index()
+        temp = get_goodness_of_fit(mis, lof_excess, gof_excess)
         
-        lof_excess['delta'] = lof_excess['delta']/sum(lof_excess['delta'])
-        gof_excess['delta'] = gof_excess['delta']/sum(gof_excess['delta'])
-        
-        fits = get_goodness_of_fit(missense_excess, lof_excess, gof_excess)
-        optimal = list(fits["proportion"])[numpy.argmin(fits["goodness_of_fit"])]
-        
+        optimal = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
         optimums.append(optimal)
     
-    # plot_uncertainty(optimums, optimum)
+    optimum = sum(optimums)/float(len(optimums))
+    
+    plot_uncertainty(optimums, optimum)
     
     return numpy.median(optimums)
 
