@@ -64,7 +64,7 @@ def variance_around_optimum(de_novos, expected, mono, optimum, bins, permutation
     gof_target = int(excess_target * (1 - optimum))
     
     hi_variants = de_novos[de_novos['hgnc'].isin(mono['haploinsufficient'])]
-    non_hi_variants = de_novos[mede_novosrged['hgnc'].isin(mono['nonhaploinsufficient'])]
+    non_hi_variants = de_novos[de_novos['hgnc'].isin(mono['nonhaploinsufficient'])]
     
     optimums = []
     for x in range(permutations):
