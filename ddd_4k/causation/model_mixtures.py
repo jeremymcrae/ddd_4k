@@ -37,7 +37,6 @@ from ddd_4k.causation.aggregate_pli_bins import aggregate
 from ddd_4k.causation.goodness_of_fit import get_goodness_of_fit
 from ddd_4k.causation.model_permutation import permute_fits
 from ddd_4k.causation.mixture_optimum_variance import variance_around_optimum
-from ddd_4k.causation.sample_excess import sample_excess
 
 from mupit.constants import LOF_CQ, MISSENSE_CQ
 
@@ -103,7 +102,7 @@ def model_mixing(known, de_novos, expected, constraints, check_modelling=False, 
     # # uncomment the line below if you want to check how a permuted dataset will
     # # behave.
     if check_modelling:
-        permute_fits(de_novos, expected, mono, missense_excess, lof_excess, gof_excess, increments=100, permutations=20)
+        permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, gof_excess, increments=100, permutations=20)
     
     if check_variance:
         variance_around_optimum(de_novos, expected, mono, optimal, bins, permutations=1000)
