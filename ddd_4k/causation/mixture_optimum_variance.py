@@ -40,7 +40,7 @@ import seaborn
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-def variance_around_optimum(de_novos, expected, mono, optimum, bins, permutations=1000):
+def variance_around_optimum(de_novos, expected, mono, optimum, bins, slope, intercept, permutations=1000):
     '''
     
     Args:
@@ -82,18 +82,18 @@ def variance_around_optimum(de_novos, expected, mono, optimum, bins, permutation
         optimal = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
         optimums.append(optimal)
     
-    optimum = sum(optimums)/float(len(optimums))
-    
-    plot_uncertainty(optimums, optimum)
+    plot_uncertainty(optimums, optimum, slope, intercept)
     
     return numpy.median(optimums)
 
-def plot_uncertainty(optimums, optimal):
+def plot_uncertainty(optimums, optimal, slope, intercept):
     '''
     '''
     
     fig = pyplot.figure(figsize=(6,6))
     ax = fig.gca()
+    
+    optimums = (optimums - intercept)/slope
     
     e = ax.hist(optimums, bins=10)
     

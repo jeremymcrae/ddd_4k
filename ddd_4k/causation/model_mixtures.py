@@ -102,10 +102,10 @@ def model_mixing(known, de_novos, expected, constraints, check_modelling=False, 
     # # uncomment the line below if you want to check how a permuted dataset will
     # # behave.
     if check_modelling:
-        permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, gof_excess, increments=100, permutations=20)
+        (slope, intercept) = permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, gof_excess, increments=100, permutations=100)
     
     if check_variance:
-        variance_around_optimum(de_novos, expected, mono, optimal, bins, permutations=1000)
+        variance_around_optimum(de_novos, expected, mono, optimal, bins, slope, intercept, permutations=1000)
     
     return optimal
 

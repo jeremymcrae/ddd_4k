@@ -25,6 +25,7 @@ import random
 
 import numpy
 import pandas
+from scipy.stats import linregress
 
 import matplotlib
 matplotlib.use('Agg')
@@ -80,7 +81,11 @@ def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, go
         optimum = sum(optimums)/float(len(optimums))
         fits = fits.append({'proportion': freq, 'optimal': optimum}, ignore_index=True)
     
-    plot_permuted_fits(fits, output='set_proportion_vs_estimated_ptoportion.pdf')
+    plot_permuted_fits(fits, output='set_proportion_vs_estimated_proportion.pdf')
+    
+    slope, intercept, r_value, p_value, std_err = linregress(fits['proportion'], fits['optimal'])
+    
+    return (slope, intercept)
 
 def plot_permuted_fits(permuted_fits, output='permuted_fits.pdf'):
     ''' plot the permuted fits across the proportion range, to show where
