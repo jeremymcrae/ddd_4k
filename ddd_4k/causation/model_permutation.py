@@ -25,7 +25,7 @@ import random
 
 import numpy
 import pandas
-from scipy.stats import linregress
+from scipy.stats import linregress, gaussian_kde
 
 import matplotlib
 matplotlib.use('Agg')
@@ -39,7 +39,7 @@ seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
 
-def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, gof_excess, increments=100, permutations=20):
+def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, gof_excess, prior, increments=100, permutations=20):
     ''' create permuted fits for the optimal mixing proportions.
     
     Args:
@@ -51,6 +51,7 @@ def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, go
     hi_variants = de_novos[de_novos['hgnc'].isin(mono['haploinsufficient'])]
     non_hi_variants = de_novos[de_novos['hgnc'].isin(mono['nonhaploinsufficient'])]
     
+    likelihoods = pandas.DataFrame({'proportion': [], 'optimal': [], 'density': []})
     excess_target = (missense_excess['observed'] - missense_excess['expected']).sum()
     proportions = [ x/float(increments) for x in range(increments + 1) ]
     fits = pandas.DataFrame({'proportion': [], 'optimal': [], 'goodness_of_fit': []})
@@ -78,12 +79,19 @@ def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, go
             optimal = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
             optimums.append(optimal)
         
+        density = gaussian_kde(optimums)
+        likelihoods = likelihoods.append({'proportion': freq, 'density': density(prior)}, ignore_index=True)
+        
         optimum = sum(optimums)/float(len(optimums))
         fits = fits.append({'proportion': freq, 'optimal': optimum}, ignore_index=True)
+    
+    likelihoods.to_csv('proportion_likelohoods.txt', sep='\t', index=False)
     
     plot_permuted_fits(fits, output='set_proportion_vs_estimated_proportion.pdf')
     
     slope, intercept, r_value, p_value, std_err = linregress(fits['proportion'], fits['optimal'])
+    
+    print('slope: {0}, intercept: {1}'.format(slope, intercept))
     
     return (slope, intercept)
 
