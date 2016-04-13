@@ -82,18 +82,30 @@ def variance_around_optimum(de_novos, expected, mono, optimum, bins, slope, inte
         optimal = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
         optimums.append(optimal)
     
-    plot_uncertainty(optimums, optimum, slope, intercept)
+    # adjust the values for the sampling bias
+    optimums = (optimums - intercept)/slope
     
-    return numpy.median(optimums)
+    plot_uncertainty(optimums, optimum)
+    
+    return get_95_interval(optimums)
 
-def plot_uncertainty(optimums, optimal, slope, intercept):
+def get_95_interval(values):
+    ''' determine the range where 95% of values lie within
+    '''
+    
+    values = sorted(values)
+    
+    low_pos = int(0.025 * len(values))
+    hi_pos = int(0.975 * len(values))
+    
+    return (values[low_pos], values[hi_pos])
+
+def plot_uncertainty(optimums, optimal):
     '''
     '''
     
     fig = pyplot.figure(figsize=(6,6))
     ax = fig.gca()
-    
-    optimums = (optimums - intercept)/slope
     
     e = ax.hist(optimums, bins=10)
     
