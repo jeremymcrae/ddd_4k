@@ -22,7 +22,9 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import absolute_import, print_function, division
 
 import argparse
+import math
 
+from scipy.stats import norm
 import pandas
 
 from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
@@ -130,7 +132,7 @@ def proportion_in_dominant_hi_genes(filtered, known):
     
     return dict(counts)
 
-def print_proportions_from_dominant_hi(dominant_hi, excess):
+def print_proportions_from_dominant_hi(dominant_hi, excess, alpha=0.95):
     ''' show the proportions of loss-of-function/gain of function
     
     These estimates use the split of
@@ -144,8 +146,16 @@ def print_proportions_from_dominant_hi(dominant_hi, excess):
     lof_proportion = lof_excess + lof_excess * lof_as_mis
     gof_proportion = 1 - lof_proportion
     
+    # also estimate a 95% confidence interval
+    z = norm.ppf(1 - ((1 - alpha)/2))
+    hi_delta = z * math.sqrt((lof_as_mis * (1 - lof_as_mis))/(dominant_hi['missense'] + dominant_hi['loss-of-function']))
+    excess_delta = z * math.sqrt((lof_excess * (1 - lof_excess))/(excess['missense']['excess'] + excess['loss-of-function']['excess']))
+    lower = (lof_excess - excess_delta) + (lof_excess - excess_delta) * (lof_as_mis - hi_delta)
+    upper = (lof_excess + excess_delta) + (lof_excess + excess_delta) * (lof_as_mis + hi_delta)
+    
     print('LoF: {:.0f}%'.format(lof_proportion * 100))
     print('GoF: {:.0f}%'.format(gof_proportion * 100))
+    print('LoF 95% CI: {0}-{1}%'.format(lower * 100, upper * 100))
 
 def main():
     
