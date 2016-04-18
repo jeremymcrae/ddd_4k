@@ -5,7 +5,7 @@
    genes.
 
 ### Additional analyses
- - [ ] distribution of pLI vs gene significance
+ - [x] distribution of pLI vs gene significance
  - [x] missing dominant loss-of-function haploinsufficient neurodevelopmental DDG2P
    genes.
     - [x] Assess genes as being neurodevelopmental by HPO term. Possible top-level
@@ -26,7 +26,7 @@
 ### Clinical details to report phenotype of novel genes
  - [x] aggregate growth data, developmental milestones and HPO terms for each novel
    gene.
- - [ ] fill in missing cells for clinical tables generated from decipher information
- - [ ] distinguishing features of each novel gene to go in a main table
- - [ ] make sure to exclude phenotypes >10 SD from mean
+ - [x] fill in missing cells for clinical tables generated from decipher information
+ - [x] distinguishing features of each novel gene to go in a main table
+ - [x] make sure to exclude phenotypes >10 SD from mean
  
