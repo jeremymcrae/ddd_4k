@@ -25,7 +25,7 @@ import random
 
 import numpy
 import pandas
-from scipy.stats import linregress, gaussian_kde
+from scipy.stats import linregress, gaussian_kde, norm
 
 import matplotlib
 matplotlib.use('Agg')
@@ -51,7 +51,7 @@ def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, go
     hi_variants = de_novos[de_novos['hgnc'].isin(mono['haploinsufficient'])]
     non_hi_variants = de_novos[de_novos['hgnc'].isin(mono['nonhaploinsufficient'])]
     
-    likelihoods = pandas.DataFrame({'proportion': [], 'optimal': [], 'density': []})
+    data = pandas.DataFrame({'proportion': [], 'optimum': []})
     excess_target = (missense_excess['observed'] - missense_excess['expected']).sum()
     proportions = [ x/float(increments) for x in range(increments + 1) ]
     fits = pandas.DataFrame({'proportion': [], 'optimal': [], 'goodness_of_fit': []})
@@ -79,21 +79,81 @@ def permute_fits(de_novos, expected, mono, bins, missense_excess, lof_excess, go
             optimal = list(temp["proportion"])[numpy.argmin(temp["goodness_of_fit"])]
             optimums.append(optimal)
         
-        density = gaussian_kde(optimums)
-        likelihoods = likelihoods.append({'proportion': freq, 'density': density(prior)}, ignore_index=True)
+        temp =  pandas.DataFrame({'proportion': [freq] * len(optimums), 'optimum': optimums})
+        data = data.append(temp, ignore_index=True)
         
         optimum = sum(optimums)/float(len(optimums))
         fits = fits.append({'proportion': freq, 'optimal': optimum}, ignore_index=True)
     
-    likelihoods.to_csv('proportion_likelohoods.txt', sep='\t', index=False)
-    
     plot_permuted_fits(fits, output='set_proportion_vs_estimated_proportion.pdf')
     
     slope, intercept, r_value, p_value, std_err = linregress(fits['proportion'], fits['optimal'])
-    
     print('slope: {0}, intercept: {1}'.format(slope, intercept))
+    get_95_interval(data, slope, intercept, prior)
     
     return (slope, intercept)
+
+def get_95_interval(data, slope, intercept, prior):
+    '''
+    '''
+    
+    data.to_csv('proportion_optimums.txt', sep='\t', index=False)
+    
+    data['adjusted'] = (data['optimum'] - intercept)/slope
+    
+    likelihoods = pandas.DataFrame({'proportion': [], 'density': []})
+    for freq, group in data.groupby('proportion'):
+        density = gaussian_kde(group['adjusted'])
+        likelihoods = likelihoods.append({'proportion': freq, 'density': density(prior)}, ignore_index=True)
+    
+    likelihoods = likelihoods.sort('proportion')
+    
+    likelihoods.to_csv('proportion_likelihoods.txt', sep='\t', index=False)
+    
+    # scale the likelihoods so the points sum to 1
+    likelihoods['scaled_density'] = likelihoods['density']/sum(likelihoods['density'])
+    
+    likelihoods['cumsum'] = likelihoods['scaled_density'].cumsum()
+    
+    below = likelihoods[likelihoods['cumsum'] < 0.025]
+    above = likelihoods[likelihoods['cumsum'] > 0.975]
+    
+    lo = max(below['proportion'])
+    hi = min(above['proportion'])
+    
+    print('95% CI around optimal proportion: {0}-{1}'.format(lo, hi))
+    
+    samples = []
+    for i, row in likelihoods.iterrows():
+        samples += [row['proportion']] * int(row['density'] * 1000)
+    
+    # determine a curve for the a normal distribution around the distribution
+    # parameters
+    mu, std = norm.fit(samples)
+    x_values = [ x/float(200) for x in range(200) ]
+    y_values = norm.pdf(x_values, mu, std)
+    
+    fig = pyplot.figure()
+    ax = fig.gca()
+    
+    # also mark the position of the fit we have for our true data.
+    e = ax.plot(likelihoods['proportion'], likelihoods['density'], marker='.', linestyle='none')
+    e = ax.plot(x_values, y_values, color='gray')
+    
+    e = ax.set_xlim(0.1, 0.65)
+    
+    e = ax.set_xlabel("proportion HI")
+    e = ax.set_ylabel("Density")
+    
+    # fix the axis limits and ticks
+    e = ax.spines['right'].set_visible(False)
+    e = ax.spines['top'].set_visible(False)
+    
+    e = ax.xaxis.set_ticks_position('bottom')
+    e = ax.yaxis.set_ticks_position('left')
+    
+    fig.savefig('permutation.variance.pdf', format='pdf', bbox_inches='tight', pad_inches=0,
+        transparent=True)
 
 def plot_permuted_fits(permuted_fits, output='permuted_fits.pdf'):
     ''' plot the permuted fits across the proportion range, to show where
