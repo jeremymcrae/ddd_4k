@@ -289,7 +289,11 @@ def exome_at_high_maf(transcript, mut_dict):
         if not transcript.in_coding_region(bp):
             continue
         
-        codon = get_codon_info(transcript, bp, boundary_dist=0)
+        try:
+            codon = get_codon_info(transcript, bp, boundary_dist=0)
+        except KeyError:
+            continue
+        
         seq = transcript.get_trinucleotide(bp)
         
         if transcript.get_strand() == '-':
