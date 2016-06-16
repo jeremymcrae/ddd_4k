@@ -139,7 +139,7 @@ def plot_excess_by_pp_dnm_threshold(de_novos, expected, validations, increments=
         validation_rate = get_rates(validations, threshold)
         excess = get_consequence_excess(expected, variants, validation_rate.ppv, validation_rate.tpr)
         
-        burden = excess['missense']['excess'] + excess['loss-of-function']['excess']
+        burden = excess['missense']['excess'] + excess['truncating']['excess']
         burdens.append(burden)
     
     fig = pyplot.figure(figsize=(6, 6))

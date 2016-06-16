@@ -22,7 +22,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import pandas
 
 def get_count_by_person(de_novos):
-    """ count the number of functional and loss-of-function de novos per person
+    """ count the number of functional and truncating de novos per person
     
     Args:
         de_novos: DataFrame of de novo mutations
@@ -45,9 +45,9 @@ def get_count_by_person(de_novos):
     sample_ids = [ x[0] for x in index ]
     known = [ x[1] for x in index ]
     
-    by_category = pandas.DataFrame({"person_stable_id": sample_ids, "known": known, "functional": by_category["functional"].values, "loss-of-function": by_category["loss-of-function"].values})
+    by_category = pandas.DataFrame({"person_stable_id": sample_ids, "known": known, "functional": by_category["functional"].values, "truncating": by_category["truncating"].values})
     
-    counts = pandas.melt(by_category, id_vars=["person_stable_id", "known"], value_vars=["functional", "loss-of-function"])
+    counts = pandas.melt(by_category, id_vars=["person_stable_id", "known"], value_vars=["functional", "truncating"])
     counts = counts[counts["value"].notnull()]
     counts = counts.rename(columns={"variable": "consequence"})
     

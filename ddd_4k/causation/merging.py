@@ -35,12 +35,12 @@ def merge_observed_and_expected(de_novos, expected):
         loss-of-function and missense candidates.
     """
     
-    # sum the observed loss-of-function and missense candidates per gene
+    # sum the observed truncating and missense candidates per gene
     observed = get_de_novo_counts(de_novos)
     observed["lof_observed"] = observed[["lof_snv", "lof_indel"]].sum(axis=1)
     observed["missense_observed"] = observed[["missense_snv", "missense_indel"]].sum(axis=1)
     
-    # sum the expected loss-of-function, missense and synonymous mutations per gene
+    # sum the expected truncating, missense and synonymous mutations per gene
     expected = expected.copy()
     expected["lof_expected"] = expected[["lof_snv", "lof_indel"]].sum(axis=1)
     expected["missense_expected"] = expected[["missense_snv", "missense_indel"]].sum(axis=1)

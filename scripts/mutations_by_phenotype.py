@@ -120,7 +120,7 @@ def plot_categorical(counts, pheno, value, folder):
     
     Args:
         counts: dataframe of number of de novos per proband per consequence type
-            (loss-of-function/functional) by known developmental gene status.
+            (truncating/functional) by known developmental gene status.
         pheno: dataframe of phenotypic values for probands
         value: the phenotypic value that we are grouping by.
         folder: the folder to save graphs into.
@@ -179,7 +179,7 @@ def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=Fal
     
     Args:
         counts: dataframe of number of de novos per proband per consequence type
-            (loss-of-function/functional) by known developmental gene status.
+            (truncating/functional) by known developmental gene status.
         pheno: dataframe of phenotypic values for probands
         value: the phenotypic value that we are grouping by.
         folder: the folder to save graphs into.
@@ -233,7 +233,7 @@ def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=Fal
     # merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
     # results = []
     # for known in [True, False]:
-    #     lof = merged[value][(merged.known == known) & (merged.consequence == "loss-of-function")]
+    #     lof = merged[value][(merged.known == known) & (merged.consequence == "truncating")]
     #     func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
     #     u, p_value = mannwhitneyu(lof, func)
     #     results.append([known, p_value])
@@ -254,7 +254,7 @@ def plot_achievement(counts, pheno, achievement, folder):
     
     Args:
         counts: dataframe of number of de novos per proband per consequence type
-            (loss-of-function/functional) by known developmental gene status.
+            (truncating/functional) by known developmental gene status.
         pheno: dataframe of phenotypic values for probands
         achievement: column name for the developmental milestone e.g.
             "social_smile", "first_words".

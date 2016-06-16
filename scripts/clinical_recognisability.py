@@ -89,7 +89,7 @@ def count_de_novos(de_novo_path, validations_path, lof_only=False):
     de_novos = open_de_novos(de_novo_path, validations_path)
     
     if lof_only:
-        de_novos = de_novos[de_novos["category"] == "loss-of-function"]
+        de_novos = de_novos[de_novos["category"] == "truncating"]
     
     counts = {}
     for (gene, rows) in de_novos.groupby("hgnc"):
@@ -216,7 +216,7 @@ def plot_rate_by_p_value(neurodev, results):
     e = ax.yaxis.set_ticks_position('left')
     e = ax.xaxis.set_ticks_position('bottom')
     
-    e = ax.set_xlabel("Expected loss-of-function mutation rate")
+    e = ax.set_xlabel("Expected protein-truncating mutation rate")
     e = ax.set_ylabel("-log10(P)")
     
     fig.savefig("results/rate_by_p_value.pdf", format="pdf", bbox_inches='tight',

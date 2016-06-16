@@ -35,7 +35,7 @@ from ddd_4k.causation.merging import merge_observed_and_expected
 
 def get_consequence_excess(expected, de_novos, ppv, sensitivity):
     """ determine the ratio of observed to expected for synonymous, missense
-    and loss-of-function canddiate de novos
+    and protein-truncating candidate de novos
     
     Args:
         expected: pandas DataFrame of counts of expected de novo mutations for
@@ -48,7 +48,7 @@ def get_consequence_excess(expected, de_novos, ppv, sensitivity):
     
     Returns:
         dictionary of counts and ratios for synonymous, missense and
-        loss-of-function consequences.
+        truncating consequences.
     """
     
     # adjust the numbers of excess mutations by our sensitivity and specificity,
@@ -56,7 +56,7 @@ def get_consequence_excess(expected, de_novos, ppv, sensitivity):
     # indicates the proportion of candidates which are true positive at a given
     # quality threshold, and the sensitivity indicates the sensitivity to true
     # positives at the same threshold. We also need to account for exome sequencing
-    # not being 100% sensitive, as estimates are that it is around 95% sensitive. 
+    # not being 100% sensitive, as estimates are that it is around 95% sensitive.
     scale_factor = ppv * (1.0/0.95/sensitivity)
     
     merged = merge_observed_and_expected(de_novos, expected)
@@ -76,7 +76,7 @@ def get_consequence_excess(expected, de_novos, ppv, sensitivity):
     values = {
         "synonymous":
             {"ratio": synonymous_ratio,  "count": synonymous_count,  "excess": synonymous_excess},
-        "loss-of-function":
+        "truncating":
             {"ratio": lof_ratio,  "count": lof_count, "excess": lof_excess},
         "missense":
             {"ratio": missense_ratio,  "count": missense_count,  "excess": missense_excess}}
@@ -88,14 +88,14 @@ def plot_consequence_excess(ratios, output):
     
     Args:
         ratios: dictionary of de novo counts and observed/expected ratios for
-            "synonymous", "loss-of-function" and "missense" candidate de novos.
+            "synonymous", "truncating" and "missense" candidate de novos.
         output: path to save plot as pdf to.
     """
     
     # format the ratios and counts
     temp = pandas.DataFrame(ratios).transpose()
     temp["consequence"] = temp.index
-    temp = temp.reindex(["synonymous", "missense", "loss-of-function"])
+    temp = temp.reindex(["synonymous", "missense", "truncating"])
     temp.index = range(len(temp))
     
     fig = pyplot.figure(figsize=(6, 6))

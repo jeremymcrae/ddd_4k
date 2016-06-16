@@ -39,7 +39,7 @@ def get_pp_dnm_threshold(de_novos, expected):
         ratio of observed synonymous variants to expected equals one. Applying
         the threshold to all candidate de novos threshold ensures we do not have
         more candidates due to errors than expected by chance in missense and
-        loss-of-function categories.
+        protein-truncating categories.
     """
     
     rates = dict(zip(expected["hgnc"], expected["synonymous_snv"]))

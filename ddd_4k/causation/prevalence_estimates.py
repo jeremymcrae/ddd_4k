@@ -57,10 +57,10 @@ def prevalence_from_baseline_lof(rates, known, excess_to_lof, snv_yield, unobser
     # affect downstream estimates.
     dominant = rates[rates["hgnc"].isin(mono["haploinsufficient"])]
     
-    # get the summed loss-of-function mutation rate in known dominant genes
+    # get the summed protein-truncating mutation rate in known dominant genes
     lof_mu = sum(dominant[["splice_site", "frameshift", "non"]].sum(axis=1, skipna=True))
     
-    # get the proportion of the population with a loss-of-function mutation in a
+    # get the proportion of the population with a truncating mutation in a
     # known dominant gene.
     lof_prevalence = poisson.sf(0, lof_mu, loc=0)
     

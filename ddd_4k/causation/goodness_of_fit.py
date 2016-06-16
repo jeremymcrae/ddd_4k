@@ -37,8 +37,8 @@ def get_goodness_of_fit(missense_excess, lof_excess, gof_excess, increments=200)
         increments: number of increments to split the proportion range into.
     
     Returns:
-        proportion of loss-of-function variants required to best capture the
-        observed frequencies at pLI bins.
+        proportion of truncating variants required to best capture the observed
+        frequencies at pLI bins.
     """
     
     lof_freqs = [ x/increments for x in range(int(increments) + 1) ]

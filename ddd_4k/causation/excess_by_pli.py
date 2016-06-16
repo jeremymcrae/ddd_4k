@@ -38,7 +38,7 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     independent of pLI score. We can determine the excess as the difference in
     number of mutations between the upper half of genes versus the lower half of
     genes. When we break the variants down by consequence type, we expect the
-    biggest exess to ocur in VEP predicted loss-of-function mutations. Variants
+    biggest excess to ocur in VEP predicted loss-of-function mutations. Variants
     which VEP classified as missense, but which have a loss-of-function
     mechanism will also be enriched in genes in the upper half of pLI scores.
     
@@ -80,7 +80,7 @@ def excess_de_novos_from_pLI(de_novos, expected, constraints):
     syn_ax = pyplot.subplot(gs[2])
     
     # plot the differences in observed vs expected for the different pLI bins
-    plot_by_hi_bin(lof_by_hi, "ratio", title="loss-of-function", expected=1, count_halves=True, ax=lof_ax)
+    plot_by_hi_bin(lof_by_hi, "ratio", title="truncating", expected=1, count_halves=True, ax=lof_ax)
     plot_by_hi_bin(missense_by_hi, "ratio", title="missense", expected=1, count_halves=True, ax=mis_ax)
     plot_by_hi_bin(synonymous_by_hi, "ratio", title="synonymous", expected=1, count_halves=True, ax=syn_ax)
     

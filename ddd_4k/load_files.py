@@ -42,7 +42,7 @@ def open_de_novos(path, validations=None, exclude_invalid=True, exclude_synonymo
     
     # figure out whether the sites have loss-of-function consequences
     recode = dict(zip(list(LOF_CQ) + list(MISSENSE_CQ), \
-        ["loss-of-function"] * len(LOF_CQ) + ["functional"] * len(MISSENSE_CQ)))
+        ["truncating"] * len(LOF_CQ) + ["functional"] * len(MISSENSE_CQ)))
     de_novos["category"] = de_novos["consequence"].map(recode)
     
     if exclude_synonymous:
