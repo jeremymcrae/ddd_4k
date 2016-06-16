@@ -138,7 +138,7 @@ def print_proportions_from_dominant_hi(dominant_hi, excess, alpha=0.95):
     These estimates use the split of
     '''
     
-    lof_as_mis = dominant_hi['missense']/(dominant_hi['missense'] + dominant_hi['loss-of-function'])
+    lof_as_mis = dominant_hi['missense']/dominant_hi['missense']
     
     lof_excess = excess['loss-of-function']['excess']/ \
         (excess['missense']['excess'] + excess['loss-of-function']['excess'])
