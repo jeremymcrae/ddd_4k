@@ -88,7 +88,7 @@ def count_known_excess(filtered, known):
         known: pandas DataFrame of DD-associated genes.
     
     Returns:
-        dictionary of counts for loss-of-function and 'missense' de novos.
+        dictionary of counts for truncating and 'missense' de novos.
     """
     
     dominant = known['gencode_gene_name'][known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
@@ -100,9 +100,9 @@ def count_known_excess(filtered, known):
     return dict(counts)
 
 def print_known_in_excess(in_dominant, excess):
-    lof_in_dominant = in_dominant['loss-of-function']
+    lof_in_dominant = in_dominant['truncating']
     mis_in_dominant = in_dominant['missense']
-    lof_excess = excess['loss-of-function']['excess']
+    lof_excess = excess['truncating']['excess']
     mis_excess = excess['missense']['excess']
     
     print('excess lof in known: {:.0f}%'.format(100 * lof_in_dominant/lof_excess))
@@ -118,7 +118,7 @@ def proportion_in_dominant_hi_genes(filtered, known):
     the breakdown of loss-of-function and missense consequences.
     
     Returns:
-        dictionary of counts for loss-of-function and 'missense' de novos
+        dictionary of counts for truncating and 'missense' de novos
     """
     
     dominant = known[known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
@@ -133,23 +133,33 @@ def proportion_in_dominant_hi_genes(filtered, known):
     return dict(counts)
 
 def print_proportions_from_dominant_hi(dominant_hi, excess, alpha=0.95):
-    ''' show the proportions of loss-of-function/gain of function
+    ''' show the proportions of loss-of-function/altered function
     
-    These estimates use the split of
+    We can assume the protein truncating variants have a loss-of-function
+    mechanism. In order to figure out how many of the missense excess has a
+    loss-of-function mechanism, we use the numbers of  truncating and missense
+    de novos in known DD-associated genes.
+    
+    Args:
+        dominant_hi: dictionary of counts of de novos in dominant DD-associated
+            genes. The entries are for 'missense' and 'truncating'
+            consequences.
+        excess: counts of excess de novos within the cohort, broken down
+        alpha:
     '''
     
-    lof_as_mis = dominant_hi['missense']/dominant_hi['missense']
+    lof_as_mis = dominant_hi['missense']/dominant_hi['truncating']
     
-    lof_excess = excess['loss-of-function']['excess']/ \
-        (excess['missense']['excess'] + excess['loss-of-function']['excess'])
+    lof_excess = excess['truncating']['excess']/ \
+        (excess['missense']['excess'] + excess['truncating']['excess'])
     
     lof_proportion = lof_excess + lof_excess * lof_as_mis
     gof_proportion = 1 - lof_proportion
     
     # also estimate a 95% confidence interval
     z = norm.ppf(1 - ((1 - alpha)/2))
-    hi_delta = z * math.sqrt((lof_as_mis * (1 - lof_as_mis))/(dominant_hi['missense'] + dominant_hi['loss-of-function']))
-    excess_delta = z * math.sqrt((lof_excess * (1 - lof_excess))/(excess['missense']['excess'] + excess['loss-of-function']['excess']))
+    hi_delta = z * math.sqrt((lof_as_mis * (1 - lof_as_mis))/(dominant_hi['missense'] + dominant_hi['truncating']))
+    excess_delta = z * math.sqrt((lof_excess * (1 - lof_excess))/(excess['missense']['excess'] + excess['truncating']['excess']))
     lower = (lof_excess - excess_delta) + (lof_excess - excess_delta) * (lof_as_mis - hi_delta)
     upper = (lof_excess + excess_delta) + (lof_excess + excess_delta) * (lof_as_mis + hi_delta)
     
@@ -185,7 +195,7 @@ def main():
     validation_rates = get_rates(validations, pp_dnm_threshold)
     
     excess = get_consequence_excess(expected, filtered, validation_rates.ppv, validation_rates.tpr)
-    functional_excess = excess['loss-of-function']['excess'] + excess['missense']['excess']
+    functional_excess = excess['truncating']['excess'] + excess['missense']['excess']
     snv_yield = functional_excess / (male + female)
     
     plot_consequence_excess(excess, "results/excess_by_consequence.pdf")
@@ -200,7 +210,7 @@ def main():
     proportions = model_mixing(known, filtered, expected, constraints, check_modelling=True, check_variance=True)
     print('missense proportion as LoF: {}'.format(proportions))
     
-    print((excess['loss-of-function']['excess'] + excess['missense']['excess'] * proportions) / functional_excess)
+    print((excess['truncating']['excess'] + excess['missense']['excess'] * proportions) / functional_excess)
     
     excess_de_novos_from_pLI(filtered, expected, constraints)
     plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
@@ -216,7 +226,7 @@ def main():
     # estimated within scripts/clinical_recognisability.py
     unobserved_snvs = 119
     
-    excess_to_lof = {'excess': functional_excess, 'dominant_lof': in_dominant['loss-of-function']}
+    excess_to_lof = {'excess': functional_excess, 'dominant_lof': in_dominant['truncating']}
     prevalance_from_rates, ci = prevalence_from_baseline_lof(rates, known,
         excess_to_lof, snv_yield=snv_yield, unobserved_snvs=unobserved_snvs,
         unobserved_cnvs=unobserved_cnvs, ci=0.95)
