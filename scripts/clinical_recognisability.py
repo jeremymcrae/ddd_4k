@@ -25,8 +25,8 @@ import tempfile
 import math
 
 import pandas
-from numpy import median, mean, sqrt, log10
-from scipy.stats import norm, poisson
+from numpy import median, mean, sqrt, log10, log
+from scipy.stats import norm, poisson, chi2
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot
@@ -38,6 +38,7 @@ from ddd_4k.load_files import open_de_novos
 
 from mupit.mutation_rates import get_default_rates, get_expected_mutations
 from mupit.open_ddd_data import get_ddd_rates
+from mupit.gene_enrichment import test_enrich
 
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
@@ -107,8 +108,8 @@ def plot_recognisability(neurodev, output):
     # genes which lack any mutations in them. Their ratio must be 0.
     neurodev["ratio"][neurodev["ratio"].isnull()] = 0
     
-    fig = seaborn.factorplot(x="Recognisable", y="ratio", data=neurodev,
-        kind="box", order=["1+2", 3, 4, 5], size=6, fliersize=0)
+    fig = seaborn.factorplot(x="recognisable", y="ratio", data=neurodev,
+        kind="box", order=["low", 'mild', 'moderate', 'high'], size=6, fliersize=0)
     
     lim = fig.ax.set_ylim((0, 80))
     
@@ -134,15 +135,15 @@ def estimate_missing_variants(neurodev):
     """
     
     # concatenate the genes in ech recognisability category.
-    joined = pandas.pivot_table(neurodev, rows="Recognisable",
+    joined = pandas.pivot_table(neurodev, rows="recognisable",
         values=["observed", "expected"], aggfunc=sum)
     joined["ratio"] = joined["observed"]/joined["expected"]
-    joined["Recognisable"] = joined.index
+    joined["recognisable"] = joined.index
     
-    baseline = joined[joined["Recognisable"] != "5"]
+    baseline = joined[joined["recognisable"] != "5"]
     baseline = sum(baseline["ratio"])/len(baseline)
     
-    different = joined[joined["Recognisable"] == "5"]
+    different = joined[joined["recognisable"] == "5"]
     delta = baseline * different["expected"] - different["observed"]
     
     return delta[0]
@@ -152,7 +153,7 @@ def plot_concatenated_recognisability(neurodev, output):
     """
     
     # concatenate the genes in ech recognisability category.
-    joined = pandas.pivot_table(neurodev, rows="Recognisable",
+    joined = pandas.pivot_table(neurodev, rows="recognisable",
         values=["observed", "expected"], aggfunc=sum)
     joined["ratio"] = joined["observed"]/joined["expected"]
     
@@ -161,7 +162,7 @@ def plot_concatenated_recognisability(neurodev, output):
     joined["lower"] = abs(lower/joined["expected"] - joined["ratio"])
     joined["upper"] = abs(upper/joined["expected"] - joined["ratio"])
     
-    joined["Recognisable"] = joined.index
+    joined["recognisable"] = joined.index
     
     fig = pyplot.figure(figsize=(6, 6))
     ax = fig.gca()
@@ -173,7 +174,7 @@ def plot_concatenated_recognisability(neurodev, output):
     # fix the axis limits and ticks
     e = ax.set_xlim((-0.5, len(joined) - 0.5))
     e = ax.set_xticks(range(len(joined)))
-    e = ax.set_xticklabels(joined["Recognisable"])
+    e = ax.set_xticklabels(joined["recognisable"])
     e = ax.spines['right'].set_visible(False)
     e = ax.spines['top'].set_visible(False)
     
@@ -196,15 +197,15 @@ def plot_rate_by_p_value(neurodev, results):
     neurodev["p_value"] = -log10(neurodev["hgnc"].map(results))
     neurodev = neurodev[~neurodev["p_value"].isnull()]
     
-    # data = neurodev[["expected", "p_value", "Recognisable"]].copy()
+    # data = neurodev[["expected", "p_value", "recognisable"]].copy()
     
     colors = ["green", "blue", "red", "black"]
-    groups = ["1+2", "3", "4", "5"]
+    groups = ["low", "mild", "moderate", "high"]
     fig = pyplot.figure(figsize=(6, 6))
     ax = fig.gca()
     
     for group, color in zip(groups, colors):
-        data = neurodev[neurodev["Recognisable"] == group]
+        data = neurodev[neurodev["recognisable"] == group]
         e = ax.plot(data["expected"], data["p_value"], linestyle='None',
             color=color, marker=".", markersize=10, label=group)
     
@@ -228,7 +229,7 @@ def get_enrichment_factor(neurodev):
     
     Args:
         neurodev: pandas DataFrame of counts per gene, containing columns for
-            clinical recognizability ("Recognisable"), the
+            clinical recognizability ("recognisable"), the
     
     Returns:
         float value for enrichment factor.
@@ -236,9 +237,53 @@ def get_enrichment_factor(neurodev):
     
     # get the known dominant haploinsufficient genes with low clinical
     # recognisability
-    low_recog = neurodev[neurodev["Recognisable"] != "5"]
+    low_recog = neurodev[neurodev["recognisable"] != "high"]
+    high_recog = neurodev[neurodev["recognisable"] == "high"]
     
-    return sum(low_recog["observed"])/sum(low_recog["expected"])
+    low_enrich = sum(low_recog["observed"])/sum(low_recog["expected"])
+    high_enrich = sum(high_recog["observed"])/sum(high_recog["expected"])
+    
+    return {'low_enrich': low_enrich, 'high_enrich': high_enrich}
+
+def hi_likelihood_ratio(neurodev, enrich_factor, output_path='hi_neurodev.likelihood.txt'):
+    ''' Calculate a likelihood ratio test for genes not being HI genes.
+    
+    Requires expected counts for null and alternative models:
+        null model - the gene is an HI genes, and the observed number of de
+                novos follows the typical DNM enrichment of an HI gene).
+        alternative model - the gene is not an HI genes, and the observed
+               number of de novos is not enriched beyond the baseline
+               mutation rate).
+    
+    Args:
+        neurodev: pandas DataFrame of haploinsufficient neurodevelopmental
+            genes, containing columns for observed numbers of protein-truncating
+            candidate de novo mutations, as well as numbers of expected PTV DNMs
+            given background mutation rates for each gene.
+        enrich: dictionary of PTV DNM enrichment factors in genes with
+            clinically low or high recognisable HI neurodevelopmental genes.
+        output_path: path to write table of likelihood ratio test results to.
+    '''
+    
+    table = neurodev[['hgnc', 'recognisable', 'observed']].copy()
+    
+    enrich = pandas.Series([enrich_factor['low']] * len(table))
+    enrich[list(table['recognisable'] == 'high')] = enrich_factor['high']
+    
+    # get the expected counts for the null and alternative models. For the null
+    # model, we scale the baseline number of expected mutations by the typical
+    # PTV enrichment in clinically less recognisable HI neurodev genes.
+    table['alt_rate'] = neurodev['expected']
+    table['null_rate'] = nonhi_expected * enrich
+    
+    # calculate the log-likelihoods for the null and alternative models
+    table['loglikelihood_alt'] = poisson.logpmf(table['observed'], table['alt_rate'])
+    table['loglikelihood_null'] = poisson.logpmf(table['observed'], table['null_rate'])
+    
+    # calculate the p-value for the log-likelihood ratio test
+    table['loglikelihood_ratio'] = 2 * (table['loglikelihood_alt'] - table['loglikelihood_null'])
+    
+    table.to_csv(output_path, sep='\t', index=False)
 
 def main():
     args = get_options()
@@ -274,8 +319,8 @@ def main():
     
     # Join the two least recognisable groups, since they are smaller than the
     # other groups.
-    recode = {1: "1+2", 2: "1+2", 3: "3", 4: "4", 5: "5"}
-    neurodev["Recognisable"] = neurodev["Recognisable"].map(recode)
+    recode = {1: "low", 2: "low", 3: "mild", 4: "moderate", 5: "high"}
+    neurodev["recognisable"] = neurodev["Recognisable"].map(recode)
     
     # plot_recognisability(neurodev, args.output)
     plot_concatenated_recognisability(neurodev, args.output)
@@ -283,10 +328,11 @@ def main():
     missing = estimate_missing_variants(neurodev)
     print("missing lof variants: {}".format(missing))
     
-    enrich_factor = get_enrichment_factor(neurodev)
-    print("enrichment: {}".format(enrich_factor))
+    enrich = get_enrichment_factor(neurodev)
+    print("enrichment: {}".format(enrich['low']))
     
     plot_rate_by_p_value(neurodev, results)
+    hi_likelihood_ratio(neurodev, enrich)
 
 if __name__ == '__main__':
     main()
