@@ -243,7 +243,7 @@ def get_enrichment_factor(neurodev):
     low_enrich = sum(low_recog["observed"])/sum(low_recog["expected"])
     high_enrich = sum(high_recog["observed"])/sum(high_recog["expected"])
     
-    return {'low_enrich': low_enrich, 'high_enrich': high_enrich}
+    return {'low': low_enrich, 'high': high_enrich}
 
 def hi_likelihood_ratio(neurodev, enrich_factor, output_path='hi_neurodev.likelihood.txt'):
     ''' Calculate a likelihood ratio test for genes not being HI genes.
