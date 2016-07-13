@@ -274,7 +274,7 @@ def hi_likelihood_ratio(neurodev, enrich_factor, output_path='hi_neurodev.likeli
     # model, we scale the baseline number of expected mutations by the typical
     # PTV enrichment in clinically less recognisable HI neurodev genes.
     table['alt_rate'] = neurodev['expected']
-    table['null_rate'] = nonhi_expected * enrich
+    table['null_rate'] = table['alt_rate'] * enrich
     
     # calculate the log-likelihoods for the null and alternative models
     table['loglikelihood_alt'] = poisson.logpmf(table['observed'], table['alt_rate'])
