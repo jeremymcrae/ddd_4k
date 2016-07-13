@@ -140,10 +140,10 @@ def estimate_missing_variants(neurodev):
     joined["ratio"] = joined["observed"]/joined["expected"]
     joined["recognisable"] = joined.index
     
-    baseline = joined[joined["recognisable"] != "5"]
+    baseline = joined[joined["recognisable"] != "high"]
     baseline = sum(baseline["ratio"])/len(baseline)
     
-    different = joined[joined["recognisable"] == "5"]
+    different = joined[joined["recognisable"] == "high"]
     delta = baseline * different["expected"] - different["observed"]
     
     return delta[0]
