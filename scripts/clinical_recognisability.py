@@ -265,7 +265,10 @@ def hi_likelihood_ratio(neurodev, enrich_factor, output_path='hi_neurodev.likeli
         output_path: path to write table of likelihood ratio test results to.
     '''
     
-    table = neurodev[['hgnc', 'recognisable', 'observed']].copy()
+    neurodev = neurodev.copy()
+    neurodev = neurodev.reset_index(drop=True)
+    
+    table = neurodev[['hgnc', 'recognisable', 'observed']]
     
     enrich = pandas.Series([enrich_factor['low']] * len(table))
     enrich[list(table['recognisable'] == 'high')] = enrich_factor['high']
