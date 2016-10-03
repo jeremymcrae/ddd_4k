@@ -40,7 +40,7 @@ from ddd_4k.constants import TRIOS, DIAGNOSED
 seaborn.set_context("notebook", font_scale=2)
 seaborn.set_style("white", {"ytick.major.size": 10, "xtick.major.size": 10})
 
-AUTOZYGOSITY_DIR = "/lustre/scratch113/projects/ddd/users/jm33/autozygosity"
+AUTOZYGOSITY_DIR = "/lustre/scratch113/projects/ddd/users/jm33/autozygosity2"
 CONSANG_PATH = "/nfs/ddd0/Data/datafreeze/ddd_data_releases/2015-04-13/kinship_and_pca_trios.txt"
 
 def get_options():
@@ -291,11 +291,13 @@ def main():
     diagnosed = diagnosed["person_id"].unique()
     
     # breakpoints = define_quintiles(lengths, 5)
-    breakpoints = [0, 1e7, 1e8, 1e9]
+    breakpoints = [0, 1e7, 2e7, 1e8, 1e9]
     
     # classify each proband's autozygosity length into the various quintiles,
     # for all probands
     lengths = classify_by_quintile(lengths, breakpoints)
+    
+    print(lengths['quintile'].value_counts())
     
     autozygosity_vs_diagnosed(lengths, diagnosed, args.output_groups)
     plot_regression(lengths, diagnosed, args.output_regression)
