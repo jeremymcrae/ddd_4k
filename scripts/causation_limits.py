@@ -27,7 +27,8 @@ import math
 from scipy.stats import norm
 import pandas
 
-from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes
+from mupit.open_ddd_data import open_known_genes
+from ddd_4k.load_files import open_de_novos, open_phenotypes
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, VALIDATIONS, \
     CONSTRAINTS_URL, PHENOTYPES, TRIOS, SANGER_IDS, PREVIOUS_VALIDATIONS
 from ddd_4k.causation.excess_by_consequence import get_consequence_excess, \
@@ -91,7 +92,7 @@ def count_known_excess(filtered, known):
         dictionary of counts for truncating and 'missense' de novos.
     '''
     
-    dominant = known['gencode_gene_name'][known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
+    dominant = known['gene'][known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
     variants = filtered[filtered['symbol'].isin(dominant)].copy()
     
     counts = variants['category'].value_counts()
@@ -122,8 +123,14 @@ def proportion_in_dominant_hi_genes(filtered, known):
     '''
     
     dominant = known[known['mode'].isin(['Monoallelic', 'X-linked dominant'])]
-    dominant_haploinsufficient = dominant['gencode_gene_name'][dominant['mech'] == 'Loss of function']
-    dominant_haploinsufficient = filtered["symbol"].isin(dominant_haploinsufficient)
+    dominant_haploinsufficient = dominant['gene'][dominant['mech'] == 'Loss of function']
+    dominant_haploinsufficient = filtered['symbol'].isin(dominant_haploinsufficient)
+    
+    # count the variants in genes with a dominant but not HI mode
+    dom_nonhi_genes = dominant['gene'][dominant['mech'].isin(['Activating', 'Dominant negative'])]
+    dom_nonhi = filtered['symbol'].isin(dom_nonhi_genes)
+    nonhi_counts = filtered['category'][dom_nonhi].value_counts()
+    print(nonhi_counts)
     
     variants = filtered[dominant_haploinsufficient].copy()
     
@@ -143,9 +150,11 @@ def print_proportions_from_dominant_hi(dominant_hi, excess, alpha=0.95):
     Args:
         dominant_hi: dictionary of counts of de novos in dominant DD-associated
             genes. The entries are for 'missense' and 'truncating'
-            consequences.
-        excess: counts of excess de novos within the cohort, broken down
-        alpha:
+            consequences e.g. {'missense': 50, 'truncating': 60}.
+        excess: dictionary of counts of excess de novos within the cohort,
+            broken down by whether the excess is for missense, truncating or
+            synonymous e.g. {'missense': {'excess': 100}, 'truncating': {'excess': 200}}.
+        alpha: alpha for confidence intervals.
     '''
     
     lof_as_mis = dominant_hi['missense']/dominant_hi['truncating']
@@ -173,19 +182,17 @@ def main():
     
     de_novos = open_de_novos(args.de_novos, args.validations, exclude_synonymous=False)
     known = open_known_genes(args.known_genes)
-    de_novos['known'] = de_novos['symbol'].isin(known['gencode_gene_name'])
+    de_novos['known'] = de_novos['symbol'].isin(known['gene'])
     de_novos['start_pos'] = de_novos['pos']
     constraints = pandas.read_table(args.constraints)
-    # constraints['pLI'] = -constraints['ALL_0.1%'] # for RVIS-scores
-    # constraints['gene'] = constraints['GENE'] # for RVIS-scores
     uk_ages = open_uk_parent_ages(args.uk_ages)
     
     phenotypes = open_phenotypes(args.phenotypes, args.sanger_ids)
     trios = pandas.read_table(args.trios)
     phenotypes = phenotypes[phenotypes['patient_id'].isin(trios['decipher_id'])]
     
-    male = 2407
-    female = 1886
+    male = 2408
+    female = 1885
     rates = get_default_rates()
     expected = get_expected_mutations(rates, male, female)
     
@@ -209,7 +216,8 @@ def main():
     in_dominant = count_known_excess(filtered, known)
     print_known_in_excess(in_dominant, excess)
     
-    proportions = model_mixing(known, filtered, expected, constraints, check_modelling=True, check_variance=True)
+    proportions = model_mixing(known, filtered, expected, constraints,
+        check_modelling=False, check_variance=False)
     print('missense proportion as LoF: {}'.format(proportions))
     
     print((excess['truncating']['excess'] + excess['missense']['excess'] * proportions) / functional_excess)
