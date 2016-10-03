@@ -1,6 +1,7 @@
 __pycache__/
 build/
 cache/
+data/
 *.egg-info/
 dist/
 results/
