@@ -24,7 +24,7 @@ import argparse
 import pandas
 
 from ddd_4k.constants import KNOWN_GENES
-from ddd_4k.load_files import open_known_genes
+from mupit.open_ddd_data import open_known_genes
 from ddd_4k.hpo_matches import find_hpo_matches
 
 from hpo_similarity.ontology import Ontology
@@ -53,7 +53,7 @@ def get_organ_genes(dominant_lof):
     """
     
     brain_genes = dominant_lof[~dominant_lof["organs"].isnull() & dominant_lof["organs"].str.contains("Brain/Cognition")]
-    organ_genes = set(brain_genes["gencode_gene_name"].unique())
+    organ_genes = set(brain_genes["gene"].unique())
     
     return organ_genes
 
@@ -75,7 +75,7 @@ def get_hpo_genes(dominant_lof):
     
     # find the dominant LoF genes which have at least one brain/cognition term
     matches = find_hpo_matches(dominant_lof["hpo_codes"], neurodev_terms)
-    term_genes = set(dominant_lof["gencode_gene_name"][matches].unique())
+    term_genes = set(dominant_lof["gene"][matches].unique())
     
     return term_genes
 

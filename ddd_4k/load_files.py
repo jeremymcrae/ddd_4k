@@ -66,34 +66,6 @@ def open_de_novos(path, validations=None, exclude_invalid=True, exclude_synonymo
     
     return de_novos
 
-def open_known_genes(path):
-    """ open the dataset of known developmental disorder genes
-    
-    Args:
-        path: path to known developmental disorder genes data file.
-    
-    Returns:
-        DataFrame for the known genes.
-    """
-    
-    with open(path) as handle:
-        header = handle.readline()
-    
-    sep = "\t"
-    if header.count("|") > 0:
-        sep = "|"
-    
-    genes = pandas.read_table(path, sep=sep, index_col=False)
-    if "ddg2p_status" in genes.columns:
-        genes = genes[genes["ddg2p_status"] != "Possible DD Gene"]
-    else:
-        genes = genes[genes["type"] != "Possible DD Gene"]
-    
-    if "gencode_gene_name" not in genes.columns:
-        genes["gencode_gene_name"] = genes["gene"]
-    
-    return genes
-
 def open_phenotypes(pheno_path, alt_ids_path=None):
     """ load the phenotypes dataset, and merge the alternate IDs
     

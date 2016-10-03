@@ -50,7 +50,7 @@ def model_mixing(known, de_novos, expected, constraints, check_modelling=False, 
     
     Args:
         known: pandas DataFrame of known developmental disorder genes, including
-            columns for hgnc symbols ("gencode_gene_name"), a column for the mode of
+            columns for hgnc symbols ("gene"), a column for the mode of
             inheritance ("mode"), and a column for the mechanism of action
             ("mech"). We select the dominant genes, and further stratify to
             the haploinsufficient and nonhaploinsufficient dominant genes.

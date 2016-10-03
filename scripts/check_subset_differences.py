@@ -31,7 +31,7 @@ matplotlib.use("Agg")
 import seaborn
 
 from ddd_4k.constants import KNOWN_GENES, THRESHOLD
-from ddd_4k.load_files import open_known_genes
+from mupit.open_ddd_data import open_known_genes
 
 # define the plot style
 seaborn.set_context("notebook", font_scale=2)
@@ -62,7 +62,7 @@ def load_results(path, known_genes):
     """
     
     dominant_modes = ["Monoallelic", "X-linked dominant"]
-    symbols = known_genes["gencode_gene_name"]
+    symbols = known_genes["gene"]
     dominant = symbols[known_genes["mode"].isin(dominant_modes)].unique()
     
     table = pandas.read_table(path, sep="\t")

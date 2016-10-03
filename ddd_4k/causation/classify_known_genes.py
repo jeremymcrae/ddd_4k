@@ -35,11 +35,11 @@ def classify_monoallelic_genes(known, remove_overlap=True):
     
     # identify known haploinsufficient dominant genes
     monoallelic = known[known["mode"].isin(["Monoallelic", "X-linked dominant"])]
-    haploinsufficient = set(monoallelic["gencode_gene_name"][
+    haploinsufficient = set(monoallelic["gene"][
         monoallelic["mech"].isin(["Loss of function"])])
     
     # identify known nonhaploinsufficient dominant genes
-    nonhaploinsufficient = set(monoallelic["gencode_gene_name"][
+    nonhaploinsufficient = set(monoallelic["gene"][
         monoallelic["mech"].isin(["Activating", "Dominant negative"])])
     
     if remove_overlap:

@@ -36,7 +36,7 @@ from numpy import log10, median
 import pandas
 
 from ddd_4k.combine_enrichment_and_clustering import get_gene_results
-from ddd_4k.load_files import open_known_genes
+from mupit.open_ddd_data import open_known_genes
 from ddd_4k.convert_doi import open_url
 from ddd_4k.constants import CONSTRAINTS_URL
 
@@ -205,7 +205,7 @@ def main():
     constrained = pLI["gene"][pLI["pLI"] >= 0.99]
     
     ddg2p = open_known_genes(DDG2P_PATH)
-    dominant = ddg2p["gencode_gene_name"][ddg2p["mode"].isin(["Monoallelic", "X-linked dominant"])]
+    dominant = ddg2p["gene"][ddg2p["mode"].isin(["Monoallelic", "X-linked dominant"])]
     
     cohorts = pandas.read_table(EXTERNAL_COHORTS)
     baseline = get_gene_results(INITIAL_ENRICH, INITIAL_CLUSTER)

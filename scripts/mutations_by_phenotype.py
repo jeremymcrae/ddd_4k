@@ -35,8 +35,8 @@ import statsmodels.formula.api as smf
 from statsmodels.genmod.families import Binomial
 from matplotlib import pyplot
 
-from ddd_4k.load_files import open_de_novos, open_known_genes, open_phenotypes, \
-    open_families
+from mupit.open_ddd_data import open_known_genes
+from ddd_4k.load_files import open_de_novos, open_phenotypes, open_families
 from ddd_4k.count_hpo import count_hpo_terms
 from ddd_4k.constants import DENOVO_PATH, KNOWN_GENES, PHENOTYPES, SANGER_IDS, \
     FAMILIES, TRIOS, VALIDATIONS
@@ -76,45 +76,6 @@ def get_options():
     
     return args
 
-def get_categorical_summary(merged, cohort_counts, value):
-    """ count the number of individuals by known gene status and functional
-    de novo status. Include the totoal number of individuals in each group, so
-    we can estimate ratios, and perform Fisher's exact test to compare groups.
-    
-    Args:
-        merged: pandas DataFrame listing the indivioduals with de novos by
-            functional status and known  gene status, along with their
-            phenotypic data, so we can group by the required "value".
-        cohort_counts: pandas Series listing the total number of individuals in
-            the cohort for the different groups split by the "value".
-        value: the phenotypic value that we are grouping by.
-        folder: the folder to save graphs into.
-    
-    Returns:
-        pandas DataFrame containing tallies of individuals by functional de novo
-        status and known gene status, for the different "value" groups.
-    """
-    
-    summary = pandas.DataFrame({"known": [], value: [], "consequence": [], \
-        "tally": [], "total": []})
-    
-    for known in [True, False]:
-        for x in cohort_counts.keys():
-            temp = merged[(merged.known == known) & (merged[value] == x)]
-            tally = temp["consequence"].value_counts()
-            total = [cohort_counts[x]] * len(tally)
-            cq = list(tally.keys())
-            
-            temp = pandas.DataFrame({"known": [known] * len(tally), \
-                value: [x] * len(tally), "consequence": cq, "tally": tally, \
-                "total": total})
-            summary = summary.append(temp)
-    
-    summary = summary.reset_index(drop=True)
-    summary["ratio"] = summary["tally"]/summary["total"]
-    
-    return summary
-
 def plot_categorical(counts, pheno, value, folder):
     """ plot probands per category by consequence by known gene status
     
@@ -150,28 +111,6 @@ def plot_categorical(counts, pheno, value, folder):
     
     print(ratios)
     
-    # cohort_counts = pheno[value].value_counts()
-    # summary = get_categorical_summary(merged, cohort_counts, value)
-    #
-    # # test whether differences exist between the groups for the value column
-    # results = []
-    # for known in [True, False]:
-    #     for cq in summary.consequence.unique():
-    #         table = summary[(summary.known == known) & (summary.consequence == cq)]
-    #         table = table[["tally", "total"]]
-    #         odds_ratio, p_value = fisher_exact(table)
-    #
-    #         results.append([known, cq, p_value])
-    #
-    #
-    # fig = seaborn.factorplot(x="consequence", y="ratio", hue=value, col="known", data=summary, kind="bar")
-    # fig.set_ylabels("Frequency")
-    # pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
-    # fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf",
-    #     bbox_inches='tight', pad_inches=0, transparent=True)
-    #
-    # matplotlib.pyplot.close()
-    #
     return ratios
 
 def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=False, covariate=None):
@@ -226,22 +165,10 @@ def plot_quantitative(counts, pheno, value, folder, y_label, delta_to_median=Fal
     
     print(ratios)
     
-    # fig = seaborn.lmplot(x=value, y="has_causal", data=data, logistic=True,
-    #     y_jitter=0.05, x_jitter=0.01)
-    # fig.savefig("{}.pdf".format(value), format="pdf")
-    
-    # merged = counts.merge(pheno[["person_stable_id", "gender", value]], on="person_stable_id")
-    # results = []
-    # for known in [True, False]:
-    #     lof = merged[value][(merged.known == known) & (merged.consequence == "truncating")]
-    #     func = merged[value][(merged.known == known) & (merged.consequence == "functional")]
-    #     u, p_value = mannwhitneyu(lof, func)
-    #     results.append([known, p_value])
-    
     fig = seaborn.factorplot(x="has_causal", y=value, size=6, data=data,
         aspect=0.6, kind="violin")
     fig.set_ylabels(y_label)
-    # pyplot.table(cellText=results, colLabels=["known", "cq", "P"], loc="top right")
+    
     fig.savefig("{}/{}_by_consequence.pdf".format(folder, value), format="pdf",
         bbox_inches='tight', pad_inches=0, transparent=True)
     
@@ -289,7 +216,6 @@ def forest_plot(data):
     ax = fig.gca()
     
     # sort by the value, to group variables by effects
-    # data = data.sort(value)
     data = data.reindex(index=data.index[::-1])
     data["name"] = data["name"].str.replace("_", " ")
     
@@ -342,7 +268,7 @@ def main():
     
     de_novos = open_de_novos(args.de_novos, args.validations)
     known = open_known_genes(args.ddg2p)
-    monoallelic = set(known["gencode_gene_name"][known["mode"].isin(["Monoallelic"])])
+    monoallelic = set(known["gene"][known["mode"].isin(["Monoallelic"])])
     de_novos["known"] = de_novos["hgnc"].isin(monoallelic)
     
     # For each proband, count the number of functional de novos (split by lof
@@ -360,14 +286,37 @@ def main():
     pheno = pheno[pheno["person_stable_id"].isin(probands)]
     pheno["child_hpo_n"] = count_hpo_terms(pheno, "child")
     
+    recode = {'NA': False, 'Neither': False, 'Unknown': False, '': False, 'None': False, None: False, 'No': False,
+        'Both': True, 'Mother': True, 'Father': True, '1': True, '2': True,
+        '3 or more': True, 'Yes': True}
+    pheno['similar_phenotype_parents'] = pheno['similar_phenotype_parents'].map(recode)
+    pheno['similar_phenotype_siblings'] = pheno['similar_phenotype_siblings'].map(recode)
+    pheno['similar_phenotype_relatives'] = pheno['similar_phenotype_relatives'].map(recode)
+    
+    recode = {'Singleton': 1, 'Twin': 2, 'Triplet': 3, '4+': 4}
+    pheno['multiple_births'] = pheno['multiple_births'].map(recode)
+    
+    recode = {'None': 0, '1': 1, '2': 2, '3 or more': 3, '3 or More': 3}
+    pheno['pregnancy_loss_history'] = pheno['pregnancy_loss_history'].map(recode)
+    
     ratios = []
     ratios.append(plot_categorical(counts, pheno, "gender", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "feeding_problems", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "anticonvulsant_drugs", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "maternal_illness", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "bleeding", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "abnormal_scan", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "scbu_nicu", args.output_folder))
     ratios.append(plot_categorical(counts, pheno, "assisted_reproduction", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "similar_phenotype_parents", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "similar_phenotype_siblings", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "similar_phenotype_relatives", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "consanguinity", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "cranial_mri_scan_outcome", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "maternal_diabetes", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "only_patient_affected", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "x_linked_inheritance", args.output_folder))
+    ratios.append(plot_categorical(counts, pheno, "increased_nt", args.output_folder))
     
     odds_ratios = pandas.DataFrame(ratios)
     forest_plot(odds_ratios)
@@ -386,11 +335,13 @@ def main():
     betas.append(plot_quantitative(counts, pheno, "height_sd", args.output_folder, "Height (SD)", delta_to_median=True))
     betas.append(plot_quantitative(counts, pheno, "birthweight_sd", args.output_folder, "Birthweight (SD)", delta_to_median=True))
     betas.append(plot_quantitative(counts, pheno, "ofc_sd", args.output_folder, "OFC (SD)", delta_to_median=True))
-    # betas.append(plot_quantitative(counts, pheno, "weight_sd", args.output_folder, "weight (SD)"))
+    betas.append(plot_quantitative(counts, pheno, "weight_sd", args.output_folder, "weight (SD)"))
     betas.append(plot_quantitative(counts, pheno, "decimal_age_at_assessment", args.output_folder, "Age at assessment (years)"))
     betas.append(plot_quantitative(counts, pheno, "gestation", args.output_folder, "Gestation duration (weeks)"))
     betas.append(plot_quantitative(counts, pheno, "fathers_age", args.output_folder, "Father's age (years)"))
     betas.append(plot_quantitative(counts, pheno, "mothers_age", args.output_folder, "Mother's age (years)"))
+    betas.append(plot_quantitative(counts, pheno, "multiple_births", args.output_folder, "Multiple births"))
+    betas.append(plot_quantitative(counts, pheno, "pregnancy_loss_history", args.output_folder, "History of preganacy loss"))
     
     # and add in the values from the logistic regression of autozygosity length
     # vs having a dominant diagnostic de novo. These values are determined in

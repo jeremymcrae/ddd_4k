@@ -24,7 +24,7 @@ import argparse
 import pandas
 
 from ddd_4k.constants import KNOWN_GENES, THRESHOLD
-from ddd_4k.load_files import open_known_genes
+from mupit.open_ddd_data import open_known_genes
 
 RESULTS_PATH = "/lustre/scratch113/projects/ddd/users/jm33/results/de_novos.ddd_4k.with_diagnosed.all.2015-10-12.txt"
 
@@ -58,12 +58,12 @@ def get_lof_genes(results, known):
     """
     
     # identify the genes in DDG2P that don't have loss-of-function mechanisms
-    non_lof = known["gencode_gene_name"][known["mech"] != "Loss of function"]
+    non_lof = known["gene"][known["mech"] != "Loss of function"]
     non_lof = sorted(non_lof.unique())
     
     # some of the genes have multiple mechanisms, we only want the set without
     # any loss-of-function mechanism
-    non_lof = [ x for x in non_lof if "Loss of function" not in list(known["mech"][known["gencode_gene_name"] == x]) ]
+    non_lof = [ x for x in non_lof if "Loss of function" not in list(known["mech"][known["gene"] == x]) ]
     
     # find the genes which have a significant loss-of-function enrichment
     lof_significant = results[(results["meta.p_lof"] < THRESHOLD) | (results["ddd.p_lof"] < THRESHOLD)]
@@ -87,7 +87,7 @@ def get_gof_genes(results, known):
     # find the known geens with only loss-of-function mechanism
     lof = []
     lof_set = set(["Loss of function"])
-    for (symbol, rows) in known.groupby("gencode_gene_name"):
+    for (symbol, rows) in known.groupby("gene"):
         if set(rows["mech"]) == lof_set:
             lof.append(symbol)
     
