@@ -94,7 +94,7 @@ def plot_categorical(counts, pheno, value, folder):
     probands = counts["person_stable_id"][counts["known"]]
     merged["has_causal"] = merged["person_stable_id"].isin(probands)
     
-    table = merged.pivot_table(rows="has_causal", cols=value, values="person_stable_id", aggfunc=len)
+    table = merged.pivot_table(index="has_causal", columns=value, values="person_stable_id", aggfunc=len)
     odds_ratio, p_value = fisher_exact(table)
     
     standard_error = math.sqrt((1/table).sum().sum())

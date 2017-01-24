@@ -32,14 +32,9 @@ def get_count_by_person(de_novos):
         the mutation is in a known developmental disorder gene.
     """
     
-    try:
-        by_category = de_novos.pivot_table(values="chrom",
-            rows=["person_stable_id", "known"],
-            cols=["category"], aggfunc=len)
-    except TypeError:
-        by_category = de_novos.pivot_table(values="chrom",
-            index=["person_stable_id", "known"],
-            columns=["category"], aggfunc=len)
+    by_category = de_novos.pivot_table(values="chrom",
+        index=["person_stable_id", "known"],
+        columns=["category"], aggfunc=len)
     
     index = [ x[0] for x in zip(by_category.index) ]
     sample_ids = [ x[0] for x in index ]

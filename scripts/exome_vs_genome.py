@@ -293,8 +293,8 @@ def get_mean_power(power, conf_interval=0.95):
     power = power[~power["value"].isnull()]
     power["value"] = power["value"].astype(int)
     
-    means = pandas.pivot_table(power, cols="variable",
-        rows=["budget", "relative_cost", "sensitivity"],
+    means = power.pivot_table(columns="variable",
+        index=["budget", "relative_cost", "sensitivity"],
         values="value", aggfunc=mean)
     
     index = means.index

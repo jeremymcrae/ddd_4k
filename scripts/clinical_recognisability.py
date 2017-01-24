@@ -135,7 +135,7 @@ def estimate_missing_variants(neurodev):
     """
     
     # concatenate the genes in ech recognisability category.
-    joined = pandas.pivot_table(neurodev, rows="recognisable",
+    joined = neurodev.pivot_table(index="recognisable",
         values=["observed", "expected"], aggfunc=sum)
     joined["ratio"] = joined["observed"]/joined["expected"]
     joined["recognisable"] = joined.index
@@ -153,7 +153,7 @@ def plot_concatenated_recognisability(neurodev, output):
     """
     
     # concatenate the genes in ech recognisability category.
-    joined = pandas.pivot_table(neurodev, rows="recognisable",
+    joined = neurodev.pivot_table(index="recognisable",
         values=["observed", "expected"], aggfunc=sum)
     joined["ratio"] = joined["observed"]/joined["expected"]
     

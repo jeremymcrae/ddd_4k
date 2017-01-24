@@ -59,8 +59,8 @@ def plot1(merged):
     """
     """
     
-    hi = merged.pivot_table(rows="pLI_bin", values="haploinsufficient", aggfunc=[sum, len])
-    non_hi = merged.pivot_table(rows="pLI_bin", values="nonhaploinsufficient", aggfunc=[sum, len])
+    hi = merged.pivot_table(index="pLI_bin", values="haploinsufficient", aggfunc=[sum, len])
+    non_hi = merged.pivot_table(index="pLI_bin", values="nonhaploinsufficient", aggfunc=[sum, len])
     
     hi["ratio"] = hi["sum"]/hi["len"]
     non_hi["ratio"] = non_hi["sum"]/non_hi["len"]
@@ -89,14 +89,14 @@ def plot2(merged):
     """
     """
     
-    hi_lof = merged[merged["haploinsufficient"]].pivot_table(rows="pLI_bin",
+    hi_lof = merged[merged["haploinsufficient"]].pivot_table(index="pLI_bin",
         values="lof_observed", aggfunc=sum)
     non_hi_mis = merged[merged["nonhaploinsufficient"] | \
-        merged["haploinsufficient"]].pivot_table(rows="pLI_bin",
+        merged["haploinsufficient"]].pivot_table(index="pLI_bin",
             values="missense_observed", aggfunc=sum)
     
-    lof = merged.pivot_table(rows="pLI_bin", values="lof_observed", aggfunc=sum)
-    mis = merged.pivot_table(rows="pLI_bin", values="missense_observed", aggfunc=sum)
+    lof = merged.pivot_table(index="pLI_bin", values="lof_observed", aggfunc=sum)
+    mis = merged.pivot_table(index="pLI_bin", values="missense_observed", aggfunc=sum)
     
     known_proportions = pandas.DataFrame({"pLI_bin": lof.index,
         "lof_ratio": hi_lof/lof, "mis_ratio": non_hi_mis/mis})

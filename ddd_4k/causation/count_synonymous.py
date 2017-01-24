@@ -33,7 +33,7 @@ def count_synonymous_per_gene(de_novos):
     """
     
     synonymous = de_novos[de_novos["consequence"] == "synonymous_variant"]
-    counts = synonymous.pivot_table(rows="symbol", values="alt", aggfunc=len)
+    counts = synonymous.pivot_table(index="symbol", values="alt", aggfunc=len)
     counts = pandas.DataFrame({"hgnc": counts.index, "observed": counts})
     
     counts.index = range(len(counts))

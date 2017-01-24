@@ -54,7 +54,7 @@ def aggregate(merged, consequences=None, normalise=True, bins=None):
     observed_columns = [ x + "_observed" for x in consequences ]
     expected_columns = [ x + "_expected" for x in consequences ]
     
-    aggregated = merged.pivot_table(rows="pLI_bin",
+    aggregated = merged.pivot_table(index="pLI_bin",
         values=observed_columns + expected_columns, aggfunc=sum)
     
     aggregated["pLI_bin"] = aggregated.index
