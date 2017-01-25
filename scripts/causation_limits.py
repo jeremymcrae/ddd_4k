@@ -223,7 +223,6 @@ def main():
     print((excess['truncating']['excess'] + excess['missense']['excess'] * proportions) / functional_excess)
     
     excess_de_novos_from_pLI(filtered, expected, constraints)
-    plot_proportion_known_by_pLI(filtered, expected,  constraints, known)
     
     # define the number of individuals with developmental disorders caused by
     # a de novo CNV. We do not observe these individuals in the DDD cohort.
