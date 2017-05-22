@@ -38,6 +38,8 @@ def get_options():
         "the DDD cohort have disorders from the external cohorts")
     parser.add_argument("--phenotypes", default=PHENOTYPES, \
         help="Path to file containing phenotypic information for the probands.")
+    parser.add_argument("--ontology", \
+        help="Path to HPO ontology (otherwise uses default version).")
     parser.add_argument("--trios", default=TRIOS, \
         help="Paths to table of probands from complete exome-sequenced trios.")
     parser.add_argument("--output",
@@ -58,13 +60,19 @@ def main():
     
     # open the HPO ontology, so we can get the set of terms which are relevant to
     # each disorder
-    hpo_ontology = Ontology(None)
+    hpo_ontology = Ontology(args.ontology)
     graph = hpo_ontology.get_graph()
     
     # define the root nodes for each disorder
     roots = {"Autism spectrum disorder": ["HP:0000729"],
-        "Congenital heart disorder": ["HP:0002564"],
-        "Intellectual disability": ["HP:0001249", "HP:0012443", "HP:0100543"],
+        # "Congenital heart disorder": ["HP:0030680"], # replaces 'HP:0002564' in recent HPO
+        # recent HPO versions have shifted the cognitive impairment node, so
+        # that the subterms have mostly shifted to neurodevelopmental delay.
+        # Here are terms that include the previous terms for cognitive
+        # impairment, which selects a very similar proportion of the cohort as
+        # having intellectual disability.
+        "Intellectual disability": ['HP:0100543', 'HP:0012443', 'HP:0000750',
+            'HP:0001249', 'HP:0001263', 'HP:0001268', 'HP:0001328', 'HP:0002376'],
         "Seizures": ["HP:0001250"],
         "Schizophrenia": ["HP:0100753"]}
     
