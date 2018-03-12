@@ -39,6 +39,7 @@ def merge_observed_and_expected(de_novos, expected):
     observed = get_de_novo_counts(de_novos)
     observed["lof_observed"] = observed[["lof_snv", "lof_indel"]].sum(axis=1)
     observed["missense_observed"] = observed[["missense_snv", "missense_indel"]].sum(axis=1)
+    observed["synonymous_observed"] = observed["synonymous_snv"]
     
     # sum the expected truncating, missense and synonymous mutations per gene
     expected = expected.copy()
@@ -51,5 +52,6 @@ def merge_observed_and_expected(de_novos, expected):
     merged = expected.merge(observed, how="left", on="hgnc")
     merged["lof_observed"][merged["lof_observed"].isnull()] = 0
     merged["missense_observed"][merged["missense_observed"].isnull()] = 0
+    merged["synonymous_observed"][merged["synonymous_observed"].isnull()] = 0
     
     return merged
