@@ -62,6 +62,7 @@ def get_consequence_excess(expected, de_novos, ppv, sensitivity):
     merged = merge_observed_and_expected(de_novos, expected)
     
     synonymous_ratio = 1.0 * scale_factor
+    synonymous_ratio = sum(merged["synonymous_observed"])/sum(merged["synonymous_expected"]) * scale_factor
     missense_ratio = sum(merged["missense_observed"])/sum(merged["missense_expected"]) * scale_factor
     lof_ratio = sum(merged["lof_observed"])/sum(merged["lof_expected"]) * scale_factor
     
