@@ -61,18 +61,21 @@ def get_consequence_excess(expected, de_novos, ppv, sensitivity):
     
     merged = merge_observed_and_expected(de_novos, expected)
     
-    synonymous_ratio = 1.0 * scale_factor
-    synonymous_ratio = sum(merged["synonymous_observed"])/sum(merged["synonymous_expected"]) * scale_factor
-    missense_ratio = sum(merged["missense_observed"])/sum(merged["missense_expected"]) * scale_factor
-    lof_ratio = sum(merged["lof_observed"])/sum(merged["lof_expected"]) * scale_factor
-    
-    synonymous_count = len(de_novos[de_novos["consequence"] == "synonymous_variant"]) * scale_factor
+    synonymous_count = sum(merged["synonymous_observed"]) * scale_factor
     lof_count = sum(merged["lof_observed"]) * scale_factor
     missense_count = sum(merged["missense_observed"]) * scale_factor
     
-    synonymous_excess = synonymous_count * ((synonymous_ratio - 1)/synonymous_ratio)
-    missense_excess = missense_count - sum(merged["missense_expected"]) * scale_factor
-    lof_excess = lof_count - sum(merged["lof_expected"]) * scale_factor
+    synonymous_expected = sum(merged["synonymous_expected"])
+    missense_expected = sum(merged["missense_expected"])
+    lof_expected = sum(merged["lof_expected"])
+    
+    synonymous_excess = synonymous_count - synonymous_expected
+    missense_excess = missense_count - missense_expected
+    lof_excess = lof_count - lof_expected
+    
+    synonymous_ratio = synonymous_count/synonymous_expected
+    missense_ratio = missense_count/missense_expected
+    lof_ratio = lof_count/lof_expected
     
     values = {
         "synonymous":
